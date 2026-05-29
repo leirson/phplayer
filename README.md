@@ -39,3 +39,6 @@ Caso você acesse o endereço pelo celular, ele identifica automaticamente que o
 Este diretório exclusivo para mobile tem outros recursos como cache, mudança de linguagem, mudança de tema, listagem de artistas, álbuns pesquisa e favoritos.
 
 Espero que você se divirta com esta aplicação, dúvidas e sugestões de novos recursos ou melhorias, leirson@gmail.com.
+
+- Desktop
+<img src="https://meuappvirtual.com/uploads/produtos/img_6a174bfd44acc4.70006303.png">
