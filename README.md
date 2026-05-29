@@ -20,13 +20,13 @@ Segue lista de arquivos
 
 Depois de realizar o upload desses arquivos e criar as pastas, edite o arquivo config.php 
 
-define('DB_HOST', 'localhost'); //local de hospedagem
-define('DB_NAME', ''); //nome do banco de dados
-define('DB_USER', ''); //usuario do banco
-define('DB_PASS', ''); //senha do banco de dados
-define('UPLOAD_DIR', __DIR__ . '/uploads/');
-define('IMAGES_DIR', __DIR__ . '/images/');
-define('VIDEOS_DIR', __DIR__ . '/videos/');
+define('DB_HOST', 'localhost'); //local de hospedagem <br>
+define('DB_NAME', ''); //nome do banco de dados <br>
+define('DB_USER', ''); //usuario do banco <br>
+define('DB_PASS', ''); //senha do banco de dados <br>
+define('UPLOAD_DIR', __DIR__ . '/uploads/'); <br>
+define('IMAGES_DIR', __DIR__ . '/images/'); <br>
+define('VIDEOS_DIR', __DIR__ . '/videos/'); <br>
 
 No arquivo database.sql fica o banco de dados padrão, importe para o seu mysql.
 
