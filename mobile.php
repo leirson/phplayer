@@ -182,6 +182,30 @@ if (!file_exists('config.php')) {
         .bottom-sheet-visible {
             transform: translateY(0);
         }
+
+        /* Estilos do Player de Vídeo sem Travamentos (Pseudo-Fullscreen) */
+        #video-modal.pseudo-fullscreen-active {
+            padding: 0 !important;
+            background-color: #000000 !important;
+        }
+        #video-modal.pseudo-fullscreen-active #video-modal-container {
+            max-width: 100% !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            border-radius: 0 !important;
+            border: none !important;
+        }
+        #video-modal.pseudo-fullscreen-active #video-viewport-container {
+            aspect-ratio: auto !important;
+            flex-grow: 1 !important;
+            height: calc(100vh - 53px) !important;
+        }
+        video::-webkit-media-controls-fullscreen-button {
+            display: none !important;
+        }
+        video::-picture-in-picture-button {
+            display: none !important;
+        }
     </style>
 </head>
 <body class="h-screen w-full flex flex-col justify-between overflow-hidden select-none safe-pb">
@@ -275,7 +299,7 @@ if (!file_exists('config.php')) {
         </button>
 
         <!-- Tab Artistas -->
-        <button id="navbtn-artistas" onclick="switchTab('artistas')" class="flex flex-col items-center justify-center p-1.5 px-3 text-slate-500 hover:text-white cursor-pointer">
+        <button id="navbtn-artistas" onclick="switchTab('artistas')" class="flex flex-col items-center justify-center p-1.5 px-3 text-slate-500 hover:text-white cursor-pointer select-none">
             <i data-lucide="users" class="w-4 h-4"></i>
             <span class="text-[9px] font-bold mt-1" data-i18n="m-nav-artists">Artistas</span>
         </button>
@@ -301,14 +325,31 @@ if (!file_exists('config.php')) {
         <section id="pane-inicio" class="pane space-y-6">
 
             <!-- Library Summary stats -->
-            <div class="grid grid-cols-2 gap-3">
-                <div class="bg-[#0b1322]/40 border border-slate-900/80 p-3 rounded-2xl text-center">
-                    <span id="stat-tracks-count" class="block font-black text-[#ffffff] text-lg font-mono">0</span>
-                    <span class="text-[9px] text-slate-500 uppercase tracking-widest font-bold" data-i18n="m-stat-tracks">Músicas</span>
+            <div id="mobile-home-stats" class="grid grid-cols-3 gap-2">
+                <div class="bg-[#0b1322]/40 border border-slate-900/80 p-2.5 rounded-2xl text-center">
+                    <span id="stat-tracks-count" class="block font-black text-[#ffffff] text-sm font-mono">0</span>
+                    <span class="text-[8px] text-slate-500 uppercase tracking-widest font-bold">Músicas</span>
                 </div>
-                <div class="bg-[#0b1322]/40 border border-slate-900/80 p-3 rounded-2xl text-center">
-                    <span id="stat-albums-count" class="block font-black text-[#ffffff] text-lg font-mono">0</span>
-                    <span class="text-[9px] text-slate-500 uppercase tracking-widest font-bold" data-i18n="m-stat-albums">Álbuns</span>
+                <div class="bg-[#0b1322]/40 border border-slate-900/80 p-2.5 rounded-2xl text-center">
+                    <span id="stat-albums-count" class="block font-black text-[#ffffff] text-sm font-mono">0</span>
+                    <span class="text-[8px] text-slate-500 uppercase tracking-widest font-bold">Álbuns</span>
+                </div>
+                <div class="bg-[#0b1322]/40 border border-slate-900/80 p-2.5 rounded-2xl text-center">
+                    <span id="stat-artists-count" class="block font-black text-[#ffffff] text-sm font-mono">0</span>
+                    <span class="text-[8px] text-slate-500 uppercase tracking-widest font-bold">Artistas</span>
+                </div>
+            </div>
+
+            <!-- Recommendations container (10 random albums) -->
+            <div id="mobile-random-albums-section" class="space-y-3 pb-4">
+                <div class="flex items-center justify-between border-b border-slate-900 pb-1.5 select-none">
+                    <div>
+                        <h4 class="text-[10px] font-black uppercase text-sky-400 tracking-wider">Recomendações</h4>
+                        <p class="text-[8px] text-slate-500 uppercase tracking-wider mt-0.5">10 Álbuns Aleatórios</p>
+                    </div>
+                </div>
+                <div id="mobile-random-albums-grid" class="grid grid-cols-2 gap-3">
+                    <!-- Updated dynamically every 10 seconds -->
                 </div>
             </div>
 
@@ -331,17 +372,8 @@ if (!file_exists('config.php')) {
                 </div>
             </div>
 
-            <!-- Recent tracks list -->
-            <div class="space-y-3">
-                <div class="flex items-center justify-between border-b border-slate-900 pb-1.5">
-                    <h4 class="text-[10px] font-black uppercase text-slate-400 tracking-wider" data-i18n="m-sec-recent">Adicionadas Recentemente</h4>
-                    <span class="text-[9px] text-sky-400 font-bold font-mono" data-i18n="m-sec-view-all">Ver Todas</span>
-                </div>
-                <div id="recent-tracks-container" class="divide-y divide-slate-900/30">
-                    <!-- Loaded dynamically via js -->
-                    <div class="py-4 text-center text-xs text-slate-600" data-i18n="m-loading">Carregando catálogo de áudio...</div>
-                </div>
-            </div>
+            <!-- Hidden Recent tracks container to prevent JS errors -->
+            <div id="recent-tracks-container" class="hidden"></div>
         </section>
 
         <!-- SECTION 2: ÁLBUNS (BENTO ALBUM GRID) -->
@@ -417,11 +449,25 @@ if (!file_exists('config.php')) {
                 </div>
             </div>
 
+            <!-- Dynamic Search Bar for Artists -->
+            <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                </span>
+                <input type="text" id="artists-search-input" oninput="performArtistsSearch()" placeholder="Buscar artista..." class="w-full bg-slate-950 border border-slate-900 rounded-2xl py-3 pl-11 pr-10 text-xs text-white placeholder-slate-600 focus:border-sky-500 outline-none transition">
+                <button onclick="clearArtistsSearch()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-white">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
             <!-- Bento Artists List -->
             <div id="artists-grid-container" class="grid grid-cols-2 gap-3 pb-6">
                 <!-- Loaded dynamically via JS -->
             </div>
         </section>
+
+        <!-- Hidden Videos container to prevent JS errors -->
+        <div id="mobile-videos-container" class="hidden"></div>
 
     </main>
 
@@ -481,6 +527,16 @@ if (!file_exists('config.php')) {
                 </div>
                 <button onclick="closeArtistSheet()" class="p-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl text-xs cursor-pointer">
                     <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Artist Quick Actions -->
+            <div class="flex gap-2 px-6 py-2 border-b border-slate-900/40 shrink-0 bg-slate-950/10 select-none">
+                <button id="artist-btn-play" class="flex-grow flex-1 py-1.5 px-3 bg-sky-500 hover:bg-sky-600 font-bold text-white rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition select-none h-9">
+                    <i data-lucide="play" class="w-3.5 h-3.5 fill-current text-white"></i> Play
+                </button>
+                <button id="artist-btn-random" class="flex-grow flex-1 py-1.5 px-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-bold rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition select-none h-9">
+                    <i data-lucide="shuffle" class="w-3.5 h-3.5 text-sky-400"></i> Aleatório
                 </button>
             </div>
 
@@ -775,15 +831,68 @@ if (!file_exists('config.php')) {
         </div>
     </div>
 
+    <!-- VIDEO PLAYER MODAL FOR MOBILE -->
+    <div id="video-modal" class="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4 hidden">
+        <div id="video-modal-container" class="relative w-full max-w-4xl bg-slate-950 border border-slate-900 rounded-3xl overflow-hidden shadow-2xl flex flex-col font-sans">
+            <!-- Modal Title bar -->
+            <div class="flex items-center justify-between p-4 border-b border-slate-900 bg-[#0d131f]/15">
+                <div class="flex items-center gap-2 max-w-[65vw]">
+                    <i data-lucide="film" class="w-4 h-4 text-sky-450 shrink-0"></i>
+                    <span id="video-modal-title" class="text-xs font-bold text-white truncate">Video</span>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button id="video-maximize-btn" onclick="toggleVideoMaximize()" class="p-1 text-slate-500 hover:text-white hover:bg-slate-900 rounded-lg transition" title="Tela Cheia">
+                        <i data-lucide="maximize" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="closeVideoModal()" class="p-1 text-slate-500 hover:text-white hover:bg-slate-900 rounded-lg transition">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Video core viewport -->
+            <div id="video-viewport-container" class="aspect-video bg-black flex items-center justify-center relative">
+                <video id="modal-video-player" controls class="w-full h-full object-contain" style="will-change: transform; transform: translate3d(0,0,0);"></video>
+            </div>
+        </div>
+    </div>
+
     <!-- CORE PLAYBACK SYSTEM IMPLEMENTATION -->
     <script>
         // Core Web Player State variables
         const API = 'api.php';
+
+        // Interceptador global do fetch no index.php para propagar o cabeçalho X-Username
+        const origFetch = window.fetch;
+        try {
+            Object.defineProperty(window, 'fetch', {
+                value: async function(...args) {
+                    let [resource, config] = args;
+                    if (typeof resource === 'string' && (resource.includes('api.php') || resource.startsWith('api.php'))) {
+                        config = config || {};
+                        config.headers = config.headers || {};
+                        if (currentUser && currentUser.username) {
+                            config.headers['X-Username'] = currentUser.username;
+                        }
+                    }
+                    return origFetch(resource, config);
+                },
+                writable: true,
+                configurable: true,
+                enumerable: true
+            });
+        } catch (e) {
+            console.error("Erro ao definir interceptor fetch:", e);
+        }
+
         let allTracks = [];
         let allFavorites = [];
         let albumsMap = {};
         let mobileAlbumsPage = 1;
         const mobileAlbumsPageSize = 10;
+        let mobileArtistsPage = 1;
+        const mobileArtistsPageSize = 10;
+        let allVideos = [];
         let activeTab = 'inicio';
         
         // Playlist/Queue states
@@ -830,6 +939,47 @@ if (!file_exists('config.php')) {
             audio.addEventListener('timeupdate', updateAudioProgress);
             audio.addEventListener('durationchange', updateAudioDuration);
             audio.addEventListener('ended', handleTrackEnded);
+
+            // Global Keyboard Shortcuts
+            window.addEventListener('keydown', (e) => {
+                const target = e.target;
+                if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+                    return;
+                }
+                if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    playNext();
+                } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    playPrevious();
+                } else if (e.key === '+' || e.key === '=') {
+                    e.preventDefault();
+                    const volSlider = document.getElementById('volume-slider');
+                    if (audio) {
+                        let newVol = Math.min(1, audio.volume + 0.05);
+                        audio.volume = newVol;
+                        if (volSlider) volSlider.value = newVol;
+                    }
+                } else if (e.key === '-' || e.key === '_') {
+                    e.preventDefault();
+                    const volSlider = document.getElementById('volume-slider');
+                    if (audio) {
+                        let newVol = Math.max(0, audio.volume - 0.05);
+                        audio.volume = newVol;
+                        if (volSlider) volSlider.value = newVol;
+                    }
+                } else if (e.key === 'Escape') {
+                    const videoModal = document.getElementById('video-modal');
+                    if (videoModal && !videoModal.classList.contains('hidden')) {
+                        e.preventDefault();
+                        if (videoModal.classList.contains('pseudo-fullscreen-active')) {
+                            window.toggleVideoMaximize();
+                        } else {
+                            window.closeVideoModal();
+                        }
+                    }
+                }
+            });
 
             // Handle standard login submitting
             loginForm.addEventListener('submit', async (e) => {
@@ -955,6 +1105,14 @@ if (!file_exists('config.php')) {
                     albumsMap[albumTitle].tracks.push(track);
                 });
 
+                // Update compilation albums to say "Vários Artistas"
+                Object.values(albumsMap).forEach(alb => {
+                    const uniqueArtList = new Set(alb.tracks.map(t => t.artist).filter(Boolean));
+                    if (uniqueArtList.size > 1) {
+                        alb.artist = "Vários Artistas";
+                    }
+                });
+
                 const totalAlbums = Object.keys(albumsMap).length;
                 document.getElementById('stat-albums-count').textContent = totalAlbums;
 
@@ -997,12 +1155,19 @@ if (!file_exists('config.php')) {
             const queueContainer = document.getElementById('mobile-queue-container');
             if (!queueSection || !queueContainer) return;
 
+            const statsEl = document.getElementById('mobile-home-stats');
+            const recsEl = document.getElementById('mobile-random-albums-section');
+
             if (!activeQueue || activeQueue.length === 0) {
                 queueSection.classList.add('hidden');
+                if (statsEl) statsEl.classList.remove('hidden');
+                if (recsEl) recsEl.classList.remove('hidden');
                 return;
             }
 
             queueSection.classList.remove('hidden');
+            if (statsEl) statsEl.classList.add('hidden');
+            if (recsEl) recsEl.classList.add('hidden');
             
             // Show queue count
             const countEl = document.getElementById('mobile-queue-count');
@@ -1101,43 +1266,84 @@ if (!file_exists('config.php')) {
             lucide.createIcons();
         };
 
-        // Render Início contents (Recent additions)
+        // Render Início contents (Stats & Recommendations)
         function renderInicioCatalog() {
             renderMobileQueue();
-            const container = document.getElementById('recent-tracks-container');
-            if (allTracks.length === 0) {
-                container.innerHTML = '<div class="text-xs text-slate-550 text-center py-6">Nenhuma música cadastrada no servidor.</div>';
+            
+            // Update Stats
+            const statTracks = document.getElementById('stat-tracks-count');
+            const statAlbums = document.getElementById('stat-albums-count');
+            const statArtists = document.getElementById('stat-artists-count');
+
+            if (statTracks) statTracks.textContent = allTracks.length;
+            if (statAlbums) statAlbums.textContent = Object.keys(albumsMap).length;
+
+            if (statArtists) {
+                const uniqueArtists = new Set();
+                allTracks.forEach(t => {
+                    if (t.artist) {
+                        uniqueArtists.add(t.artist);
+                    }
+                });
+                statArtists.textContent = uniqueArtists.size;
+            }
+
+            // Start or refresh our rotating 10 random albums
+            if (typeof startRandomAlbumsRotation === 'function') {
+                startRandomAlbumsRotation();
+            }
+        }
+
+        window.render10RandomAlbums = function() {
+            const grid = document.getElementById('mobile-random-albums-grid');
+            if (!grid) return;
+
+            const albumKeys = Object.keys(albumsMap);
+            if (albumKeys.length === 0) {
+                grid.innerHTML = '<div class="col-span-2 text-center text-xs text-slate-650 py-4">Nenhum álbum encontrado.</div>';
                 return;
             }
 
-            // Expose the last 6 added
-            const sorted = [...allTracks].slice(-6).reverse();
+            // Pick 10 random albums
+            const shuffled = [...albumKeys].sort(() => 0.5 - Math.random());
+            const selected = shuffled.slice(0, 10);
+
             let html = '';
-
-            sorted.forEach(track => {
-                const isFavorite = allFavorites.includes(String(track.id));
-                const highlight = isTrackCurrentlyPlaying(track.id);
-
+            selected.forEach(title => {
+                const alb = albumsMap[title];
                 html += `
-                    <div class="flex items-center justify-between py-2.5 border-b border-slate-900/30 hover:bg-slate-950/20 rounded-xl px-2 transition">
-                        <div class="flex items-center gap-3 flex-grow min-w-0" onclick="playSingleTrackImmediate('${track.id}')">
-                            <img src="${track.cover_url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100'}" class="w-9 h-9 rounded-lg object-cover shrink-0" referrerpolicy="no-referrer">
-                            <div class="truncate pr-2 select-none">
-                                <h5 class="text-xs font-bold leading-tight ${highlight ? 'text-sky-400' : 'text-slate-100'}">${track.title}</h5>
-                                <p class="text-[9px] text-slate-500 truncate mt-0.5">${track.artist || 'Artista Desconhecido'}</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button onclick="toggleFavEvent(event, '${track.id}')" class="p-1 px-2 text-slate-500 hover:text-white">
-                                <i data-lucide="heart" class="w-3.5 h-3.5 ${isFavorite ? 'text-rose-500 fill-current' : ''}"></i>
-                            </button>
+                    <div onclick="openAlbumSheet('${encodeURIComponent(title)}')" class="bg-[#0b1322]/40 border border-slate-900/80 p-2 rounded-2xl flex flex-col gap-2 hover:border-sky-500/20 active:scale-95 transition duration-150 cursor-pointer">
+                        <img src="${alb.coverUrl}" class="w-full aspect-square object-cover rounded-xl border border-slate-800/40" referrerpolicy="no-referrer" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300'">
+                        <div class="truncate px-1 select-none">
+                            <h5 class="text-[10px] font-black leading-tight text-white truncate">${alb.title}</h5>
+                            <p class="text-[8px] text-slate-500 truncate mt-0.5">${alb.artist}</p>
+                            <span class="text-[8px] font-mono text-sky-400 mt-0.5 block">${alb.tracks.length} ${alb.tracks.length === 1 ? 'música' : 'músicas'}</span>
                         </div>
                     </div>
                 `;
             });
+            grid.innerHTML = html;
+        };
 
-            container.innerHTML = html;
-        }
+        window.startRandomAlbumsRotation = function() {
+            if (window.randomAlbumsTimerStarted) {
+                // Pre-render immediately on load/pane switch
+                render10RandomAlbums();
+                return;
+            }
+            window.randomAlbumsTimerStarted = true;
+            
+            // Initial call
+            render10RandomAlbums();
+            
+            // Setup interval (every 10s)
+            setInterval(() => {
+                // Only rotate when queue is empty/hidden
+                if (!activeQueue || activeQueue.length === 0) {
+                    render10RandomAlbums();
+                }
+            }, 10000);
+        };
 
         // Render Bento Grid of Albums
         function renderAlbumsCatalog() {
@@ -1159,6 +1365,20 @@ if (!file_exists('config.php')) {
             const pageAlbums = albumsKeys.slice(startIndex, endIndex);
 
             let html = '';
+            if (totalPages > 1) {
+                html += `
+                    <div class="col-span-2 flex items-center justify-between pb-3 border-b border-slate-900/60 mb-2 select-none">
+                        <button onclick="changeMobileAlbumPage(${mobileAlbumsPage - 1})" ${mobileAlbumsPage === 1 ? 'disabled' : ''} class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none text-[10px] font-bold rounded-lg text-slate-400 hover:text-white transition cursor-pointer flex items-center gap-1 h-8">
+                            <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i> Anterior
+                        </button>
+                        <span class="text-[10px] text-slate-500 font-mono font-bold">Pág. ${mobileAlbumsPage} de ${totalPages}</span>
+                        <button onclick="changeMobileAlbumPage(${mobileAlbumsPage + 1})" ${mobileAlbumsPage === totalPages ? 'disabled' : ''} class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none text-[10px] font-bold rounded-lg text-slate-400 hover:text-white transition cursor-pointer flex items-center gap-1 h-8">
+                            Próxima <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                `;
+            }
+
             pageAlbums.forEach(title => {
                 const item = albumsMap[title];
                 html += `
@@ -1177,20 +1397,6 @@ if (!file_exists('config.php')) {
                 `;
             });
 
-            if (totalPages > 1) {
-                html += `
-                    <div class="col-span-2 flex items-center justify-between pt-4 border-t border-slate-900/60 mt-2 select-none">
-                        <button onclick="changeMobileAlbumPage(${mobileAlbumsPage - 1})" ${mobileAlbumsPage === 1 ? 'disabled' : ''} class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none text-[10px] font-bold rounded-lg text-slate-400 hover:text-white transition cursor-pointer flex items-center gap-1 h-8">
-                            <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i> Anterior
-                        </button>
-                        <span class="text-[10px] text-slate-500 font-mono font-bold">Pág. ${mobileAlbumsPage} de ${totalPages}</span>
-                        <button onclick="changeMobileAlbumPage(${mobileAlbumsPage + 1})" ${mobileAlbumsPage === totalPages ? 'disabled' : ''} class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none text-[10px] font-bold rounded-lg text-slate-400 hover:text-white transition cursor-pointer flex items-center gap-1 h-8">
-                            Próxima <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-                        </button>
-                    </div>
-                `;
-            }
-
             container.innerHTML = html;
         }
 
@@ -1203,6 +1409,15 @@ if (!file_exists('config.php')) {
             lucide.createIcons();
             
             const pane = document.getElementById('pane-albuns');
+            if (pane) pane.scrollTop = 0;
+        };
+
+        window.changeMobileArtistPage = function(newPage) {
+            mobileArtistsPage = newPage;
+            renderArtistsCatalog();
+            lucide.createIcons();
+            
+            const pane = document.getElementById('pane-artistas');
             if (pane) pane.scrollTop = 0;
         };
 
@@ -1381,6 +1596,14 @@ if (!file_exists('config.php')) {
 
             container.innerHTML = html;
 
+            if (album.tracks.length > 15) {
+                container.style.maxHeight = '480px';
+                container.style.overflowY = 'auto';
+            } else {
+                container.style.maxHeight = 'none';
+                container.style.overflowY = 'visible';
+            }
+
             // Set up Play All / Shuffle buttons
             document.getElementById('sheet-play-all').onclick = () => {
                 playFullQueueList(album.tracks, 0);
@@ -1447,6 +1670,9 @@ if (!file_exists('config.php')) {
         // core streaming loader
         async function loadAndPlayTrack() {
             if (activeQueue.length === 0 || activeQueueIdx < 0 || activeQueueIdx >= activeQueue.length) return;
+
+            // Go to home page when starting to play a track
+            switchTab('inicio');
 
             const track = activeQueue[activeQueueIdx];
             
@@ -1737,15 +1963,25 @@ if (!file_exists('config.php')) {
             return `${m}:${s < 10 ? '0' : ''}${s}`;
         }
 
-        // Render Bento Grid of Artists
+        // Render Bento Grid of Artists with Pagination on Top
         window.renderArtistsCatalog = function() {
             const container = document.getElementById('artists-grid-container');
             if (!container) return;
+
+            // Get query if search input exists
+            const queryEl = document.getElementById('artists-search-input');
+            const query = queryEl ? queryEl.value.trim().toLowerCase() : '';
 
             // Group by artist name
             const artistsMapLocal = {};
             allTracks.forEach(track => {
                 const artistName = track.artist || 'Artista Desconhecido';
+
+                // If query is present, filter name or track details
+                if (query && !artistName.toLowerCase().includes(query)) {
+                    return;
+                }
+
                 if (!artistsMapLocal[artistName]) {
                     artistsMapLocal[artistName] = {
                         name: artistName,
@@ -1766,8 +2002,31 @@ if (!file_exists('config.php')) {
                 return;
             }
 
+            const totalPages = Math.ceil(artists.length / mobileArtistsPageSize);
+            if (mobileArtistsPage > totalPages) {
+                mobileArtistsPage = 1;
+            }
+
+            const startIndex = (mobileArtistsPage - 1) * mobileArtistsPageSize;
+            const endIndex = startIndex + mobileArtistsPageSize;
+            const pageArtists = artists.slice(startIndex, endIndex);
+
             let html = '';
-            artists.forEach(artist => {
+            if (totalPages > 1) {
+                html += `
+                    <div class="col-span-2 flex items-center justify-between pb-3 border-b border-slate-900/60 mb-2 select-none">
+                        <button onclick="changeMobileArtistPage(${mobileArtistsPage - 1})" ${mobileArtistsPage === 1 ? 'disabled' : ''} class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none text-[10px] font-bold rounded-lg text-slate-400 hover:text-white transition cursor-pointer flex items-center gap-1 h-8">
+                            <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i> Anterior
+                        </button>
+                        <span class="text-[10px] text-slate-500 font-mono font-bold">Pág. ${mobileArtistsPage} de ${totalPages}</span>
+                        <button onclick="changeMobileArtistPage(${mobileArtistsPage + 1})" ${mobileArtistsPage === totalPages ? 'disabled' : ''} class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none text-[10px] font-bold rounded-lg text-slate-400 hover:text-white transition cursor-pointer flex items-center gap-1 h-8">
+                            Próxima <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                `;
+            }
+
+            pageArtists.forEach(artist => {
                 const photoUrl = artist.photo || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200';
                 
                 html += `
@@ -1786,12 +2045,170 @@ if (!file_exists('config.php')) {
             container.innerHTML = html;
         };
 
+        window.performArtistsSearch = function() {
+            mobileArtistsPage = 1;
+            renderArtistsCatalog();
+            lucide.createIcons();
+        };
+
+        window.clearArtistsSearch = function() {
+            const input = document.getElementById('artists-search-input');
+            if (input) {
+                input.value = '';
+            }
+            performArtistsSearch();
+        };
+
+        // Render Videos in Mobile Tab
+        async function renderMobileVideos() {
+            const container = document.getElementById('mobile-videos-container');
+            if (!container) return;
+
+            container.innerHTML = '<div class="col-span-1 text-center text-xs text-slate-650 py-12"><i class="w-6 h-6 animate-spin mx-auto text-sky-500"></i><p class="mt-2">Carregando vídeos...</p></div>';
+
+            try {
+                const res = await fetch(API + '?route=videos');
+                allVideos = await res.json();
+
+                if (allVideos.length === 0) {
+                    container.innerHTML = '<div class="col-span-1 text-center text-xs text-slate-650 py-12">Nenhum vídeo encontrado no catálogo.</div>';
+                    return;
+                }
+
+                let html = '';
+                allVideos.forEach(vid => {
+                    const coverImg = vid.coverUrl || 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=350';
+                    const sizeMB = (vid.fileSize / (1024 * 1024)).toFixed(1);
+
+                    html += `
+                        <div onclick="playVideo('${vid.id}')" class="bg-[#0e1726]/40 border border-slate-900 p-3 rounded-2xl flex flex-col gap-3 shadow hover:border-sky-500/20 active:scale-95 transition duration-200">
+                            <div class="relative aspect-video w-full rounded-xl overflow-hidden bg-slate-900 border border-slate-800/40">
+                                <img src="${coverImg}" class="w-full h-full object-cover" referrerpolicy="no-referrer">
+                                <div class="absolute inset-0 bg-black/45 flex items-center justify-center">
+                                    <span class="p-2.5 bg-sky-500 text-white rounded-full shadow-lg">
+                                        <i data-lucide="play" class="w-4 h-4 fill-white text-white"></i>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="px-1 select-none">
+                                <h5 class="text-xs font-bold leading-tight text-white pr-1 truncate">${vid.title}</h5>
+                                <div class="flex justify-between items-center mt-1 text-[8px] text-slate-500 font-mono">
+                                    <span>${sizeMB} MB</span>
+                                    <span class="text-sky-455 font-bold">VÍDEO</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+                lucide.createIcons();
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = '<div class="col-span-1 text-center text-xs text-red-500 py-12">Falha ao carregar a galeria de vídeos.</div>';
+            }
+        }
+
+        window.playVideo = function(id) {
+            const vid = allVideos.find(v => v.id === id);
+            if (!vid) return;
+
+            if (audio && !audio.paused) {
+                audio.pause();
+                const miniBtn = document.getElementById('mini-play-btn');
+                const fullBtn = document.getElementById('full-play-btn');
+                if (miniBtn) miniBtn.innerHTML = '<i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>';
+                if (fullBtn) fullBtn.innerHTML = '<i data-lucide="play" class="w-6 h-6 fill-current text-white"></i>';
+                lucide.createIcons();
+            }
+
+            const player = document.getElementById('modal-video-player');
+            if (player) {
+                player.src = 'api.php?route=stream_video&id=' + encodeURIComponent(vid.id);
+                if (vid.coverUrl) {
+                    player.poster = vid.coverUrl;
+                } else {
+                    player.removeAttribute('poster');
+                }
+            }
+
+            const modalTitle = document.getElementById('video-modal-title');
+            if (modalTitle) modalTitle.textContent = vid.title;
+
+            const modal = document.getElementById('video-modal');
+            if (modal) modal.classList.remove('hidden');
+        };
+
+        window.closeVideoModal = function() {
+            const player = document.getElementById('modal-video-player');
+            if (player) {
+                player.pause();
+                player.removeAttribute('src');
+                player.load();
+            }
+            const modal = document.getElementById('video-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('pseudo-fullscreen-active');
+            }
+            const btn = document.getElementById('video-maximize-btn');
+            if (btn) btn.innerHTML = '<i data-lucide="maximize" class="w-4 h-4"></i>';
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
+        };
+
+        window.toggleVideoMaximize = function() {
+            const modal = document.getElementById('video-modal');
+            const btn = document.getElementById('video-maximize-btn');
+            if (!modal) return;
+            if (modal.classList.contains('pseudo-fullscreen-active')) {
+                modal.classList.remove('pseudo-fullscreen-active');
+                if (btn) btn.innerHTML = '<i data-lucide="maximize" class="w-4 h-4"></i>';
+            } else {
+                modal.classList.add('pseudo-fullscreen-active');
+                if (btn) btn.innerHTML = '<i data-lucide="minimize" class="w-4 h-4"></i>';
+            }
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
+        };
+
         window.openArtistSheet = function(encodedArtistName) {
             const artistName = decodeURIComponent(encodedArtistName);
             const sheet = document.getElementById('artist-sheet');
             if (!sheet) return;
 
             document.getElementById('sheet-artist-title').textContent = artistName;
+
+            // Bind quick actions
+            const playBtn = document.getElementById('artist-btn-play');
+            if (playBtn) {
+                playBtn.onclick = () => {
+                    const tracks = allTracks.filter(t => t.artist === artistName);
+                    if (tracks.length === 0) return;
+                    closeArtistSheet();
+                    playFullQueueList(tracks);
+                };
+            }
+
+            const randomBtn = document.getElementById('artist-btn-random');
+            if (randomBtn) {
+                randomBtn.onclick = () => {
+                    const artistAlbums = [];
+                    Object.values(albumsMap).forEach(album => {
+                        if (album.artist === artistName) {
+                            artistAlbums.push(album);
+                        }
+                    });
+                    if (artistAlbums.length === 0) return;
+                    const randomAlb = artistAlbums[Math.floor(Math.random() * artistAlbums.length)];
+                    closeArtistSheet();
+                    setTimeout(() => {
+                        openAlbumSheet(encodeURIComponent(randomAlb.title));
+                    }, 300);
+                };
+            }
 
             // Render all albums of this artist
             const albumsContainer = document.getElementById('sheet-artist-albums-container');
