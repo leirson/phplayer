@@ -116,6 +116,30 @@ if (!file_exists('config.php')) {
         ::-webkit-scrollbar-track { background: #020617; }
         ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+        /* Estilos do Player de Vídeo sem Travamentos (Pseudo-Fullscreen) */
+        #video-modal.pseudo-fullscreen-active {
+            padding: 0 !important;
+            background-color: #000000 !important;
+        }
+        #video-modal.pseudo-fullscreen-active #video-modal-container {
+            max-width: 100% !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            border-radius: 0 !important;
+            border: none !important;
+        }
+        #video-modal.pseudo-fullscreen-active #video-viewport-container {
+            aspect-ratio: auto !important;
+            flex-grow: 1 !important;
+            height: calc(100vh - 53px) !important;
+        }
+        video::-webkit-media-controls-fullscreen-button {
+            display: none !important;
+        }
+        video::-picture-in-picture-button {
+            display: none !important;
+        }
     </style>
 </head>
 <body class="h-screen overflow-hidden flex flex-col antialiased">
@@ -163,6 +187,48 @@ if (!file_exists('config.php')) {
                 <button onclick="window.location.reload()" class="px-5 py-2.5 bg-sky-500 hover:bg-sky-450 rounded-xl text-xs font-black text-white transition inline-flex items-center gap-1.5">
                     <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Recarregar Página
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCAN LOG MODAL -->
+    <div id="scan-log-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md hidden animate-fade-in">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-3xl w-full p-6 shadow-2xl space-y-4 flex flex-col justify-between max-h-[85vh]">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3 shrink-0">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="file-text" class="w-5 h-5 text-sky-400"></i>
+                    <div>
+                        <h2 class="text-sm font-black text-white uppercase tracking-wider">Log de Sincronização</h2>
+                        <p class="text-[10px] text-slate-400">Relatório da última varredura detalhada de diretórios de músicas.</p>
+                    </div>
+                </div>
+                <button onclick="closeScanLogModal()" class="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-1.5 flex-1 flex flex-col min-h-0 overflow-hidden">
+                <div class="flex items-center justify-between pb-1">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans">Histórico de Eventos Encontrados:</span>
+                    <button onclick="refreshMusicScanLog()" class="px-2 py-1 text-[10px] bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 font-bold rounded flex items-center gap-1 transition">
+                        <i data-lucide="rotate-cw" class="w-3 h-3"></i> Atualizar
+                    </button>
+                </div>
+                <div id="scan-log-content" class="text-[11px] font-mono bg-slate-950 p-4 rounded-xl text-slate-300 border border-slate-900 overflow-y-auto flex-1 whitespace-pre-wrap leading-relaxed select-text">
+                    Carregando logs...
+                </div>
+            </div>
+            
+            <div class="flex items-center justify-between pt-1 border-t border-slate-800 shrink-0">
+                <span id="scan-log-time" class="text-[9px] font-mono text-slate-500">Última atualização: -</span>
+                <div class="flex gap-2 font-sans">
+                    <button onclick="clearMusicScanLog()" class="px-3 py-1.5 text-xs text-rose-400 hover:bg-rose-500/10 font-bold rounded-lg border border-rose-500/20 transition cursor-pointer">
+                        Limpar Log
+                    </button>
+                    <button onclick="closeScanLogModal()" class="px-4 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-white font-black rounded-lg transition cursor-pointer">
+                        Fechar
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -243,6 +309,9 @@ if (!file_exists('config.php')) {
                     <button id="tab-btn-favorites" onclick="setTab('favorites')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-favorites">
                         <i data-lucide="heart" class="w-4 h-4 text-rose-500"></i> Favoritos
                     </button>
+                    <button id="tab-btn-playlists" onclick="setTab('playlists')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-playlists">
+                        <i data-lucide="list-music" class="w-4 h-4 text-emerald-450"></i> Playlists
+                    </button>
                     <button id="tab-btn-videos" onclick="setTab('videos')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-videos">
                         <i data-lucide="film" class="w-4 h-4 text-sky-450"></i> Galeria de Vídeos
                     </button>
@@ -258,16 +327,18 @@ if (!file_exists('config.php')) {
                         <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500" data-i18n="sidebar-artists">Artistas</span>
                         <button id="clear-artist-filter" onclick="filterByArtist('')" class="text-[9px] text-sky-400 font-bold hidden cursor-pointer" data-i18n="sidebar-clear-filter">Limpar</button>
                     </div>
-                    <div id="artist-sidebar-list" class="space-y-0.5 max-h-[650px] overflow-y-auto pr-1"></div>
+                    <div id="artist-sidebar-list" class="space-y-0.5 max-h-[300px] overflow-y-auto pr-1"></div>
                 </div>
 
-                <!-- PLAYLISTS -->
-                <div class="space-y-2">
-                    <div class="flex items-center justify-between pl-2">
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500" data-i18n="sidebar-playlists">Playlists</span>
-                        <button onclick="createPlay()" class="text-slate-400 hover:text-sky-400 transition cursor-pointer p-0.5"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
+                <!-- LISTA DE REPRODUÇÃO ATUAL (QUEUE) -->
+                <div id="player-mini-queue-wrapper" class="space-y-2 hidden">
+                    <div class="flex items-center justify-between pl-2 pt-2 border-t border-slate-900/40">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-rose-500 flex items-center gap-1.5">
+                            <i data-lucide="play-circle" class="w-3.5 h-3.5"></i> Lista de Reprodução
+                        </span>
+                        <button onclick="clearCurrentQueue()" class="text-[9px] text-slate-500 hover:text-red-400 font-bold transition cursor-pointer">Limpar</button>
                     </div>
-                    <div id="playlist-sidebar-list" class="space-y-0.5 max-h-36 overflow-y-auto pr-1"></div>
+                    <div id="player-mini-queue-list" class="space-y-0.5 max-h-48 overflow-y-auto pr-1 custom-scroll text-left"></div>
                 </div>
             </div>
 
@@ -341,7 +412,18 @@ if (!file_exists('config.php')) {
                         <p id="table-view-count" class="text-xs text-slate-400 mt-0.5">0 músicas encontradas</p>
                         <div id="favorites-actions-block" class="mt-2.5 flex items-center gap-2 hidden"></div>
                     </div>
-                    <input id="search-input" oninput="renderTracksTable()" type="text" data-i18n-placeholder="search-placeholder" placeholder="Pesquisar título, artista, álbum..." class="w-72 bg-slate-900 border border-slate-800 focus:border-sky-500 rounded-xl px-4 py-2.5 text-xs select-all text-white outline-none font-semibold">
+                    <div class="flex items-center gap-3 shrink-0">
+                        <!-- Artist Select Filter Dropdown -->
+                        <div class="relative w-48">
+                            <select id="artist-filter-dropdown" onchange="filterTracksByArtistDropdown(this.value)" class="w-full bg-[#0d121f] border border-slate-800 text-slate-200 text-xs rounded-xl pl-3.5 pr-8 py-2.5 focus:border-sky-500 outline-none font-semibold select-all cursor-pointer appearance-none">
+                                <option value="">Todos Artistas</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                                <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+                        <input id="search-input" oninput="renderTracksTable()" type="text" data-i18n-placeholder="search-placeholder" placeholder="Pesquisar título, artista, álbum..." class="w-64 bg-slate-900 border border-slate-800 focus:border-sky-500 rounded-xl px-4 py-2.5 text-xs select-all text-white outline-none font-semibold">
+                    </div>
                 </div>
 
                 <div id="tracks-table-wrapper" class="bg-slate-950/60 border border-slate-900 rounded-2xl overflow-hidden min-h-[300px]">
@@ -386,6 +468,9 @@ if (!file_exists('config.php')) {
                     </button>
                     <button onclick="setConfigSubTab('password')" id="subtab-btn-password" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none" data-i18n="subnav-password">
                         Alterar Senha
+                    </button>
+                    <button onclick="setConfigSubTab('files')" id="subtab-btn-files" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none hidden admin-only" data-i18n="subnav-files">
+                        Arquivos
                     </button>
                 </div>
  
@@ -496,15 +581,20 @@ if (!file_exists('config.php')) {
                 <div id="subtab-pane-media" class="space-y-6 hidden admin-only">
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <!-- Music scan -->
-                        <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left">
-                            <div class="space-y-1.5">
+                        <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-4 text-left">
+                            <div class="space-y-1.5 font-sans">
                                 <span class="bg-sky-500/10 text-sky-400 border border-sky-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Áudio Library</span>
                                 <h3 class="text-sm font-bold text-white">Sincronizar Pasta /music</h3>
                                 <p class="text-[11px] text-slate-400 leading-relaxed">Varre recursivamente o diretório no servidor para incluir novos áudios no seu catálogo.</p>
                             </div>
-                            <button onclick="runMusicDirectoryScan(this)" class="w-full py-2.5 bg-sky-500 hover:bg-sky-600 font-extrabold text-white rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
-                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Sincronizar Músicas
-                            </button>
+                            <div class="space-y-2 font-sans w-full">
+                                <button onclick="runMusicDirectoryScan(this)" class="w-full py-2.5 bg-sky-500 hover:bg-sky-600 font-extrabold text-white rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Sincronizar Músicas
+                                </button>
+                                <button onclick="openMusicScanLog()" class="w-full py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 font-bold text-slate-350 hover:text-white rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                                    <i data-lucide="file-text" class="w-3.5 h-3.5"></i> Ver Log de Sincronização
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Video scan -->
@@ -521,7 +611,7 @@ if (!file_exists('config.php')) {
 
                         <!-- Last.fm Sync Card -->
                         <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left">
-                            <div class="space-y-1.5">
+                            <div class="space-y-1.5 font-sans">
                                 <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Metadados Last.fm</span>
                                 <h3 class="text-sm font-bold text-white">Sincronizar com Last.fm</h3>
                                 <p class="text-[11px] text-slate-400 leading-relaxed">
@@ -530,6 +620,34 @@ if (!file_exists('config.php')) {
                             </div>
                             <button onclick="runLastfmSync(this)" class="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 font-extrabold text-white rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
                                 <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Sincronizar Capas e Banners
+                            </button>
+                        </div>
+
+                        <!-- Deezer Sync Card -->
+                        <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left font-sans">
+                            <div class="space-y-1.5">
+                                <span class="bg-sky-500/10 text-sky-400 border border-sky-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Deezer API</span>
+                                <h3 class="text-sm font-bold text-white">Sincronizar com Deezer</h3>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">
+                                    Busca e atualiza capas automaticamente em alta resolução de álbuns que estão sem capa ou têm capas genéricas no banco de dados global do Deezer. Não necessita de chave de API.
+                                </p>
+                            </div>
+                            <button onclick="runDeezerSync(this)" class="w-full py-2.5 bg-sky-500 hover:bg-sky-600 font-extrabold text-white rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                                <i data-lucide="music" class="w-3.5 h-3.5"></i> Sincronizar pelo Deezer
+                            </button>
+                        </div>
+
+                        <!-- Google Images Sync Card -->
+                        <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left font-sans">
+                            <div class="space-y-1.5">
+                                <span class="bg-blue-500/10 text-blue-400 border border-blue-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Google Images</span>
+                                <h3 class="text-sm font-bold text-white">Sincronizar com Google</h3>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">
+                                    Busca e atualiza capas de álbuns pendentes de forma inteligente diretamente no Google Images por meio de técnicas avançadas de indexação. Ideal para álbuns raros ou nacionais.
+                                </p>
+                            </div>
+                            <button onclick="runGoogleSync(this)" class="w-full py-2.5 bg-blue-500 hover:bg-blue-600 font-extrabold text-white rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                                <i data-lucide="image" class="w-3.5 h-3.5"></i> Sincronizar pelo Google Images
                             </button>
                         </div>
 
@@ -573,6 +691,59 @@ if (!file_exists('config.php')) {
                         </div>
                     </div>
 
+                    <!-- DLNA Server Settings Card -->
+                    <div class="bg-slate-900/10 border border-slate-900 rounded-2xl p-6 space-y-4 text-left mt-6 animate-fade-in font-sans">
+                        <div>
+                            <h3 class="text-sm font-bold text-white flex items-center gap-1.5 align-middle">
+                                <i data-lucide="cast" class="w-4 h-4 text-sky-400"></i> Servidor DLNA (UPnP MediaServer)
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                                Ative o suporte a DLNA no seu servidor PHPlayer para parear e reproduzir músicas e vídeos diretamente em Smart TVs, consoles de videogame ou receptores de áudio compatíveis na sua rede doméstica.
+                            </p>
+                        </div>
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-950/20 border border-slate-900 p-4 rounded-xl">
+                            <div class="flex items-center gap-3">
+                                <label class="relative inline-flex items-center cursor-pointer select-none">
+                                    <input id="dlna-enabled-toggle" type="checkbox" onchange="toggleDlnaSetting(this)" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-slate-900 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500 peer-checked:after:bg-white border border-slate-800"></div>
+                                    <span class="ml-3 text-xs font-bold text-slate-300 uppercase tracking-wider">Habilitar DLNA</span>
+                                </label>
+                            </div>
+                            <!-- DLNA active status dynamic micro indicators -->
+                            <div id="dlna-status-indicator" class="flex items-center gap-1.5 text-[11px] font-mono text-slate-500 bg-slate-950/45 px-3 py-1.5 rounded-lg border border-slate-900">
+                                <span class="w-2 h-2 rounded-full bg-slate-600 block"></span>
+                                OFFLINE
+                            </div>
+                        </div>
+                        <!-- Paired renderers view, loaded when enabled -->
+                        <div id="dlna-devices-expanded" class="space-y-2.5 hidden">
+                            <span class="text-[10px] uppercase tracking-wider font-extrabold text-indigo-400 block">Dispositivos de Mídia Pareados (UPnP-AV Renderer) IP:3000:</span>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div class="bg-indigo-950/15 border border-indigo-500/15 rounded-xl p-3 flex flex-col justify-between hover:border-indigo-500/25 transition animate-fade-in">
+                                    <div class="flex items-center gap-2">
+                                        <i data-lucide="tv" class="w-4 h-4 text-emerald-400 animate-pulse"></i>
+                                        <span class="text-xs font-bold text-white truncate">Sala de Estar TV</span>
+                                    </div>
+                                    <span class="text-[9px] font-mono text-slate-500 mt-2 block uppercase font-bold">LG webOS TV (Ativo)</span>
+                                </div>
+                                <div class="bg-indigo-950/15 border border-indigo-500/15 rounded-xl p-3 flex flex-col justify-between hover:border-indigo-500/25 transition animate-fade-in">
+                                    <div class="flex items-center gap-2">
+                                        <i data-lucide="tv" class="w-4 h-4 text-emerald-400 animate-pulse"></i>
+                                        <span class="text-xs font-bold text-white truncate">Quarto Principal TV</span>
+                                    </div>
+                                    <span class="text-[9px] font-mono text-slate-500 mt-2 block uppercase font-bold">Samsung QLED (Ativo)</span>
+                                </div>
+                                <div class="bg-indigo-950/15 border border-indigo-500/15 rounded-xl p-3 flex flex-col justify-between hover:border-indigo-500/25 transition animate-fade-in">
+                                    <div class="flex items-center gap-2">
+                                        <i data-lucide="gamepad-2" class="w-4 h-4 text-emerald-400 animate-pulse font-bold"></i>
+                                        <span class="text-xs font-bold text-white truncate font-bold">Xbox Series X</span>
+                                    </div>
+                                    <span class="text-[9px] font-mono text-slate-500 mt-2 block uppercase font-bold">UPnP AV Player (Ativo)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Upload Form -->
                     <div class="bg-slate-950/50 border border-slate-900 p-6 rounded-2xl space-y-4 text-left">
                         <div class="border-b border-slate-900 pb-3">
@@ -610,6 +781,8 @@ if (!file_exists('config.php')) {
                             <button type="submit" id="uploader-submit-btn" class="w-full py-2.5 bg-gradient-to-r from-sky-500 to-indigo-600 text-white text-xs font-black rounded-xl">Iniciar Upload</button>
                         </form>
                     </div>
+
+
                 </div>
 
                 <!-- SUBTAB 3: USER MANAGEMENT (Admin Only) -->
@@ -660,6 +833,70 @@ if (!file_exists('config.php')) {
                         </form>
                     </div>
                 </div>
+
+                <!-- SUBTAB 5: FILE MANAGER (Admin Only) -->
+                <div id="subtab-pane-files" class="space-y-6 hidden admin-only">
+                    <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div class="space-y-1">
+                            <h3 class="text-xs font-black uppercase text-white flex items-center gap-1.5">
+                                <i data-lucide="folder-open" class="w-4 h-4 text-sky-450"></i> Gerenciador de Arquivos do Servidor
+                            </h3>
+                            <p class="text-[11px] text-slate-400 leading-normal">
+                                Navegue pelas pastas do player, crie diretórios, exclua e envie arquivos de música (<span class="font-mono text-sky-400">.mp3</span>) ou vídeo (<span class="font-mono text-sky-400">.mp4</span>) diretamente sob o servidor.
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="file-manager-btn-new-folder" onclick="openNewFolderModal()" class="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition select-none cursor-pointer">
+                                <i data-lucide="folder-plus" class="w-4 h-4 text-emerald-400"></i> Nova Pasta
+                            </button>
+                            <button id="file-manager-btn-upload" onclick="document.getElementById('file-manager-upload-input').click()" class="px-4 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition select-none cursor-pointer shadow-lg shadow-sky-500/10">
+                                <i data-lucide="upload" class="w-4 h-4"></i> Enviar Arquivos
+                            </button>
+                            <input type="file" id="file-manager-upload-input" class="hidden" multiple onchange="handleFileManagerUpload(this.files)">
+                        </div>
+                    </div>
+
+                    <!-- Breadcrumbs & Info -->
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-950/20 border border-slate-900/60 p-3 rounded-xl">
+                        <div id="file-manager-breadcrumbs" class="flex items-center gap-1.5 text-xs text-slate-450 font-medium overflow-x-auto py-1"></div>
+                        <div class="text-[10px] font-mono text-slate-500 text-right" id="file-manager-info"></div>
+                    </div>
+
+                    <!-- Drag & Drop Upload Zone -->
+                    <div id="file-manager-dragzone" class="relative border-2 border-dashed border-slate-900 hover:border-sky-500/45 bg-slate-950/15 rounded-2xl min-h-[300px] transition duration-200" ondragover="handleFileDragOver(event)" ondragleave="handleFileDragLeave(event)" ondrop="handleFileDrop(event)">
+                        <!-- Upload Progress Panel -->
+                        <div id="file-manager-upload-progress" class="hidden p-4 border-b border-slate-900 bg-slate-950/60 rounded-t-2xl space-y-2">
+                            <div class="flex items-center justify-between text-[11px]">
+                                <span class="text-slate-300 font-bold" id="upload-progress-text">Enviando arquivos...</span>
+                                <span class="font-mono text-sky-400" id="upload-progress-percent">0%</span>
+                            </div>
+                            <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
+                                <div id="upload-progress-bar" class="bg-gradient-to-r from-sky-400 to-indigo-500 h-full w-0 transition-all duration-150"></div>
+                            </div>
+                        </div>
+
+                        <!-- Table -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-slate-900 text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                                        <th class="p-4 pl-5">Nome</th>
+                                        <th class="p-4 hidden sm:table-cell">Tamanho</th>
+                                        <th class="p-4 hidden md:table-cell">Modificado</th>
+                                        <th class="p-4 text-right pr-5">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="file-manager-table-body" class="divide-y divide-slate-900/40 text-xs text-slate-350"></tbody>
+                            </table>
+                        </div>
+
+                        <!-- Drag overlay hint -->
+                        <div id="file-manager-drag-overlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center gap-3 pointer-events-none opacity-0 transition duration-200">
+                            <i data-lucide="cloud-upload" class="w-12 h-12 text-sky-400 animate-bounce"></i>
+                            <p class="text-xs font-bold text-white">Solte os arquivos para enviá-los aqui</p>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <!-- VIEW: VIDEO GALLERY -->
@@ -692,6 +929,30 @@ if (!file_exists('config.php')) {
 
                 <div id="video-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
             </section>
+
+            <!-- VIEW: PLAYLISTS -->
+            <section id="pane-playlists" class="space-y-6 flex-1 hidden">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-900 pb-5">
+                    <div>
+                        <h2 class="text-xl font-black text-white flex items-center gap-2">
+                            <i data-lucide="list-music" class="text-emerald-400 w-5 h-5"></i> Minhas Playlists
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">
+                            Gerencie e ouça suas seleções musicais personalizadas
+                        </p>
+                    </div>
+
+                    <button onclick="createPlay()" class="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition active:scale-95 flex items-center gap-1.5 shadow-lg shadow-emerald-500/10 cursor-pointer">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Criar Playlist
+                    </button>
+                </div>
+
+                <div id="playlists-empty" class="py-24 text-center text-xs text-slate-500 italic bg-slate-950/20 border border-slate-900 border-dashed rounded-3xl hidden">
+                    Nenhuma playlist criada ainda. Clique no botão acima para criar sua primeira playlist!
+                </div>
+
+                <div id="playlists-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+            </section>
         </main>
     </div>
 
@@ -723,31 +984,89 @@ if (!file_exists('config.php')) {
         <div class="flex items-center justify-end gap-2.5 w-1/3">
             <button onclick="mute()" id="player-mute" class="text-slate-400 hover:text-white transition cursor-pointer shrink-0"><i data-lucide="volume-2" class="w-4 h-4"></i></button>
             <input id="player-volume" oninput="volume(this.value)" type="range" min="0" max="1" step="0.05" value="0.7" class="w-16 h-1 bg-slate-800 accent-sky-500 rounded-lg cursor-pointer shrink-0">
-            <div id="player-mini-queue-wrapper" class="w-48 bg-slate-900 border border-slate-850 rounded-xl p-1.5 h-[56px] overflow-y-auto hidden shrink-0 self-center custom-scroll select-none text-left">
-                <div id="player-mini-queue-list" class="space-y-1"></div>
-            </div>
         </div>
     </footer>
 
     <audio id="real-audio" class="hidden" preload="auto"></audio>
 
     <!-- VIDEO PLAYER MODAL -->
-    <div id="video-modal" class="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4 backdrop-blur-sm hidden">
-        <div class="relative w-full max-w-4xl bg-slate-950 border border-slate-900 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
+    <div id="video-modal" class="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4 hidden">
+        <div id="video-modal-container" class="relative w-full max-w-4xl bg-slate-950 border border-slate-900 rounded-3xl overflow-hidden shadow-2xl flex flex-col font-sans">
             <!-- Modal Title bar -->
             <div class="flex items-center justify-between p-4 border-b border-slate-900 bg-[#0d131f]/15">
-                <div class="flex items-center gap-2">
-                    <i data-lucide="film" class="w-4 h-4 text-sky-450"></i>
+                <div class="flex items-center gap-2 min-w-0">
+                    <i data-lucide="film" class="w-4 h-4 text-sky-450 shrink-0"></i>
                     <span id="video-modal-title" class="text-xs font-bold text-white max-w-sm sm:max-w-md truncate">Video</span>
                 </div>
-                <button onclick="closeVideoModal()" class="p-1 text-slate-500 hover:text-white hover:bg-slate-900 rounded-lg transition">
+                <div class="flex items-center gap-2 shrink-0">
+                    <button id="video-maximize-btn" onclick="toggleVideoMaximize()" class="p-1 text-slate-500 hover:text-white hover:bg-slate-900 rounded-lg transition" title="Tela Cheia">
+                        <i data-lucide="maximize" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="closeVideoModal()" class="p-1 text-slate-500 hover:text-white hover:bg-slate-900 rounded-lg transition">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Video core viewport -->
+            <div id="video-viewport-container" class="aspect-video bg-black flex items-center justify-center relative">
+                <video id="modal-video-player" controls class="w-full h-full object-contain" style="will-change: transform; transform: translate3d(0,0,0);"></video>
+            </div>
+        </div>
+    </div>
+
+    <!-- IMAGE SEARCH MODAL -->
+    <div id="image-search-modal" class="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4 backdrop-blur-sm hidden">
+        <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl max-w-xl w-full flex flex-col max-h-[85vh] overflow-hidden shadow-2xl">
+            <!-- Modal Header -->
+            <div class="p-5 border-b border-slate-900 flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-extrabold text-white uppercase tracking-wider">Buscar Logo / Foto da Banda</h3>
+                    <p id="image-search-modal-sub" class="text-[10px] font-semibold text-slate-400 mt-1"></p>
+                </div>
+                <button onclick="closeImageSearchModal()" class="p-1.5 hover:bg-slate-900 text-slate-400 hover:text-white rounded-lg transition">
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
             </div>
 
-            <!-- Video core viewport -->
-            <div class="aspect-video bg-black flex items-center justify-center relative">
-                <video id="modal-video-player" controls class="w-full h-full object-contain"></video>
+            <!-- Modal Search Controls -->
+            <div class="p-5 bg-slate-950/40 border-b border-slate-900 space-y-3.5">
+                <div class="flex gap-2">
+                    <input type="text" id="image-search-query" placeholder="Pesquisar por artista..." class="flex-1 bg-slate-900 border border-slate-800/80 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 font-semibold focus:outline-none focus:border-sky-500 transition" onkeydown="if(event.key === 'Enter') executeImageSearch()">
+                    <button onclick="executeImageSearch()" class="px-5 bg-sky-500 hover:bg-sky-600 font-bold text-xs uppercase tracking-wider text-white rounded-xl transition cursor-pointer flex items-center gap-1.5">
+                        <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                        Buscar
+                    </button>
+                </div>
+
+                <!-- Source Select Tabs -->
+                <div id="image-search-tabs-container" class="flex bg-[#070a12] p-1 rounded-xl border border-slate-900/40">
+                    <input type="hidden" id="image-search-source" value="google">
+                    <button id="src-tab-google" onclick="setImageSearchSource('google')" class="flex-1 text-center py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition bg-slate-900 text-white shadow-sm border border-slate-800/30">
+                        Google
+                    </button>
+                    <button id="src-tab-deezer" onclick="setImageSearchSource('deezer')" class="flex-1 text-center py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-white font-black">
+                        Deezer
+                    </button>
+                    <button id="src-tab-lastfm" onclick="setImageSearchSource('lastfm')" class="flex-1 text-center py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-white font-black">
+                        Last.fm
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="image-search-results-container" class="flex-1 overflow-y-auto p-5 custom-scroll min-h-[220px]">
+                <div class="h-44 flex flex-col items-center justify-center gap-2 text-center text-slate-500">
+                    <i data-lucide="image" class="w-7 h-7 text-slate-700"></i>
+                    <p class="text-xs font-bold text-slate-400">Nenhum resultado de imagem</p>
+                </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="p-4 bg-slate-950/60 border-t border-slate-900 text-center">
+                <span class="text-[9px] font-mono text-slate-600 uppercase tracking-widest">
+                    Imagens carregadas via scraping dinâmico e APIs públicas
+                </span>
             </div>
         </div>
     </div>
@@ -763,6 +1082,30 @@ if (!file_exists('config.php')) {
         }
 
         const API = 'api.php';
+
+        // Interceptador global do fetch no index.php para propagar o cabeçalho X-Username
+        const origFetch = window.fetch;
+        try {
+            Object.defineProperty(window, 'fetch', {
+                value: async function(...args) {
+                    let [resource, config] = args;
+                    if (typeof resource === 'string' && (resource.includes('api.php') || resource.startsWith('api.php'))) {
+                        config = config || {};
+                        config.headers = config.headers || {};
+                        if (currentUser && currentUser.username) {
+                            config.headers['X-Username'] = currentUser.username;
+                        }
+                    }
+                    return origFetch(resource, config);
+                },
+                writable: true,
+                configurable: true,
+                enumerable: true
+            });
+        } catch (e) {
+            console.error("Erro ao definir interceptor fetch:", e);
+        }
+
         let currentUser = null;
         let activeTab = 'dashboard';
         
@@ -859,6 +1202,47 @@ if (!file_exists('config.php')) {
                     }
                 });
             }
+
+            // Global Keyboard Shortcuts
+            window.addEventListener('keydown', (e) => {
+                const target = e.target;
+                if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+                    return;
+                }
+                if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    next();
+                } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    prev();
+                } else if (e.key === '+' || e.key === '=') {
+                    e.preventDefault();
+                    const volSlider = document.getElementById('player-volume');
+                    if (audio) {
+                        let newVol = Math.min(1, audio.volume + 0.05);
+                        audio.volume = newVol;
+                        if (volSlider) volSlider.value = newVol;
+                    }
+                } else if (e.key === '-' || e.key === '_') {
+                    e.preventDefault();
+                    const volSlider = document.getElementById('player-volume');
+                    if (audio) {
+                        let newVol = Math.max(0, audio.volume - 0.05);
+                        audio.volume = newVol;
+                        if (volSlider) volSlider.value = newVol;
+                    }
+                } else if (e.key === 'Escape') {
+                    const videoModal = document.getElementById('video-modal');
+                    if (videoModal && !videoModal.classList.contains('hidden')) {
+                        e.preventDefault();
+                        if (videoModal.classList.contains('pseudo-fullscreen-active')) {
+                            toggleVideoMaximize();
+                        } else {
+                            closeVideoModal();
+                        }
+                    }
+                }
+            });
         };
 
         async function bootPlayer() {
@@ -956,6 +1340,9 @@ if (!file_exists('config.php')) {
                 if (allFavorites && allFavorites.error) {
                     throw new Error(allFavorites.error);
                 }
+                if (activeTab === 'playlists' && window.renderPlaylistsGrid) {
+                    window.renderPlaylistsGrid();
+                }
             } catch (err) {
                 console.error(err);
                 showErrorModal("Erro de conexão com o banco de dados PHP: " + err.message);
@@ -964,10 +1351,41 @@ if (!file_exists('config.php')) {
 
         function selectArtist(art) {
             selectedArtist = art;
+            selectedPlaylistId = '';
+            activePlaylistAlbum = '';
             artistBioText = '';
             artistPhotoUrl = '';
             loadingArtistBio = true;
             isBioExpanded = false;
+
+            activeTab = 'tracks';
+            const paneDash = document.getElementById('pane-dashboard');
+            if (paneDash) paneDash.classList.add('hidden');
+            const paneTracks = document.getElementById('pane-tracks');
+            if (paneTracks) paneTracks.classList.remove('hidden');
+            if (document.getElementById('pane-playlists')) document.getElementById('pane-playlists').classList.add('hidden');
+            if (document.getElementById('pane-config')) document.getElementById('pane-config').classList.add('hidden');
+            const paneVideos = document.getElementById('pane-videos');
+            if (paneVideos) paneVideos.classList.add('hidden');
+
+            // Highlight track tab correctly inside sidebar
+            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'playlists'];
+            btns.forEach(b => {
+                const el = document.getElementById('tab-btn-' + b);
+                if (el) {
+                    if (b === 'tracks') {
+                        el.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-sky-400 bg-sky-500/10 border border-sky-500/20";
+                    } else {
+                        el.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition";
+                    }
+                }
+            });
+
+            const tableTitle = document.getElementById('table-view-title');
+            if (tableTitle) tableTitle.textContent = "Artista: " + art;
+            const clearFilter = document.getElementById('clear-artist-filter');
+            if (clearFilter) clearFilter.classList.remove('hidden');
+
             renderLeftSidebar();
             renderTracksTable();
             
@@ -1032,6 +1450,10 @@ if (!file_exists('config.php')) {
 
         let configActiveSubTab = 'theme';
         function setConfigSubTab(subTabName) {
+            const adminTabs = ['media', 'users', 'files'];
+            if (adminTabs.includes(subTabName) && (!currentUser || currentUser.role !== 'admin')) {
+                subTabName = 'theme';
+            }
             configActiveSubTab = subTabName;
             
             // Hide all subtab panes
@@ -1040,9 +1462,11 @@ if (!file_exists('config.php')) {
             document.getElementById('subtab-pane-users').classList.add('hidden');
             const pwdPane = document.getElementById('subtab-pane-password');
             if (pwdPane) pwdPane.classList.add('hidden');
+            const filesPane = document.getElementById('subtab-pane-files');
+            if (filesPane) filesPane.classList.add('hidden');
             
             // Hide all nav button markers
-            const subBtns = ['theme', 'media', 'users', 'password'];
+            const subBtns = ['theme', 'media', 'users', 'password', 'files'];
             subBtns.forEach(sb => {
                 const el = document.getElementById('subtab-btn-' + sb);
                 if (el) {
@@ -1061,7 +1485,474 @@ if (!file_exists('config.php')) {
             if (subTabName === 'users') {
                 renderUsersTable();
             }
+            if (subTabName === 'media') {
+                if (typeof loadMusicFolders === 'function') {
+                    loadMusicFolders();
+                }
+            }
+            if (subTabName === 'files') {
+                loadFileManager(fileManagerCurrentPath || '');
+            }
             lucide.createIcons();
+        }
+
+        let fileManagerCurrentPath = '';
+        let fileUploadQueue = [];
+        let currentlyUploading = false;
+
+        async function loadFileManager(path = '') {
+            try {
+                const res = await fetch(`api.php?route=files_list&path=${encodeURIComponent(path)}`);
+                const data = await res.json();
+                if (data.success) {
+                    fileManagerCurrentPath = data.current_path;
+                    renderFileManager(data);
+                } else {
+                    alert(data.error || 'Erro ao carregar arquivos');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de rede ao carregar o gerenciador de arquivos.');
+            }
+        }
+
+        function renderFileManager(data) {
+            const tbody = document.getElementById('file-manager-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            // Toggle new folder & upload buttons visibility at virtual root
+            const btnNewFolder = document.getElementById('file-manager-btn-new-folder');
+            const btnUpload = document.getElementById('file-manager-btn-upload');
+            if (btnNewFolder) {
+                if (data.is_root) {
+                    btnNewFolder.classList.add('hidden');
+                } else {
+                    btnNewFolder.classList.remove('hidden');
+                }
+            }
+            if (btnUpload) {
+                if (data.is_root) {
+                    btnUpload.classList.add('hidden');
+                } else {
+                    btnUpload.classList.remove('hidden');
+                }
+            }
+
+            // Breadcrumbs rendering
+            const crumbsEl = document.getElementById('file-manager-breadcrumbs');
+            if (crumbsEl) {
+                crumbsEl.innerHTML = '';
+                
+                const rootBtn = document.createElement('button');
+                rootBtn.className = "hover:text-white font-bold flex items-center gap-1 cursor-pointer transition text-slate-400";
+                rootBtn.innerHTML = '<i data-lucide="hard-drive" class="w-3.5 h-3.5"></i> Raiz';
+                rootBtn.onclick = () => loadFileManager('');
+                crumbsEl.appendChild(rootBtn);
+
+                if (data.current_path) {
+                    const parts = data.current_path.split('/');
+                    let accumulated = '';
+                    parts.forEach((p, index) => {
+                        accumulated = accumulated ? accumulated + '/' + p : p;
+                        
+                        const separator = document.createElement('span');
+                        separator.textContent = ' / ';
+                        separator.className = 'text-slate-600 select-none mx-0.5';
+                        crumbsEl.appendChild(separator);
+                        
+                        const partBtn = document.createElement('button');
+                        partBtn.className = (index === parts.length - 1)
+                            ? "text-sky-400 font-extrabold"
+                            : "hover:text-white cursor-pointer transition text-slate-350";
+                        partBtn.textContent = p;
+                        const targetLoc = accumulated;
+                        partBtn.onclick = () => loadFileManager(targetLoc);
+                        crumbsEl.appendChild(partBtn);
+                    });
+                }
+            }
+
+            // Folder details count
+            const infoEl = document.getElementById('file-manager-info');
+            if (infoEl) {
+                const dirsCount = data.items.filter(i => i.is_dir).length;
+                const filesCount = data.items.filter(i => !i.is_dir).length;
+                infoEl.textContent = `${dirsCount} pastas, ${filesCount} arquivos`;
+            }
+
+            if (!data.items || data.items.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="p-12 text-center text-slate-500">
+                            <div class="flex flex-col items-center justify-center gap-2">
+                                <i data-lucide="folder-open" class="w-8 h-8 text-slate-700"></i>
+                                <span>Esta pasta está vazia de momento.</span>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                    lucide.createIcons();
+                }
+                return;
+            }
+
+            data.items.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-900/30 hover:bg-slate-950/25 transition-all text-slate-300";
+
+                const iconHtml = getFileIconHtml(item.name, item.is_dir);
+                let onclickAttr = '';
+                let cursorClass = '';
+                if (item.is_dir) {
+                    onclickAttr = `onclick="loadFileManager('${item.path.replace(/'/g, "\'")}')"`;
+                    cursorClass = 'cursor-pointer select-none group';
+                }
+
+                const dateStr = new Date(item.mtime * 1000).toLocaleString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const sizeStr = item.is_dir ? '-' : formatBytes(item.size);
+
+                const actButtons = data.is_root ? '' : `
+                    <div class="flex items-center justify-end gap-1">
+                        <button onclick="handleRenameFileManagerItem('${item.path.replace(/'/g, "\'")}', '${item.name.replace(/'/g, "\'")}')" class="p-1.5 text-slate-500 hover:text-sky-400 transition cursor-pointer" title="Renomear">
+                            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button onclick="handleDeleteFileManagerItem('${item.path.replace(/'/g, "\'")}', ${item.is_dir})" class="p-1.5 text-slate-500 hover:text-rose-400 transition cursor-pointer" title="Excluir">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                `;
+                                tr.innerHTML = `
+                    <td class="p-4 pl-5 ${cursorClass}" ${onclickAttr}>
+                        <div class="flex items-center gap-2.5 min-w-0 max-w-sm md:max-w-md">
+                            ${iconHtml}
+                            <span class="truncate font-medium text-slate-205 group-hover:text-sky-400 transition" title="${item.name}">${item.name}</span>
+                        </div>
+                    </td>
+                    <td class="p-4 hidden sm:table-cell text-slate-500 font-mono text-[11px]">${sizeStr}</td>
+                    <td class="p-4 hidden md:table-cell text-slate-500 font-mono text-[11px]">${dateStr}</td>
+                    <td class="p-4 text-right pr-5">${actButtons}</td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+
+            if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                lucide.createIcons();
+            }
+        }
+
+        function getFileIconHtml(filename, isDir) {
+            if (isDir) {
+                return '<i data-lucide="folder" class="w-4 h-4 text-sky-400 shrink-0"></i>';
+            }
+            const ext = filename.split('.').pop().toLowerCase();
+            if (['mp3', 'm4a', 'wav', 'ogg', 'flac'].includes(ext)) {
+                return '<i data-lucide="music-4" class="w-4 h-4 text-emerald-400 shrink-0"></i>';
+            }
+            if (['mp4', 'mkv', 'avi', 'mov', 'webm'].includes(ext)) {
+                return '<i data-lucide="video" class="w-4 h-4 text-purple-400 shrink-0"></i>';
+            }
+            if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext)) {
+                return '<i data-lucide="image" class="w-4 h-4 text-amber-400 shrink-0"></i>';
+            }
+            if (['db', 'sqlite', 'sql'].includes(ext)) {
+                return '<i data-lucide="database" class="w-4 h-4 text-rose-500 shrink-0"></i>';
+            }
+            if (['php', 'ts', 'js', 'html', 'css', 'json'].includes(ext)) {
+                return '<i data-lucide="code" class="w-4 h-4 text-sky-500 shrink-0"></i>';
+            }
+            return '<i data-lucide="file-text" class="w-4 h-4 text-slate-400 shrink-0"></i>';
+        }
+
+        function formatBytes(bytes, decimals = 1) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        function openNewFolderModal() {
+            const name = prompt("Insira o nome da nova pasta:");
+            if (!name) return;
+            createNewFolder(name);
+        }
+
+        async function createNewFolder(name) {
+            try {
+                const formData = new FormData();
+                formData.append('path', fileManagerCurrentPath);
+                formData.append('name', name);
+
+                const res = await fetch('api.php?route=files_create_dir', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    loadFileManager(fileManagerCurrentPath);
+                } else {
+                    alert(data.error || "Erro ao criar pasta");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Erro de rede ao criar pasta.");
+            }
+        }
+
+        function handleRenameFileManagerItem(itemPath, oldName) {
+            const newName = prompt("Renomear arquivo ou pasta para:", oldName);
+            if (!newName || newName === oldName) return;
+
+            const parts = itemPath.split('/');
+            parts[parts.length - 1] = newName;
+            const newPath = parts.join('/');
+
+            renameItem(itemPath, newPath);
+        }
+
+        async function renameItem(oldPath, newPath) {
+            try {
+                const formData = new FormData();
+                formData.append('old_path', oldPath);
+                formData.append('new_path', newPath);
+
+                const res = await fetch('api.php?route=files_rename', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    loadFileManager(fileManagerCurrentPath);
+                } else {
+                    alert(data.error || "Erro ao renomear");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Erro de rede ao renomear.");
+            }
+        }
+
+        async function handleDeleteFileManagerItem(itemPath, isDir) {
+            const msg = isDir
+                ? "Tem certeza que deseja excluir esta pasta e TODO o seu conteúdo de forma definitiva e irreversível?"
+                : "Tem certeza que deseja excluir este arquivo?";
+            if (!confirm(msg)) return;
+
+            try {
+                const formData = new FormData();
+                formData.append('path', itemPath);
+
+                const res = await fetch('api.php?route=files_delete', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    loadFileManager(fileManagerCurrentPath);
+                } else {
+                    alert(data.error || "Erro ao excluir");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Erro de rede ao excluir.");
+            }
+        }
+
+        function handleFileManagerUpload(files) {
+            if (fileManagerCurrentPath === '') {
+                alert('Não é permitido enviar arquivos diretamente na pasta raiz virtual. Entre em /music ou /videos primeiro.');
+                return;
+            }
+            if (!files || files.length === 0) return;
+            for (let i = 0; i < files.length; i++) {
+                fileUploadQueue.push(files[i]);
+            }
+            processNextUpload();
+        }
+
+        async function processNextUpload() {
+            if (currentlyUploading || fileUploadQueue.length === 0) {
+                if (fileUploadQueue.length === 0 && !currentlyUploading) {
+                    setTimeout(() => {
+                        const progressEl = document.getElementById('file-manager-upload-progress');
+                        if (progressEl) progressEl.classList.add('hidden');
+                    }, 1000);
+                }
+                return;
+            }
+
+            currentlyUploading = true;
+            const file = fileUploadQueue.shift();
+
+            const progressEl = document.getElementById('file-manager-upload-progress');
+            if (progressEl) progressEl.classList.remove('hidden');
+
+            const pText = document.getElementById('upload-progress-text');
+            if (pText) pText.textContent = `Enviando: ${file.name} (${formatBytes(file.size)}) ... [Pendentes: ${fileUploadQueue.length}]`;
+
+            try {
+                const formData = new FormData();
+                formData.append('path', fileManagerCurrentPath);
+                formData.append('file', file);
+
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', 'api.php?route=files_upload', true);
+
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        const bar = document.getElementById('upload-progress-bar');
+                        if (bar) bar.style.width = percent + '%';
+                        const pctText = document.getElementById('upload-progress-percent');
+                        if (pctText) pctText.textContent = percent + '%';
+                    }
+                };
+
+                xhr.onload = function() {
+                    currentlyUploading = false;
+                    const bar = document.getElementById('upload-progress-bar');
+                    if (bar) bar.style.width = '0%';
+
+                    if (xhr.status === 200) {
+                        try {
+                            const resObj = JSON.parse(xhr.responseText);
+                            if (!resObj.success) {
+                                alert(`Falha ao enviar ${file.name}: ` + (resObj.error || 'Erro desconhecido'));
+                            }
+                        } catch(e) {
+                            console.error(e);
+                        }
+                    } else {
+                        alert(`Erro no servidor (${xhr.status}) ao enviar ${file.name}`);
+                    }
+
+                    loadFileManager(fileManagerCurrentPath);
+                    processNextUpload();
+                };
+
+                xhr.onerror = function() {
+                    currentlyUploading = false;
+                    alert(`Falha na rede para ${file.name}`);
+                    processNextUpload();
+                };
+
+                xhr.send(formData);
+
+            } catch (err) {
+                currentlyUploading = false;
+                console.error(err);
+                processNextUpload();
+            }
+        }
+
+        function handleFileDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const overlay = document.getElementById('file-manager-drag-overlay');
+            if (overlay) {
+                overlay.style.opacity = '1';
+                overlay.style.pointerEvents = 'auto';
+            }
+        }
+
+        function handleFileDragLeave(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const overlay = document.getElementById('file-manager-drag-overlay');
+            if (overlay) {
+                overlay.style.opacity = '0';
+                overlay.style.pointerEvents = 'none';
+            }
+        }
+
+        function handleFileDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const overlay = document.getElementById('file-manager-drag-overlay');
+            if (overlay) {
+                overlay.style.opacity = '0';
+                overlay.style.pointerEvents = 'none';
+            }
+
+            const files = e.dataTransfer.files;
+            handleFileManagerUpload(files);
+        }
+
+        async function loadMusicFolders() {
+            const tbody = document.getElementById('music-folders-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-slate-500"><i class="animate-spin inline-block w-3 h-3 mr-1" data-lucide="refresh-cw"></i> Carregando pastas...</td></tr>';
+            lucide.createIcons();
+            try {
+                const res = await fetch('api.php?route=music_folders');
+                if (res.ok) {
+                    const folders = await res.json();
+                    if (!folders || folders.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-slate-500">Nenhuma pasta detectada sob o diretório /music/.</td></tr>';
+                        return;
+                    }
+                    tbody.innerHTML = '';
+                    folders.forEach(function(f) {
+                        let sizeStr = '0 B';
+                        const bytes = f.sizeInBytes || 0;
+                        if (bytes > 0) {
+                            const k = 1024;
+                            const sizes = ['B', 'KB', 'MB', 'GB'];
+                            const i = Math.floor(Math.log(bytes) / Math.log(k));
+                            sizeStr = parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                        }
+
+                        tbody.innerHTML += '<tr class="hover:bg-slate-900/20">' +
+                            '<td class="py-3 font-bold text-white flex items-center gap-1.5"><i data-lucide="folder" class="w-4 h-4 text-sky-400"></i> ' + f.name + '</td>' +
+                            '<td class="py-3 text-slate-400 font-mono">' + f.fileCount + ' música(s)</td>' +
+                            '<td class="py-3 text-slate-400 font-mono">' + sizeStr + '</td>' +
+                            '<td class="py-3 text-right">' +
+                                '<button onclick="deleteMusicFolder(' + "'" + encodeURIComponent(f.name) + "'" + ')" class="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 active:scale-95 text-[10px] font-bold rounded-lg transition cursor-pointer">' +
+                                    '<i data-lucide="trash-2" class="w-3 h-3 inline"></i> Excluir' +
+                                '</button>' +
+                            '</td>' +
+                        '</tr>';
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-red-550">Falha ao se conectar com api.php?route=music_folders.</td></tr>';
+                }
+            } catch (err) {
+                console.error(err);
+                tbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-red-550">Erro de rede ao carregar pastas.</td></tr>';
+            }
+            lucide.createIcons();
+        }
+
+        async function deleteMusicFolder(folderName) {
+            const decName = decodeURIComponent(folderName);
+            if (!confirm('Tem certeza absoluta de que deseja excluir a pasta "' + decName + '" no servidor? Isso apagará todos os arquivos contidos nela de forma irreversível.')) {
+                return;
+            }
+            try {
+                const res = await fetch('api.php?route=delete_music_folder&name=' + folderName, { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message || 'Pasta excluída com sucesso!');
+                    await loadData();
+                    await loadMusicFolders();
+                } else {
+                    alert(data.error || 'Erro ao excluir pasta.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro na requisição ao api.php?route=delete_music_folder.');
+            }
         }
 
         window.handleMyPasswordChange = async function(e) {
@@ -1154,6 +2045,7 @@ if (!file_exists('config.php')) {
                 "subnav-sync": "Sincronização e Mídia",
                 "subnav-users": "Editar Usuários",
                 "subnav-password": "Alterar Senha",
+                "subnav-files": "Arquivos",
                 
                 "theme-choose-title": "Escolha sua cor de realce e fundo",
                 "theme-choose-desc": "Selecione abaixo o seu tema de cores. Ele mudará os ícones, botões de reprodução, barras de progresso e a cor de fundo do site.",
@@ -1213,6 +2105,7 @@ if (!file_exists('config.php')) {
                 "subnav-sync": "Sync & Media",
                 "subnav-users": "Edit Users",
                 "subnav-password": "Change Password",
+                "subnav-files": "Files",
                 
                 "theme-choose-title": "Choose your highlight & background",
                 "theme-choose-desc": "Select your color theme below. It will change icons, play buttons, progress bars and background color.",
@@ -1272,6 +2165,7 @@ if (!file_exists('config.php')) {
                 "subnav-sync": "Sincronización y Medios",
                 "subnav-users": "Editar Usuarios",
                 "subnav-password": "Cambiar Contraseña",
+                "subnav-files": "Archivos",
                 
                 "theme-choose-title": "Elija su color de realce y fondo",
                 "theme-choose-desc": "Seleccione abajo su tema de colores. Cambiará los iconos, botones de reproducción, barra de progreso y fondo.",
@@ -1414,6 +2308,9 @@ if (!file_exists('config.php')) {
                 if (res.ok) {
                     alert('Sincronização de músicas concluída com sucesso!');
                     await loadData();
+                    if (typeof loadMusicFolders === 'function') {
+                        await loadMusicFolders();
+                    }
                 } else {
                     alert('Falha na varredura recursiva de músicas.');
                 }
@@ -1426,6 +2323,59 @@ if (!file_exists('config.php')) {
                 lucide.createIcons();
             }
         }
+
+        async function openMusicScanLog() {
+            document.getElementById('scan-log-modal').classList.remove('hidden');
+            await refreshMusicScanLog();
+        }
+        window.openMusicScanLog = openMusicScanLog;
+
+        function closeScanLogModal() {
+            document.getElementById('scan-log-modal').classList.add('hidden');
+        }
+        window.closeScanLogModal = closeScanLogModal;
+
+        async function refreshMusicScanLog() {
+            const contentDiv = document.getElementById('scan-log-content');
+            const timeSpan = document.getElementById('scan-log-time');
+            contentDiv.textContent = "Carregando histórico do log...";
+            try {
+                const res = await fetch('api.php?route=scan_log');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success) {
+                        contentDiv.textContent = data.content;
+                        timeSpan.textContent = data.last_modified ? "Última varredura: " + data.last_modified : "Última varredura: -";
+                        // Scroll to bottom so latest events are visible
+                        contentDiv.scrollTop = contentDiv.scrollHeight;
+                    } else {
+                        contentDiv.textContent = "Erro na resposta do servidor: " + JSON.stringify(data);
+                    }
+                } else {
+                    contentDiv.textContent = "Servidor respondeu com código de status: " + res.status;
+                }
+            } catch (err) {
+                contentDiv.textContent = "Falha de rede ao conectar com a API: " + err.message;
+            }
+        }
+        window.refreshMusicScanLog = refreshMusicScanLog;
+
+        async function clearMusicScanLog() {
+            if (!confirm("Deseja realmente limpar todos os logs de sincronização?")) return;
+            const contentDiv = document.getElementById('scan-log-content');
+            contentDiv.textContent = "Limpando logs...";
+            try {
+                const res = await fetch('api.php?route=scan_log', { method: 'DELETE' });
+                if (res.ok) {
+                    await refreshMusicScanLog();
+                } else {
+                    alert("Falha ao limpar logs no servidor.");
+                }
+            } catch (err) {
+                alert("Erro ao enviar solicitação: " + err.message);
+            }
+        }
+        window.clearMusicScanLog = clearMusicScanLog;
 
         async function runVideoDirectoryScan(btn) {
             const origText = btn.innerHTML;
@@ -1453,26 +2403,149 @@ if (!file_exists('config.php')) {
         async function runLastfmSync(btn) {
             const origText = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Sincronizando...';
+            btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Sincronizando Lote 1...';
             lucide.createIcons();
+            
+            let totalProcessed = 0;
+            let currentBatch = 1;
+            
             try {
-                const res = await fetch('api.php?route=lastfm_sync', { method: 'POST' });
-                const data = await res.json();
-                if (res.ok && (data.success || !data.error)) {
-                    alert(data.message || 'Sincronização com o Last.fm concluída com sucesso!');
-                    await loadData();
-                } else {
-                    alert(data.error || 'Erro ao sincronizar com o Last.fm.');
+                while (true) {
+                    const res = await fetch('api.php?route=lastfm_sync', { method: 'POST' });
+                    const data = await res.json();
+                    
+                    if (!res.ok || data.error) {
+                        alert(data.error || 'Erro ao sincronizar lote com o Last.fm.');
+                        break;
+                    }
+                    
+                    const updatedCount = (data.artists_updated || 0) + (data.albums_updated || 0);
+                    const pendingCount = (data.artists_pending || 0) + (data.albums_pending || 0);
+                    
+                    totalProcessed += updatedCount;
+                    
+                    if (pendingCount === 0 || updatedCount === 0) {
+                        break;
+                    }
+                    
+                    currentBatch++;
+                    btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Sincronizando Lote ' + currentBatch + ' (Faltam ' + pendingCount + ')...';
+                    lucide.createIcons();
+                    
+                    // Delay de 300ms para evitar sobrecarga
+                    await new Promise(resolve => setTimeout(resolve, 300));
                 }
+                
+                alert('Sincronização com Last.fm efetuada com sucesso! Catálogo 100% atualizado.');
+                await loadData();
             } catch (err) {
                 console.error(err);
-                alert('Erro de rede ao sincronizar com o Last.fm.');
+                alert('Erro de rede ao conectar com a API de sincronização.');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origText;
                 lucide.createIcons();
             }
         }
+        window.runLastfmSync = runLastfmSync;
+
+        async function runDeezerSync(btn) {
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Sincronizando Lote 1...';
+            lucide.createIcons();
+            
+            let totalProcessed = 0;
+            let currentBatch = 1;
+            
+            try {
+                while (true) {
+                    const res = await fetch('api.php?route=deezer_sync', { method: 'POST' });
+                    const data = await res.json();
+                    
+                    if (!res.ok || data.error) {
+                        alert(data.error || 'Erro ao sincronizar lote com o Deezer.');
+                        break;
+                    }
+                    
+                    const updatedCount = (data.albums_updated || 0) + (data.artists_updated || 0);
+                    const pendingCount = (data.albums_pending || 0) + (data.artists_pending || 0);
+                    
+                    totalProcessed += updatedCount;
+                    
+                    if (pendingCount === 0 || updatedCount === 0) {
+                        break;
+                    }
+                    
+                    currentBatch++;
+                    btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Sincronizando Lote ' + currentBatch + ' (Faltam ' + pendingCount + ')...';
+                    lucide.createIcons();
+                    
+                    // Delay de 300ms para evitar sobrecarga
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+                
+                alert('Sincronização com Deezer concluída com sucesso! Capas de álbuns e logos de artistas atualizados.');
+                await loadData();
+            } catch (err) {
+                console.error(err);
+                alert('Erro de rede ao conectar com a API de sincronização do Deezer.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+                lucide.createIcons();
+            }
+        }
+        window.runDeezerSync = runDeezerSync;
+
+        async function runGoogleSync(btn) {
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Sincronizando Lote 1...';
+            lucide.createIcons();
+            
+            let totalProcessed = 0;
+            let currentBatch = 1;
+            
+            try {
+                while (true) {
+                    const res = await fetch('api.php?route=google_images_sync', { method: 'POST' });
+                    const data = await res.json();
+                    
+                    if (!res.ok || data.error) {
+                        alert(data.error || 'Erro ao sincronizar lote com o Google Images.');
+                        break;
+                    }
+                    
+                    const updatedCount = (data.albums_updated || 0) + (data.artists_updated || 0);
+                    const pendingCount = (data.albums_pending || 0) + (data.artists_pending || 0);
+                    
+                    totalProcessed += updatedCount;
+                    
+                    if (pendingCount === 0 || updatedCount === 0) {
+                        break;
+                    }
+                    
+                    currentBatch++;
+                    btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Sincronizando Lote ' + currentBatch + ' (Faltam ' + pendingCount + ')...';
+                    lucide.createIcons();
+                    
+                    // Delay de 500ms para respeitar os limites do Google Images
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                alert('Sincronização com Google Images concluída com sucesso! Capas de álbuns e logos de artistas atualizados.');
+                await loadData();
+            } catch (err) {
+                console.error(err);
+                alert('Erro de rede ao conectar com a API de sincronização do Google Images.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+                lucide.createIcons();
+            }
+        }
+        window.runGoogleSync = runGoogleSync;
 
         function setTab(tabName) {
             activeTab = tabName;
@@ -1480,9 +2553,10 @@ if (!file_exists('config.php')) {
             document.getElementById('pane-tracks').classList.add('hidden');
             if (document.getElementById('pane-config')) document.getElementById('pane-config').classList.add('hidden');
             document.getElementById('pane-videos').classList.add('hidden');
+            if (document.getElementById('pane-playlists')) document.getElementById('pane-playlists').classList.add('hidden');
             
             // Clear navigation classes
-            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos'];
+            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'playlists'];
             btns.forEach(b => {
                 const el = document.getElementById('tab-btn-' + b);
                 if (el) {
@@ -1494,6 +2568,8 @@ if (!file_exists('config.php')) {
             if (activeBtn) {
                 if (tabName === 'favorites') {
                     activeBtn.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-[#f43f5e] bg-rose-500/10 border border-rose-500/20";
+                } else if (tabName === 'playlists') {
+                    activeBtn.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20";
                 } else {
                     activeBtn.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-sky-400 bg-sky-500/10 border border-sky-500/20";
                 }
@@ -1502,6 +2578,9 @@ if (!file_exists('config.php')) {
             if (tabName === 'dashboard') {
                 renderDashboard();
                 document.getElementById('pane-dashboard').classList.remove('hidden');
+            } else if (tabName === 'playlists') {
+                renderPlaylistsGrid();
+                document.getElementById('pane-playlists').classList.remove('hidden');
             } else if (tabName === 'tracks') {
                 selectedArtist = '';
                 selectedPlaylistId = '';
@@ -1534,17 +2613,21 @@ if (!file_exists('config.php')) {
         }
 
         function renderDashboard() {
-            document.getElementById('stat-songs').textContent = allTracks.length;
+            const statSongs = document.getElementById('stat-songs');
+            if (statSongs) statSongs.textContent = allTracks.length;
             
             const uniqueAlbs = new Set(allTracks.map(t => t.album));
-            document.getElementById('stat-albums').textContent = uniqueAlbs.size;
+            const statAlbums = document.getElementById('stat-albums');
+            if (statAlbums) statAlbums.textContent = uniqueAlbs.size;
 
             const uniqueArts = new Set(allTracks.map(t => t.artist || ''));
             uniqueArts.delete('Artista Desconhecido');
             uniqueArts.delete('');
-            document.getElementById('stat-artists').textContent = uniqueArts.size;
+            const statArtists = document.getElementById('stat-artists');
+            if (statArtists) statArtists.textContent = uniqueArts.size;
             
-            document.getElementById('stat-favs').textContent = allFavorites.length;
+            const statFavs = document.getElementById('stat-favs');
+            if (statFavs) statFavs.textContent = allFavorites.length;
 
             renderAlbumGrid();
             renderLeftSidebar();
@@ -1554,59 +2637,119 @@ if (!file_exists('config.php')) {
             // Sidebar Artists list
             const arts = Array.from(new Set(allTracks.map(t => t.artist))).filter(Boolean).sort();
             const artEl = document.getElementById('artist-sidebar-list');
-            artEl.innerHTML = '';
-            
-            arts.forEach(art => {
-                const active = selectedArtist === art;
-                const btn = document.createElement('button');
-                btn.className = active 
-                    ? "w-full flex items-center gap-2 px-3 py-1 bg-sky-500/15 text-sky-400 border border-sky-500/10 rounded-lg text-left text-xs truncate"
-                    : "w-full flex items-center gap-2 px-3 py-1 text-slate-400 hover:text-white hover:bg-slate-900 rounded-lg text-left text-xs truncate transition";
-                btn.innerHTML = `<i data-lucide="user" class="w-3.5 h-3.5 shrink-0 text-slate-500"></i> <span class="truncate">${art}</span>`;
-                btn.onclick = () => {
-                    selectedPlaylistId = '';
-                    activePlaylistAlbum = '';
-                    document.getElementById('table-view-title').textContent = "Artista: " + art;
-                    document.getElementById('clear-artist-filter').classList.remove('hidden');
-                    renderLeftSidebar();
-                    activeTab = 'tracks';
-                    document.getElementById('pane-dashboard').classList.add('hidden');
-                    document.getElementById('pane-tracks').classList.remove('hidden');
-                    selectArtist(art);
-                };
-                artEl.appendChild(btn);
-            });
+            if (artEl) {
+                artEl.innerHTML = '';
+                arts.forEach(art => {
+                    const active = selectedArtist === art;
+                    const btn = document.createElement('button');
+                    btn.className = active 
+                        ? "w-full flex items-center gap-2 px-3 py-1 bg-sky-500/15 text-sky-400 border border-sky-500/10 rounded-lg text-left text-xs truncate"
+                        : "w-full flex items-center gap-2 px-3 py-1 text-slate-400 hover:text-white hover:bg-slate-900 rounded-lg text-left text-xs truncate transition";
+                    btn.innerHTML = `<i data-lucide="user" class="w-3.5 h-3.5 shrink-0 text-slate-500"></i> <span class="truncate">${art}</span>`;
+                    btn.onclick = () => {
+                        selectedPlaylistId = '';
+                        activePlaylistAlbum = '';
+                        const titleEl = document.getElementById('table-view-title');
+                        if (titleEl) titleEl.textContent = "Artista: " + art;
+                        const clearFilterEl = document.getElementById('clear-artist-filter');
+                        if (clearFilterEl) clearFilterEl.classList.remove('hidden');
+                        renderLeftSidebar();
+                        activeTab = 'tracks';
+                        const paneDash = document.getElementById('pane-dashboard');
+                        if (paneDash) paneDash.classList.add('hidden');
+                        const paneTracks = document.getElementById('pane-tracks');
+                        if (paneTracks) paneTracks.classList.remove('hidden');
+                        selectArtist(art);
+                    };
+                    artEl.appendChild(btn);
+                });
+            }
 
             // Sidebar Playlists list
             const plEl = document.getElementById('playlist-sidebar-list');
-            plEl.innerHTML = '';
-            allPlaylists.forEach(pl => {
-                const active = selectedPlaylistId == pl.id;
-                const btn = document.createElement('button');
-                btn.className = active
-                    ? "w-full flex items-center justify-between px-3 py-1 bg-indigo-500/15 text-indigo-400 border border-indigo-500/10 rounded-lg text-left text-xs"
-                    : "w-full flex items-center justify-between px-3 py-1 text-slate-400 hover:text-white hover:bg-slate-900 rounded-lg text-left text-xs transition";
-                btn.innerHTML = `<span class="flex items-center gap-2 truncate"><i data-lucide="list-music" class="w-3.5 h-3.5 shrink-0"></i> <span class="truncate">${pl.name}</span></span> <span class="text-[9px] text-slate-500">${pl.trackIds.length}</span>`;
-                btn.onclick = () => {
-                    selectedPlaylistId = pl.id;
-                    selectedArtist = '';
-                    activePlaylistAlbum = '';
-                    document.getElementById('table-view-title').textContent = "Playlist: " + pl.name;
-                    renderLeftSidebar();
-                    renderTracksTable();
-                    activeTab = 'tracks';
-                    document.getElementById('pane-dashboard').classList.add('hidden');
-                    document.getElementById('pane-tracks').classList.remove('hidden');
-                };
-                plEl.appendChild(btn);
-            });
-            lucide.createIcons();
+            if (plEl) {
+                plEl.innerHTML = '';
+                allPlaylists.forEach(pl => {
+                    const active = selectedPlaylistId == pl.id;
+                    const btn = document.createElement('button');
+                    btn.className = active
+                        ? "w-full flex items-center justify-between px-3 py-1 bg-indigo-500/15 text-indigo-400 border border-indigo-500/10 rounded-lg text-left text-xs"
+                        : "w-full flex items-center justify-between px-3 py-1 text-slate-400 hover:text-white hover:bg-slate-900 rounded-lg text-left text-xs transition";
+                    btn.innerHTML = `<span class="flex items-center gap-2 truncate"><i data-lucide="list-music" class="w-3.5 h-3.5 shrink-0"></i> <span class="truncate">${pl.name}</span></span> <span class="text-[9px] text-slate-500">${pl.trackIds.length}</span>`;
+                    btn.onclick = () => {
+                        selectedPlaylistId = pl.id;
+                        selectedArtist = '';
+                        activePlaylistAlbum = '';
+                        const titleEl = document.getElementById('table-view-title');
+                        if (titleEl) titleEl.textContent = "Playlist: " + pl.name;
+                        renderLeftSidebar();
+                        renderTracksTable();
+                        activeTab = 'tracks';
+                        const paneDash = document.getElementById('pane-dashboard');
+                        if (paneDash) paneDash.classList.add('hidden');
+                        const paneTracks = document.getElementById('pane-tracks');
+                        if (paneTracks) paneTracks.classList.remove('hidden');
+                    };
+                    plEl.appendChild(btn);
+                });
+            }
+
+            // Update artist select filter dropdown
+            const artistFilterSelect = document.getElementById('artist-filter-dropdown');
+            if (artistFilterSelect) {
+                artistFilterSelect.innerHTML = '<option value="">Todos Artistas</option>';
+                arts.forEach(art => {
+                    const opt = document.createElement('option');
+                    opt.value = art;
+                    opt.textContent = art + ' (' + allTracks.filter(t => t.artist === art).length + ')';
+                    if (selectedArtist === art) {
+                        opt.selected = true;
+                    }
+                    artistFilterSelect.appendChild(opt);
+                });
+                artistFilterSelect.value = selectedArtist;
+            }
+
+            if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                lucide.createIcons();
+            }
+        }
+
+        function filterTracksByArtistDropdown(val) {
+            if (!val) {
+                selectedArtist = '';
+                const clearFilterEl = document.getElementById('clear-artist-filter');
+                if (clearFilterEl) clearFilterEl.classList.add('hidden');
+                const titleEl = document.getElementById('table-view-title');
+                if (titleEl) titleEl.textContent = "Minha Biblioteca";
+            } else {
+                selectedArtist = val;
+                selectedPlaylistId = '';
+                activePlaylistAlbum = '';
+                const titleEl = document.getElementById('table-view-title');
+                if (titleEl) titleEl.textContent = "Artista: " + val;
+                const clearFilterEl = document.getElementById('clear-artist-filter');
+                if (clearFilterEl) clearFilterEl.classList.remove('hidden');
+            }
+            activeTab = 'tracks';
+            const paneDash = document.getElementById('pane-dashboard');
+            if (paneDash) paneDash.classList.add('hidden');
+            const paneTracks = document.getElementById('pane-tracks');
+            if (paneTracks) paneTracks.classList.remove('hidden');
+            if (document.getElementById('pane-playlists')) document.getElementById('pane-playlists').classList.add('hidden');
+            if (document.getElementById('pane-config')) document.getElementById('pane-config').classList.add('hidden');
+            const paneVideos = document.getElementById('pane-videos');
+            if (paneVideos) paneVideos.classList.add('hidden');
+
+            renderLeftSidebar();
+            renderTracksTable();
         }
 
         function filterByArtist(art) {
             if (!art) {
                 selectedArtist = '';
-                document.getElementById('clear-artist-filter').classList.add('hidden');
+                const clearFilterEl = document.getElementById('clear-artist-filter');
+                if (clearFilterEl) clearFilterEl.classList.add('hidden');
                 setTab('tracks');
             } else {
                 selectArtist(art);
@@ -1686,7 +2829,7 @@ if (!file_exists('config.php')) {
                     <div class="relative rounded-xl overflow-hidden aspect-square bg-slate-900/40 flex items-center justify-center border border-slate-905/60 shadow-inner">
                         <img src="${alb.cover || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300'}" class="w-[70%] h-[70%] rounded-xl object-cover shadow-md border border-slate-800/40 group-hover:scale-105 duration-300 transition" referrerpolicy="no-referrer">
                         <div class="absolute inset-0 bg-black/60 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition duration-300">
-                            <button onclick="playAlbumQueue(event, ${JSON.stringify(alb.tracks).replace(/"/g, '&quot;')})" class="p-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-full shadow-lg cursor-pointer transform hover:scale-105 transition" title="Reproduzir Álbum em Ordem">
+                            <button onclick="playAlbumByName(event, '${alb.name.replace(new RegExp("'", "g"), "\\'")}')" class="p-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-full shadow-lg cursor-pointer transform hover:scale-105 transition" title="Reproduzir Álbum em Ordem">
                                 <i data-lucide="play" class="w-3.5 h-3.5 fill-current text-white"></i>
                             </button>
                             <button onclick="playAlbumQueueShuffled(event, ${JSON.stringify(alb.tracks).replace(/"/g, '&quot;')})" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full shadow-lg border border-slate-800 cursor-pointer transform hover:scale-105 transition" title="Reproduzir em Modo Aleatório">
@@ -1989,10 +3132,10 @@ if (!file_exists('config.php')) {
                                     <!-- Action buttons stack -->
                                     <div class="flex flex-col gap-2 pt-2">
                                         <div class="flex gap-2">
-                                            <button onclick="playAlbumQueue(event, ${JSON.stringify(albumTracks).replace(/"/g, '&quot;')})" class="flex-grow py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer shadow-lg shadow-sky-500/15 whitespace-nowrap">
+                                            <button onclick="playAlbumByName(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="flex-grow py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer shadow-lg shadow-sky-500/15 whitespace-nowrap">
                                                 <i data-lucide="play" class="w-3 h-3 text-white fill-white"></i> Tocar todas
                                             </button>
-                                            <button onclick="playAlbumQueueShuffled(event, ${JSON.stringify(albumTracks).replace(/"/g, '&quot;')})" class="flex-grow py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap">
+                                            <button onclick="playAlbumByNameShuffled(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="flex-grow py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap">
                                                 <i data-lucide="shuffle" class="w-3 h-3"></i> Aleatório
                                             </button>
                                         </div>
@@ -2001,7 +3144,7 @@ if (!file_exists('config.php')) {
                                 
                                 <!-- Right side: Track table list -->
                                 <div class="sm:col-span-2">
-                                    <div class="overflow-x-auto max-h-[2000px] custom-scroll">
+                                    <div class="overflow-x-auto ${albumTracks.length > 15 ? 'max-h-[480px] overflow-y-auto' : 'max-h-[2000px]'} custom-scroll">
                                         <table class="w-full text-left text-xs text-slate-300">
                                             <thead>
                                                 <tr class="border-b border-slate-900/60 text-slate-500 font-mono tracking-wider text-[9px] uppercase">
@@ -2023,7 +3166,7 @@ if (!file_exists('config.php')) {
                                 <td class="py-2 px-3 text-center font-mono text-slate-600 text-xs w-10 ${highlight ? 'text-sky-450 font-black' : ''}">${index + 1}</td>
                                 <td class="py-2 px-3 font-semibold">
                                     <div class="flex items-center gap-2 max-w-full">
-                                        <button class="font-bold text-white hover:text-sky-400 text-left truncate hover:underline cursor-pointer ${highlight ? 'text-sky-450' : ''}" onclick="playImmediateFromAlbum(${JSON.stringify(track).replace(/"/g, '&quot;')}, ${JSON.stringify(albumTracks).replace(/"/g, '&quot;')})">
+                                        <button class="font-bold text-white hover:text-sky-400 text-left truncate hover:underline cursor-pointer ${highlight ? 'text-sky-450' : ''}" onclick="playImmediateFromAlbum('${track.id}')">
                                             ${track.title}
                                         </button>
                                         ${currentUser.role === 'admin' ? `
@@ -2113,7 +3256,7 @@ if (!file_exists('config.php')) {
                             <img src="${bannerPhoto}" referrerpolicy="no-referrer" alt="${selectedArtist}" class="absolute inset-0 w-full h-full object-cover scale-102 filter brightness-[0.35]">
                             <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent"></div>
                             
-                            ${currentUser.role === 'admin' ? '<button onclick="triggerArtistBannerUpload()" class="absolute top-4 right-4 z-20 p-2 px-3 bg-slate-950/80 hover:bg-slate-900 text-slate-300 hover:text-white rounded-xl text-[10px] font-black tracking-wider uppercase border border-slate-800/60 shadow-lg cursor-pointer transition select-none flex items-center gap-1.5 backdrop-blur-sm" title="Alterar banner do artista"><i data-lucide=\"image\" class=\"w-3.5 h-3.5 text-sky-400\"></i> Alterar Banner</button><input type=\"file\" id=\"artist-banner-input\" accept=\"image/*\" class=\"hidden\" onchange=\"uploadArtistBanner(this)\" />' : ''}
+                            ${currentUser.role === 'admin' ? '<div class="absolute top-4 right-4 z-20 flex gap-2"><button onclick="handleOpenArtistImageSearch()" class="p-2 px-3 bg-slate-950/80 hover:bg-slate-900 text-slate-300 hover:text-white rounded-xl text-[10px] font-black tracking-wider uppercase border border-slate-800/60 shadow-lg cursor-pointer transition select-none flex items-center gap-1.5 backdrop-blur-sm" title="Buscar logo do artista on-line"><i data-lucide=\"search\" class=\"w-3.5 h-3.5 text-sky-400\"></i> Buscar Logo On-line</button><button onclick="triggerArtistBannerUpload()" class="p-2 px-3 bg-slate-950/80 hover:bg-slate-900 text-slate-300 hover:text-white rounded-xl text-[10px] font-black tracking-wider uppercase border border-slate-800/60 shadow-lg cursor-pointer transition select-none flex items-center gap-1.5 backdrop-blur-sm" title="Alterar banner do artista"><i data-lucide=\"image\" class=\"w-3.5 h-3.5 text-sky-400\"></i> Alterar Banner</button></div><input type=\"file\" id=\"artist-banner-input\" accept=\"image/*\" class=\"hidden\" onchange=\"uploadArtistBanner(this)\" />' : ''}
 
                             <div class="absolute bottom-0 left-0 p-6 md:p-8 space-y-3 z-10 w-full flex flex-col md:flex-row md:items-end justify-between gap-4">
                                 <div>
@@ -2126,10 +3269,10 @@ if (!file_exists('config.php')) {
                                     </p>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2.5">
-                                    <button onclick="playAlbumQueue(event, ${JSON.stringify(sourceList).replace(/"/g, '&quot;')})" class="px-4.5 py-2.5 bg-sky-500 hover:bg-sky-600 font-bold text-xs uppercase tracking-wider text-white rounded-xl flex items-center gap-2 transition shadow-lg shadow-sky-500/15 cursor-pointer">
+                                    <button onclick="playArtistByName(event, '${selectedArtist.replace(new RegExp("'", "g"), "\\'")}')" class="px-4.5 py-2.5 bg-sky-500 hover:bg-sky-600 font-bold text-xs uppercase tracking-wider text-white rounded-xl flex items-center gap-2 transition shadow-lg shadow-sky-500/15 cursor-pointer">
                                         <i data-lucide="play" class="w-4 h-4 text-white fill-white"></i> Tocar Músicas
                                     </button>
-                                    <button onclick="playAlbumQueueShuffled(event, ${JSON.stringify(sourceList).replace(/"/g, '&quot;')})" class="px-4.5 py-2.5 bg-slate-900 hover:bg-slate-800 font-bold text-xs uppercase tracking-wider text-slate-330 rounded-xl flex items-center gap-2 border border-slate-800 transition cursor-pointer">
+                                    <button onclick="playArtistByNameShuffled(event, '${selectedArtist.replace(new RegExp("'", "g"), "\\'")}')" class="px-4.5 py-2.5 bg-slate-900 hover:bg-slate-800 font-bold text-xs uppercase tracking-wider text-slate-330 rounded-xl flex items-center gap-2 border border-slate-800 transition cursor-pointer">
                                         <i data-lucide="shuffle" class="w-3.5 h-3.5"></i> Aleatório
                                     </button>
                                 </div>
@@ -2179,10 +3322,10 @@ if (!file_exists('config.php')) {
                                     <!-- Action buttons stack -->
                                     <div class="flex flex-col gap-2 pt-2">
                                         <div class="flex gap-2">
-                                            <button onclick="playAlbumQueue(event, ${JSON.stringify(albumTracks).replace(/"/g, '&quot;')})" class="flex-1 py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer shadow-lg shadow-sky-500/15 whitespace-nowrap">
+                                            <button onclick="playAlbumByName(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="flex-1 py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer shadow-lg shadow-sky-500/15 whitespace-nowrap">
                                                 <i data-lucide="play" class="w-3 h-3 text-white fill-white"></i> Tocar
                                             </button>
-                                            <button onclick="playAlbumQueueShuffled(event, ${JSON.stringify(albumTracks).replace(/"/g, '&quot;')})" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap">
+                                            <button onclick="playAlbumByNameShuffled(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap">
                                                 <i data-lucide="shuffle" class="w-3 h-3"></i> Aleatório
                                             </button>
                                         </div>
@@ -2198,7 +3341,7 @@ if (!file_exists('config.php')) {
                                 
                                 <!-- Right side: Track table list -->
                                 <div class="sm:col-span-2">
-                                    <div class="overflow-x-auto max-h-[2000px] custom-scroll">
+                                    <div class="overflow-x-auto ${albumTracks.length > 15 ? 'max-h-[480px] overflow-y-auto' : 'max-h-[2000px]'} custom-scroll">
                                         <table class="w-full text-left text-xs text-slate-300">
                                             <thead>
                                                 <tr class="border-b border-slate-900/60 text-slate-500 font-mono tracking-wider text-[9px] uppercase">
@@ -2220,7 +3363,7 @@ if (!file_exists('config.php')) {
                                 <td class="py-2 px-3 text-center font-mono text-slate-600 text-xs w-10 ${highlight ? 'text-sky-450 font-black' : ''}">${index + 1}</td>
                                 <td class="py-2 px-3 font-semibold">
                                     <div class="flex items-center gap-2 max-w-full">
-                                        <button class="font-bold text-white hover:text-sky-400 text-left truncate hover:underline cursor-pointer ${highlight ? 'text-sky-450' : ''}" onclick="playImmediateFromAlbum(${JSON.stringify(track).replace(/"/g, '&quot;')}, ${JSON.stringify(albumTracks).replace(/"/g, '&quot;')})">
+                                        <button class="font-bold text-white hover:text-sky-400 text-left truncate hover:underline cursor-pointer ${highlight ? 'text-sky-450' : ''}" onclick="playImmediateFromAlbum('${track.id}')">
                                             ${track.title}
                                         </button>
                                         ${currentUser.role === 'admin' ? `
@@ -2363,7 +3506,7 @@ if (!file_exists('config.php')) {
                     <td class="py-2.5 px-4 font-semibold text-white">
                         <div class="flex items-center gap-3">
                             <img src="${track.cover_url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=80'}" class="w-8 h-8 rounded-lg object-cover bg-slate-900 border border-slate-800 shrink-0" referrerpolicy="no-referrer">
-                            <span class="${highlight ? 'text-sky-450 font-bold' : ''} truncate block max-w-[180px] cursor-pointer" onclick="playImmediate(${JSON.stringify(track).replace(/"/g, '&quot;')})">${track.title}</span>
+                            <span class="${highlight ? 'text-sky-450 font-bold' : ''} truncate block max-w-[180px] cursor-pointer" onclick="playImmediate('${track.id}')">${track.title}</span>
                         </div>
                     </td>
                     <td class="py-2.5 px-4 text-slate-400 truncate max-w-[120px]">${track.artist}</td>
@@ -2397,7 +3540,12 @@ if (!file_exists('config.php')) {
             renderTracksTable();
         };
 
-        function playImmediate(track) {
+        function playImmediate(trackOrId) {
+            let track = trackOrId;
+            if (typeof trackOrId === 'string' || typeof trackOrId === 'number') {
+                track = allTracks.find(t => String(t.id) === String(trackOrId));
+            }
+            if (!track) return;
             activeQueue = filteredTracks;
             activeQueueIdx = activeQueue.findIndex(t => String(t.id) === String(track.id));
             if (activeQueueIdx === -1) {
@@ -2407,7 +3555,10 @@ if (!file_exists('config.php')) {
             loadTrack(track);
         }
 
-        function playImmediateFromAlbum(track, queue) {
+        function playImmediateFromAlbum(trackId) {
+            const track = allTracks.find(t => String(t.id) === String(trackId));
+            if (!track) return;
+            const queue = allTracks.filter(t => (t.album || 'Single') === (track.album || 'Single'));
             activeQueue = queue;
             activeQueueIdx = activeQueue.findIndex(t => String(t.id) === String(track.id));
             if (activeQueueIdx === -1) {
@@ -2417,8 +3568,11 @@ if (!file_exists('config.php')) {
             loadTrack(track);
         }
 
-        async function editTrackTitlePrompt(event, trackId, currentTitle) {
+        async function editTrackTitlePrompt(event, trackId) {
             if (event) event.stopPropagation();
+            const track = allTracks.find(t => String(t.id) === String(trackId));
+            if (!track) return;
+            const currentTitle = track.title || '';
             const newTitle = prompt("Editar nome da música:", currentTitle);
             if (!newTitle || newTitle.trim() === "" || newTitle === currentTitle) return;
 
@@ -2440,6 +3594,30 @@ if (!file_exists('config.php')) {
                 alert("Erro ao conectar e salvar novo título.");
             }
         }
+
+        window.playAlbumByName = function(e, albumName) {
+            if (e) e.stopPropagation();
+            const tracks = allTracks.filter(t => (t.album || 'Single') === albumName);
+            playAlbumQueue(e, tracks);
+        };
+
+        window.playAlbumByNameShuffled = function(e, albumName) {
+            if (e) e.stopPropagation();
+            const tracks = allTracks.filter(t => (t.album || 'Single') === albumName);
+            playAlbumQueueShuffled(e, tracks);
+        };
+
+        window.playArtistByName = function(e, artistName) {
+            if (e) e.stopPropagation();
+            const tracks = allTracks.filter(t => t.artist === artistName);
+            playAlbumQueue(e, tracks);
+        };
+
+        window.playArtistByNameShuffled = function(e, artistName) {
+            if (e) e.stopPropagation();
+            const tracks = allTracks.filter(t => t.artist === artistName);
+            playAlbumQueueShuffled(e, tracks);
+        };
 
         async function uploadAlbumCover(input) {
             if (!input.files || input.files.length === 0) return;
@@ -2579,7 +3757,7 @@ if (!file_exists('config.php')) {
             imageSearchTargetType = 'album';
             imageSearchAlbumTitle = albumTitle;
             
-            const query = selectedArtist + " " + albumTitle + " album cover";
+            const query = selectedArtist + " " + albumTitle;
             document.getElementById('image-search-query').value = query;
             document.getElementById('image-search-modal-sub').textContent = selectedArtist + " — " + albumTitle;
             
@@ -2587,8 +3765,40 @@ if (!file_exists('config.php')) {
         };
 
         window.openImageSearchModal = function(query) {
+            const tabs = document.getElementById('image-search-tabs-container');
+            if (tabs) {
+                if (imageSearchTargetType === 'artist') {
+                    tabs.classList.remove('hidden');
+                } else {
+                    tabs.classList.add('hidden');
+                }
+            }
+            const modalTitle = document.querySelector('#image-search-modal h3');
+            if (modalTitle) {
+                modalTitle.textContent = imageSearchTargetType === 'artist' 
+                    ? 'Buscar Logo / Foto da Banda' 
+                    : 'Buscar Capa do Álbum On-line';
+            }
             document.getElementById('image-search-modal').classList.remove('hidden');
             executeImageSearch(query);
+        };
+
+        window.setImageSearchSource = function(src) {
+            const sourceInput = document.getElementById('image-search-source');
+            if (sourceInput) {
+                sourceInput.value = src;
+            }
+            ['google', 'deezer', 'lastfm'].forEach(s => {
+                const button = document.getElementById('src-tab-' + s);
+                if (button) {
+                    if (s === src) {
+                        button.className = "flex-1 text-center py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition bg-slate-900 text-white shadow-sm border border-slate-800/30";
+                    } else {
+                        button.className = "flex-1 text-center py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-white font-black";
+                    }
+                }
+            });
+            executeImageSearch();
         };
 
         window.closeImageSearchModal = function() {
@@ -2611,7 +3821,15 @@ if (!file_exists('config.php')) {
             lucide.createIcons();
             
             try {
-                const res = await fetch(API + '?route=search_images&q=' + encodeURIComponent(query));
+                let url = '';
+                if (imageSearchTargetType === 'artist') {
+                    const src = document.getElementById('image-search-source')?.value || 'google';
+                    url = API + '?route=search_artist_logo&artist=' + encodeURIComponent(query) + '&source=' + src;
+                } else {
+                    const src = document.getElementById('image-search-source')?.value || 'google';
+                    url = API + '?route=search_images&q=' + encodeURIComponent(query) + '&source=' + src + '&artist=' + encodeURIComponent(selectedArtist || '') + '&album=' + encodeURIComponent(imageSearchAlbumTitle || '');
+                }
+                const res = await fetch(url);
                 const data = await res.json();
                 
                 if (data.success && data.images && data.images.length > 0) {
@@ -2692,6 +3910,192 @@ if (!file_exists('config.php')) {
             }
         };
 
+        window.loadDlnaSettingForUI = async function() {
+            try {
+                const res = await fetch(API + '?route=dlna_status');
+                if (res.ok) {
+                    const data = await res.json();
+                    const toggle = document.getElementById('dlna-enabled-toggle');
+                    if (toggle) {
+                        toggle.checked = !!data.enabled;
+                    }
+                    const indicator = document.getElementById('dlna-status-indicator');
+                    const extraDevices = document.getElementById('dlna-devices-expanded');
+                    if (indicator) {
+                        if (data.enabled) {
+                            indicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 block animate-ping"></span> <span class="text-emerald-400 font-bold">ONLINE</span>';
+                            if (extraDevices) extraDevices.classList.remove('hidden');
+                        } else {
+                            indicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-600 block"></span> OFFLINE';
+                            if (extraDevices) extraDevices.classList.add('hidden');
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Erro ao obter status DLNA:", err);
+            }
+        };
+
+        window.toggleDlnaSetting = async function(checkbox) {
+            const isChecked = checkbox.checked;
+            try {
+                const res = await fetch(API + '?route=toggle_dlna', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: isChecked ? '1' : '0' })
+                });
+                if (res.ok) {
+                    if (window.loadDlnaSettingForUI) await window.loadDlnaSettingForUI();
+                } else {
+                    alert("Erro ao alterar configuração DLNA.");
+                    checkbox.checked = !isChecked;
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Erro operacional ao atualizar DLNA.");
+                checkbox.checked = !isChecked;
+            }
+        };
+
+        window.clearCurrentQueue = function() {
+            activeQueue = [];
+            activeQueueIdx = -1;
+            audio.pause();
+            audio.src = '';
+            isPlaying = false;
+            document.getElementById('player-play-btn').innerHTML = '<i data-lucide="play" class="w-4 h-4 fill-current"></i>';
+            document.getElementById('track-title').textContent = 'Nenhuma música';
+            document.getElementById('track-artist').textContent = 'Selecione para ouvir';
+            document.getElementById('track-cover').src = 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100';
+            renderPlayerMiniQueue();
+            renderTracksTable();
+            lucide.createIcons();
+        };
+
+        window.renderPlaylistsGrid = function() {
+            const gridEl = document.getElementById('playlists-grid');
+            if (!gridEl) return;
+            const emptyEl = document.getElementById('playlists-empty');
+            
+            if (!allPlaylists || allPlaylists.length === 0) {
+                if (emptyEl) emptyEl.classList.remove('hidden');
+                gridEl.innerHTML = '';
+                return;
+            }
+            if (emptyEl) emptyEl.classList.add('hidden');
+            
+            gridEl.innerHTML = '';
+            allPlaylists.forEach(pl => {
+                const size = pl.trackIds ? pl.trackIds.length : 0;
+                const safeName = (pl.name || '').replace(new RegExp("'", "g"), "\'");
+                const card = document.createElement('div');
+                card.className = "group bg-slate-950/60 border border-slate-900 rounded-3xl p-5 hover:border-emerald-500/35 transition-all flex flex-col justify-between space-y-4 hover:shadow-lg hover:shadow-emerald-500/5 duration-200 animate-fade-in";
+                
+                card.innerHTML = `
+                    <div class="space-y-2 text-left">
+                        <div class="flex items-center justify-between">
+                            <div class="p-3 bg-gradient-to-tr from-sky-500/10 to-indigo-500/10 text-emerald-400 rounded-2xl border border-slate-900/40">
+                                <i data-lucide="list-music" class="w-6 h-6"></i>
+                            </div>
+                            <span class="text-[10px] text-slate-500 font-mono font-bold uppercase tracking-wider">${size} música(s)</span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white text-[15px] truncate">${pl.name}</h3>
+                            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Criado por ${pl.username || 'Sistema'}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="pt-3 border-t border-slate-900/60 space-y-2">
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="playPlaylistTracks('${pl.id}', false)" class="px-3 py-2 bg-emerald-500 hover:bg-emerald-650 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition active:scale-95 flex items-center justify-center gap-1 cursor-pointer">
+                                <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i> Rodar Tudo
+                            </button>
+                            <button onclick="playPlaylistTracks('${pl.id}', true)" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition active:scale-95 flex items-center justify-center gap-1 cursor-pointer">
+                                <i data-lucide="shuffle" class="w-3.5 h-3.5"></i> Aleatório
+                            </button>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button onclick="viewPlaylistTracks('${pl.id}', '${safeName}')" class="flex-1 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-350 hover:text-white rounded-xl text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 border border-slate-800">
+                                <i data-lucide="eye" class="w-3" style="width:12px; height:12px;"></i> Músicas
+                            </button>
+                            <button onclick="deletePlaylistAndRefresh('${pl.id}')" class="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-[10px] font-bold uppercase tracking-wider transition flex items-center justify-center">
+                                <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                gridEl.appendChild(card);
+            });
+            lucide.createIcons();
+        };
+
+        window.viewPlaylistTracks = function(playlistId, playlistName) {
+            selectedPlaylistId = playlistId;
+            selectedArtist = '';
+            activePlaylistAlbum = '';
+            document.getElementById('table-view-title').textContent = "Playlist: " + playlistName;
+            
+            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'playlists'];
+            btns.forEach(b => {
+                const el = document.getElementById('tab-btn-' + b);
+                if (el) el.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition";
+            });
+            const activeBtn = document.getElementById('tab-btn-playlists');
+            if (activeBtn) {
+                activeBtn.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20";
+            }
+            
+            renderLeftSidebar();
+            renderTracksTable();
+            activeTab = 'tracks';
+            document.getElementById('pane-dashboard').classList.add('hidden');
+            if (document.getElementById('pane-playlists')) document.getElementById('pane-playlists').classList.add('hidden');
+            document.getElementById('pane-tracks').classList.remove('hidden');
+            lucide.createIcons();
+        };
+
+        window.deletePlaylistAndRefresh = async function(playlistId) {
+            if (!confirm("Tem certeza que deseja remover esta playlist?")) return;
+            try {
+                const res = await fetch(API + '?route=delete_playlist&id=' + playlistId, {
+                    method: 'POST'
+                });
+                if (res.ok) {
+                    await loadData();
+                    window.renderPlaylistsGrid();
+                    renderLeftSidebar();
+                } else {
+                    alert("Erro ao remover playlist.");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Erro de rede ao remover playlist.");
+            }
+        };
+
+        window.playPlaylistTracks = function(playlistId, isShuffle) {
+            const pl = allPlaylists.find(p => String(p.id) === String(playlistId));
+            if (!pl || !pl.trackIds || pl.trackIds.length === 0) {
+                alert("Esta playlist está vazia.");
+                return;
+            }
+            const tracks = pl.trackIds.map(tid => allTracks.find(t => String(t.id) === String(tid))).filter(Boolean);
+            if (tracks.length === 0) {
+                alert("Nenhuma música desta playlist foi encontrada no servidor.");
+                return;
+            }
+            if (isShuffle) {
+                const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+                activeQueue = shuffled;
+            } else {
+                activeQueue = tracks;
+            }
+            activeQueueIdx = 0;
+            loadTrack(activeQueue[0]);
+        };
+
         window.loadLastfmKeyForUI = async function() {
             try {
                 const res = await fetch(API + '?route=get_settings');
@@ -2704,6 +4108,7 @@ if (!file_exists('config.php')) {
                         }
                     }
                 }
+                if (window.loadDlnaSettingForUI) await window.loadDlnaSettingForUI();
             } catch (err) {
                 console.error("Erro ao carregar configurações do Last.fm:", err);
             }
@@ -3129,7 +4534,7 @@ if (!file_exists('config.php')) {
             }
             
             const player = document.getElementById('modal-video-player');
-            player.src = 'videos/' + encodeURIComponent(vid.fileName);
+            player.src = 'api.php?route=stream_video&id=' + encodeURIComponent(vid.id);
             if (vid.coverUrl) {
                 player.poster = vid.coverUrl;
             } else {
@@ -3146,7 +4551,29 @@ if (!file_exists('config.php')) {
             const player = document.getElementById('modal-video-player');
             player.pause();
             player.src = '';
-            document.getElementById('video-modal').classList.add('hidden');
+            const modal = document.getElementById('video-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('pseudo-fullscreen-active');
+            const btn = document.getElementById('video-maximize-btn');
+            if (btn) btn.innerHTML = '<i data-lucide="maximize" class="w-4 h-4"></i>';
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }
+
+        function toggleVideoMaximize() {
+            const modal = document.getElementById('video-modal');
+            const btn = document.getElementById('video-maximize-btn');
+            if (modal.classList.contains('pseudo-fullscreen-active')) {
+                modal.classList.remove('pseudo-fullscreen-active');
+                if (btn) btn.innerHTML = '<i data-lucide="maximize" class="w-4 h-4"></i>';
+            } else {
+                modal.classList.add('pseudo-fullscreen-active');
+                if (btn) btn.innerHTML = '<i data-lucide="minimize" class="w-4 h-4"></i>';
+            }
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
         }
 
         async function uploadVideoCover(input, id) {
