@@ -1,5 +1,5 @@
--- SQL para criação do banco de dados do Player  PHP
--- Importe este arquivo no phpMyAdmin
+-- SQL para criação do banco de dados do PHPlayer
+-- Importe este arquivo no phpMyAdmin da Hostinger ou servidor Local
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -74,6 +74,15 @@ CREATE TABLE IF NOT EXISTS `artist_metadata` (
   `artist_photo` varchar(1000) DEFAULT NULL,
   `bio` text DEFAULT NULL,
   PRIMARY KEY (`artist`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `radios` (
+  `id` varchar(50) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `url` varchar(500) NOT NULL,
+  `resolved_url` varchar(500) DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Admin: admin  Ouvinte: ouvinte
