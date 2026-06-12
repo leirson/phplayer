@@ -117,6 +117,16 @@ if (!file_exists('config.php')) {
         ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #334155; }
 
+        /* Evitar que preenchimentos automáticos do navegador usem fundos claros em inputs escuros */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus, 
+        input:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0px 1000px #050914 inset !important;
+            -webkit-text-fill-color: #38bdf8 !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+
         /* Estilos do Player de Vídeo sem Travamentos (Pseudo-Fullscreen) */
         #video-modal.pseudo-fullscreen-active {
             padding: 0 !important;
@@ -139,6 +149,16 @@ if (!file_exists('config.php')) {
         }
         video::-picture-in-picture-button {
             display: none !important;
+        }
+        @keyframes spinSlow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+            animation: spinSlow 20s linear infinite;
+        }
+        .paused-animation {
+            animation-play-state: paused !important;
         }
     </style>
 </head>
@@ -294,7 +314,7 @@ if (!file_exists('config.php')) {
                     </div>
                     <div>
                         <h1 class="text-sm font-bold text-white tracking-tight leading-none">PHPlayer</h1>
-                        <span class="text-[9px] text-sky-450 font-mono tracking-wider">HOSTINGER WEB</span>
+                        <span class="text-[9px] text-sky-450 font-mono tracking-wider">PLAYER WEB</span>
                     </div>
                 </div>
 
@@ -314,6 +334,15 @@ if (!file_exists('config.php')) {
                     </button>
                     <button id="tab-btn-videos" onclick="setTab('videos')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-videos">
                         <i data-lucide="film" class="w-4 h-4 text-sky-450"></i> Galeria de Vídeos
+                    </button>
+                    <button id="tab-btn-podcast" onclick="setTab('podcast')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition">
+                        <i data-lucide="podcast" class="w-4 h-4 text-orange-400"></i> Podcast
+                    </button>
+                    <button id="tab-btn-radios" onclick="setTab('radios')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition">
+                        <i data-lucide="radio" class="w-4 h-4 text-emerald-400"></i> Rádios
+                    </button>
+                    <button id="tab-btn-reprodutor" onclick="setTab('reprodutor')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition">
+                        <i data-lucide="disc" class="w-4 h-4 text-sky-450 animate-spin-slow"></i> Reprodutor
                     </button>
                     
                     <button id="tab-btn-config" onclick="setTab('config')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-settings">
@@ -394,11 +423,44 @@ if (!file_exists('config.php')) {
                 </div>
 
                 <div>
-                    <div class="flex items-center justify-between mb-3 border-b border-slate-900 pb-2">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-slate-900 pb-3">
                         <h3 class="text-xs font-black text-slate-400 tracking-wider uppercase" data-i18n="album-collection-title">Coleção de Álbuns</h3>
-                        <button onclick="playRandomAlbum()" class="px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-[11px] font-black uppercase tracking-wider transition active:scale-95 flex items-center gap-1.5 shadow-lg shadow-sky-500/10 cursor-pointer" data-i18n="btn-random-album">
-                            <i data-lucide="shuffle" class="w-3.5 h-3.5"></i> Tocar Álbum Aleatório
-                        </button>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <!-- Search Input for Dashboard -->
+                            <div class="relative w-36 md:w-40 shrink-0">
+                                <input id="php-dashboard-search" type="text" oninput="onPhpDashboardSearchInput(this.value)" data-i18n-placeholder="dashboard-search-placeholder" placeholder="Buscar álbuns..." class="w-full bg-[#0a111e] border border-slate-800 text-slate-300 hover:text-white text-[11px] rounded-xl pl-8 pr-3 py-2 focus:border-sky-500 outline-none font-medium transition shadow-inner" />
+                                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-500">
+                                    <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                                </div>
+                            </div>
+
+                            <!-- Gênero Filter Dropdown -->
+                            <div class="relative w-36 md:w-40 shrink-0">
+                                <select id="php-dashboard-genre-filter" onchange="onPhpDashboardGenreChange(this.value)" class="w-full bg-[#0a111e] border border-slate-800 text-slate-300 hover:text-white text-[11px] rounded-xl pl-3 pr-8 py-2 focus:border-sky-500 outline-none font-bold cursor-pointer appearance-none transition shadow-inner">
+                                    <option value="all">Todos Gêneros</option>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-500">
+                                    <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                                </div>
+                            </div>
+                            
+                            <!-- Sort Filter Dropdown -->
+                            <div class="relative w-36 md:w-40 shrink-0">
+                                <select id="php-dashboard-sort-filter" onchange="onPhpDashboardSortChange(this.value)" class="w-full bg-[#0a111e] border border-slate-800 text-slate-300 hover:text-white text-[11px] rounded-xl pl-3 pr-8 py-2 focus:border-sky-500 outline-none font-bold cursor-pointer appearance-none transition shadow-inner">
+                                    <option value="random" selected>Aleatórios</option>
+                                    <option value="alphabetical">Ordem Alfabética</option>
+                                    <option value="recent">Mais Recentes</option>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-500">
+                                    <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                                </div>
+                            </div>
+
+                            <!-- play random album button -->
+                            <button onclick="playRandomAlbum()" class="px-3.5 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-[11px] font-black uppercase tracking-wider transition active:scale-95 flex items-center gap-1.5 shadow-lg shadow-sky-500/10 cursor-pointer shrink-0" data-i18n="btn-random-album">
+                                <i data-lucide="shuffle" class="w-3.5 h-3.5"></i> Tocar Álbum Aleatório
+                            </button>
+                        </div>
                     </div>
                     <div id="album-grid-container" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
                 </div>
@@ -426,20 +488,58 @@ if (!file_exists('config.php')) {
                     </div>
                 </div>
 
-                <div id="tracks-table-wrapper" class="bg-slate-950/60 border border-slate-900 rounded-2xl overflow-hidden min-h-[300px]">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-slate-900/50 text-slate-500 uppercase font-mono tracking-wider text-[9px] border-b border-slate-900 select-none">
-                            <tr>
-                                <th class="py-3 px-4 w-12 text-center" data-i18n="col-idx">#</th>
-                                <th class="py-3 px-4 cursor-pointer hover:bg-slate-900 transition" onclick="sortTracksPhp('title')" data-i18n="col-track">Faixa <span id="sort-icon-title" class="text-slate-600 opacity-40"> &updownarrow;</span></th>
-                                <th class="py-3 px-4 cursor-pointer hover:bg-slate-900 transition" onclick="sortTracksPhp('artist')" data-i18n="col-artist">Artista <span id="sort-icon-artist" class="text-slate-600 opacity-40"> &updownarrow;</span></th>
-                                <th class="py-3 px-4 cursor-pointer hover:bg-slate-900 transition" onclick="sortTracksPhp('album')" data-i18n="col-album">Álbum <span id="sort-icon-album" class="text-slate-600 opacity-40"> &updownarrow;</span></th>
-                                <th class="py-3 px-4 text-right w-28 font-semibold" data-i18n="col-operations">Operações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tracks-table-body" class="divide-y divide-slate-900/40 text-slate-300"></tbody>
-                    </table>
-                    <div id="tracks-pagination-wrapper"></div>
+                <div id="tracks-grid-layout" class="flex flex-col lg:flex-row gap-6">
+                    <!-- Left Sidebar Panels for Artistas and Álbuns -->
+                    <div class="w-full lg:w-64 shrink-0 space-y-4">
+                        <!-- Artists Sidebar Card -->
+                        <div class="p-4 bg-slate-900/30 border border-slate-900 rounded-2xl space-y-3">
+                            <div class="flex items-center justify-between border-b border-slate-900 pb-2">
+                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                    <i data-lucide="smile" class="w-3.5 h-3.5 text-sky-400"></i> Artistas
+                                </span>
+                                <button onclick="clearSidebarFilters()" id="reset-filter-pills" class="text-[9px] text-sky-400 hover:text-sky-300 font-semibold cursor-pointer hidden">
+                                    Limpar
+                                </button>
+                            </div>
+                            <div id="sidebar-artists-list" class="flex flex-col gap-1.5 max-h-64 lg:max-h-[320px] overflow-y-auto pr-1 small-scroll custom-scroll w-full">
+                            </div>
+                        </div>
+
+                        <!-- Albums Sidebar Card -->
+                        <div class="p-4 bg-slate-900/30 border border-slate-900 rounded-2xl space-y-3">
+                            <div class="flex items-center justify-between border-b border-slate-900 pb-2">
+                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                    <i data-lucide="folder-heart" class="w-3.5 h-3.5 text-violet-400"></i> Álbuns
+                                </span>
+                            </div>
+                            <div id="sidebar-albums-list" class="flex flex-col gap-1.5 max-h-64 lg:max-h-[320px] overflow-y-auto pr-1 small-scroll custom-scroll w-full">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Area: Table wrapper -->
+                    <div id="tracks-table-wrapper" class="flex-1 bg-slate-950 border border-slate-900 rounded-2xl overflow-hidden min-h-[300px]">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-[#101522] text-slate-550 uppercase font-mono tracking-wider text-[9px] border-b border-slate-900 select-none">
+                                <tr>
+                                    <th class="py-3 px-4 w-12 text-center" data-i18n="col-idx">#</th>
+                                    <th class="py-3 px-4 cursor-pointer hover:bg-slate-900/40 transition" onclick="sortTracksPhp('title')" data-i18n="col-track">Faixa <span id="sort-icon-title" class="text-slate-600 opacity-40"> &updownarrow;</span></th>
+                                    <th class="py-3 px-4 cursor-pointer hover:bg-slate-900/40 transition" onclick="sortTracksPhp('artist')" data-i18n="col-artist">Artista <span id="sort-icon-artist" class="text-slate-600 opacity-40"> &updownarrow;</span></th>
+                                    <th class="py-3 px-4 cursor-pointer hover:bg-slate-900/40 transition" onclick="sortTracksPhp('album')" data-i18n="col-album">Álbum <span id="sort-icon-album" class="text-slate-600 opacity-40"> &updownarrow;</span></th>
+                                    <th class="py-3 px-4 cursor-pointer hover:bg-slate-900/40 transition hidden sm:table-cell" onclick="sortTracksPhp('genre')">Gênero <span id="sort-icon-genre" class="text-slate-600 opacity-40"> &updownarrow;</span></th>
+                                    <th class="py-3 px-4 cursor-pointer hover:bg-slate-900/40 transition text-center w-20 hidden sm:table-cell" onclick="sortTracksPhp('duration')">
+                                        <div class="flex items-center justify-center">
+                                            <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-500 mr-1"></i>
+                                            Duração <span id="sort-icon-duration" class="text-slate-600 opacity-40"> &updownarrow;</span>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-4 text-right w-28 font-semibold" data-i18n="col-operations">Operações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tracks-table-body" class="divide-y divide-slate-900/40 text-slate-300"></tbody>
+                        </table>
+                        <div id="tracks-pagination-wrapper"></div>
+                    </div>
                 </div>
 
                 <!-- ARTIST DISC COMPONENT VIEW -->
@@ -469,8 +569,14 @@ if (!file_exists('config.php')) {
                     <button onclick="setConfigSubTab('password')" id="subtab-btn-password" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none" data-i18n="subnav-password">
                         Alterar Senha
                     </button>
+                    <button onclick="setConfigSubTab('shortcuts')" id="subtab-btn-shortcuts" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none">
+                        Atalhos de Teclado
+                    </button>
                     <button onclick="setConfigSubTab('files')" id="subtab-btn-files" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none hidden admin-only" data-i18n="subnav-files">
                         Arquivos
+                    </button>
+                    <button onclick="setConfigSubTab('id3')" id="subtab-btn-id3" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none hidden admin-only">
+                        Editor ID3
                     </button>
                 </div>
  
@@ -531,6 +637,102 @@ if (!file_exists('config.php')) {
                                 <p class="text-[10px] text-slate-400 leading-normal" data-i18n="theme-crimson-desc">Contrastes intensos e fortes com tonalidades rubi profundas.</p>
                             </div>
                         </button>
+                        <!-- Special Custom Theme Card for PHP -->
+                        <div id="php-custom-theme-card" class="theme-card relative p-4 rounded-2xl border text-left flex flex-col gap-3 justify-between bg-slate-950/40 border-slate-900/60 hover:border-slate-800 transition select-none">
+                            <div class="flex gap-4 items-start w-full">
+                                <div id="indicator-theme-custom" onclick="document.getElementById('php-custom-color-picker').click()" class="w-8 h-8 rounded-lg bg-sky-500 shrink-0 flex items-center justify-center text-white cursor-pointer border border-white/10 relative">
+                                    <i data-lucide="palette" class="w-4 h-4 text-white"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="text-xs font-bold text-white mb-0.5 flex items-center gap-1.5" data-i18n="theme-custom-title">
+                                        Tema Customizado <span id="php-custom-badge" class="hidden text-[8px] bg-sky-500/15 text-sky-400 px-1.5 py-0.2 rounded font-black uppercase tracking-wider">Ativo</span>
+                                    </h4>
+                                    <p class="text-[10px] text-slate-400 leading-normal" data-i18n="theme-custom-desc">Selecione uma cor customizada para todo o sistema utilizando o seletor circular.</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 items-center w-full mt-1">
+                                <input type="color" id="php-custom-color-picker" oninput="onPhpCustomColorChange(this.value)" onchange="onPhpCustomColorChange(this.value)" value="#0ea5e9" class="w-10 h-7 rounded bg-transparent border-0 cursor-pointer shrink-0" />
+                                <button onclick="selectDesktopTheme('custom:' + document.getElementById('php-custom-color-picker').value)" class="flex-1 py-1.5 px-3 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg text-[9px] font-bold uppercase tracking-wider transition cursor-pointer text-center" data-i18n="theme-custom-select-btn">
+                                    Selecionar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CUSTOM LAYOUT COLOR FOR PHP -->
+                    <div class="bg-slate-950/60 border border-slate-900 rounded-2xl p-6 text-left space-y-6 mt-6">
+                        <div class="space-y-1.5 border-b border-slate-900 pb-4">
+                            <h3 class="text-xs font-black uppercase text-white flex items-center gap-1.5">
+                                <i data-lucide="sliders" class="w-4 h-4 text-sky-400"></i> Personalizar Cor do Layout
+                            </h3>
+                            <p class="text-[11px] text-slate-400 leading-relaxed">
+                                Ajuste a cor de fundo das barras do player (Barra Lateral, Barra Superior e Barra de Reprodução). Mudar a cor aplicará o mesmo tom em todo o layout.
+                            </p>
+                        </div>
+
+                        <!-- Quick Presets -->
+                        <div class="space-y-3">
+                            <h4 class="text-xs font-bold text-slate-300">Esquemas Rápidos de Cores</h4>
+                            <div class="flex flex-wrap gap-2.5">
+                                <button
+                                    type="button"
+                                    onclick="applyPhpLayoutColor('#020617')"
+                                    class="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold rounded-xl border border-slate-900 bg-slate-100/5 hover:bg-slate-900 text-slate-300 cursor-pointer transition select-none"
+                                >
+                                    Padrão (Slate)
+                                </button>
+                                <button
+                                    type="button"
+                                    onclick="applyPhpLayoutColor('#000000')"
+                                    class="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold rounded-xl border border-slate-900 bg-black hover:bg-zinc-950 text-slate-300 cursor-pointer transition select-none"
+                                >
+                                    Preto Absoluto
+                                </button>
+                                <button
+                                    type="button"
+                                    onclick="applyPhpLayoutColor('#09101d')"
+                                    class="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold rounded-xl border border-slate-100/5 bg-[#09101d] hover:bg-[#0d1c33] text-slate-300 cursor-pointer transition select-none"
+                                >
+                                    Azul Naval
+                                </button>
+                                <button
+                                    type="button"
+                                    onclick="applyPhpLayoutColor('#0c0517')"
+                                    class="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold rounded-xl border border-slate-100/5 bg-[#0c0517] hover:bg-[#13072b] text-slate-300 cursor-pointer transition select-none"
+                                >
+                                    Roxo Místico
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Custom Picker -->
+                        <div class="bg-slate-950/40 border border-slate-900/60 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div>
+                                <h4 class="text-xs font-bold text-white mb-1">Escolher Cor Customizada</h4>
+                                <p class="text-[10px] text-slate-400">Arraste para selecionar a cor e clique em Salvar para aplicar permanentemente ao layout.</p>
+                            </div>
+                            <div class="flex items-center gap-2 w-full sm:w-auto">
+                                <input
+                                    type="color"
+                                    id="php-layout-bg-picker"
+                                    oninput="onPhpLayoutBgLiveChange(this.value)"
+                                    class="w-10 h-7 rounded bg-transparent border-0 cursor-pointer shrink-0"
+                                />
+                                <input
+                                    type="text"
+                                    id="php-layout-bg-text"
+                                    value="#020617"
+                                    oninput="onPhpLayoutBgLiveChange(this.value)"
+                                    class="flex-1 sm:w-28 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-center text-xs font-mono text-white"
+                                />
+                                <button
+                                    onclick="savePhpLayoutColor()"
+                                    class="py-1.5 px-4 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer select-none"
+                                >
+                                    Salvar
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- SEÇÃO DE IDIOMA / LANGUAGE SECTION -->
@@ -742,6 +944,40 @@ if (!file_exists('config.php')) {
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Instruções de Firewall e PHP-Sockets para Debian/Ubuntu -->
+                        <div class="mt-5 pt-4 border-t border-slate-900/60 space-y-3">
+                            <span class="text-[10px] uppercase tracking-wider font-extrabold text-sky-400 block flex items-center gap-1.5 select-none">
+                                <i data-lucide="terminal" class="w-3.5 h-3.5 text-sky-400"></i> Servidor Debian / Ubuntu - Guia de Configuração DLNA
+                            </span>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                Para que as Smart TVs locais descubram este servidor via SSDP (UDP multicast), o seu PHP precisa ter a extensão de <code class="bg-slate-950 text-white px-1.5 py-0.5 rounded text-[10px] font-mono font-bold">sockets</code> ativa e os firewalls locais devem liberar a porta UDP multicast 1900.
+                            </p>
+                            
+                            <div class="bg-slate-950/60 rounded-xl p-4 border border-slate-900/60 space-y-2 font-mono text-xs text-slate-300">
+                                <div class="flex items-center justify-between gap-3 border-b border-slate-900 pb-2 mb-2">
+                                    <span class="text-[10px] text-slate-500 font-sans font-bold uppercase tracking-wider">Comandos Rápidos no Terminal:</span>
+                                    <button onclick="navigator.clipboard.writeText('wget -O setup_dlna.sh http://endereço-do-servidor/setup_dlna.sh && chmod +x setup_dlna.sh && sudo ./setup_dlna.sh').then(() => alert('Comandos de instalação copiados! Execute no seu Debian.'))" class="text-[10px] font-sans bg-slate-900 hover:bg-slate-850 border border-slate-800 px-2.5 py-1 rounded-lg text-white font-semibold transition active:scale-95 cursor-pointer">
+                                        Copiar Comandos
+                                    </button>
+                                </div>
+                                <p class="text-sky-350 select-all font-bold">wget -O setup_dlna.sh http://endereço-do-servidor/setup_dlna.sh</p>
+                                <p class="text-slate-400">chmod +x setup_dlna.sh</p>
+                                <p class="text-slate-400">sudo ./setup_dlna.sh</p>
+                            </div>
+
+                            <div class="flex flex-wrap items-center justify-between gap-4 pt-1">
+                                <div class="flex items-center gap-2">
+                                    <a href="setup_dlna.sh" download="setup_dlna.sh" class="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-xs text-white font-bold px-4 py-2.5 rounded-xl transition cursor-pointer select-none active:scale-95">
+                                        <i data-lucide="download" class="w-4 h-4 text-sky-400"></i> Baixar setup_dlna.sh
+                                    </a>
+                                </div>
+                                <span class="text-[10.5px] text-yellow-500/90 font-bold flex items-center gap-1 leading-tight max-w-sm">
+                                    <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0 text-yellow-500"></i>
+                                    <span>Se o PHP rodar sob Docker, use <code class="bg-slate-950 text-white px-1 py-0.5 rounded text-[9.5px] font-mono">--network host</code> na inicialização do contêiner.</span>
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Upload Form -->
@@ -783,6 +1019,74 @@ if (!file_exists('config.php')) {
                     </div>
 
 
+                </div>
+
+                <!-- SUBTAB: EDITOR DE TAGS ID3 (Admin Only) -->
+                <div id="subtab-pane-id3" class="space-y-6 hidden admin-only">
+                    <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-left font-sans">
+                        <div class="space-y-1">
+                            <h3 class="text-xs font-black uppercase text-white flex items-center gap-1.5">
+                                <i data-lucide="tag" class="w-4 h-4 text-sky-400"></i> Editor de Metadados / ID3 do Acervo
+                            </h3>
+                            <p class="text-[11px] text-slate-400 leading-normal">Selecione e edite as tags ID3 básicas (Título, Artista, Álbum e Gênero) de qualquer música. As edições são aplicadas diretamente no banco de dados e sincronizadas em tempo real no player.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <div class="relative flex-1">
+                            <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-500"></i>
+                            <input type="text" id="id3-search-input" oninput="filterId3Songs()" placeholder="Pesquisar por título, artista ou álbum..." class="w-full pl-9 pr-3 py-2 text-xs bg-slate-900 border border-slate-800 text-white placeholder-slate-500 rounded-xl outline-none focus:border-sky-500/50 transition">
+                        </div>
+                        <div class="px-4 py-2 bg-slate-950 border border-slate-900 rounded-xl flex items-center justify-center font-mono text-[10px] text-slate-400 tracking-wider">
+                            <span id="id3-songs-count">0</span>&nbsp;Músicas encontradas
+                        </div>
+                    </div>
+
+                    <!-- BULK ACTION BAR -->
+                    <div id="id3-bulk-bar" class="hidden animate-fade-in bg-slate-950/80 border border-sky-500/20 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="check-square" class="w-4 h-4 text-sky-450"></i>
+                            <span class="text-xs font-bold text-slate-300">
+                                <span id="id3-selected-count-badge" class="bg-sky-500/15 text-sky-450 px-2 py-0.5 rounded font-black">0</span> 
+                                músicas selecionadas
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-2 w-full sm:w-auto font-sans">
+                            <button onclick="openId3BulkModal()" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-sky-500 to-indigo-650 text-[10px] text-white font-black px-4 py-2 rounded-xl transition shadow-lg shadow-sky-500/10 cursor-pointer hover:brightness-110 active:scale-95 select-none">
+                                <i data-lucide="layers" class="w-3.5 h-3.5"></i> Alteração em Massa
+                            </button>
+                            <button onclick="clearId3Selection()" class="flex-1 sm:flex-none text-[11px] font-bold text-slate-400 hover:text-white px-3 py-2 rounded-xl transition cursor-pointer select-none">
+                                Limpar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ID3 Songs List scroll container -->
+                    <div class="bg-slate-950/40 border border-slate-900/60 rounded-2xl overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="border-b border-slate-900/80 text-[10px] uppercase font-black tracking-widest text-slate-500 select-none bg-[#0a111e]/15">
+                                        <th class="py-3 px-4 w-10 text-center">
+                                            <input type="checkbox" id="id3-select-all" onchange="toggleSelectAllId3(this)" class="w-3.5 h-3.5 text-sky-500 bg-slate-900 border-slate-800 rounded focus:ring-sky-500 cursor-pointer">
+                                        </th>
+                                        <th class="py-3 px-4">#</th>
+                                        <th class="py-3 px-4">Título</th>
+                                        <th class="py-3 px-4">Artista</th>
+                                        <th class="py-3 px-4">Álbum</th>
+                                        <th class="py-3 px-4">Ano</th>
+                                        <th class="py-3 px-4">Gênero</th>
+                                        <th class="py-3 px-4 text-right">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="id3-songs-table-body" class="divide-y divide-slate-900/40">
+                                    <tr>
+                                        <td colspan="8" class="py-8 text-center text-slate-500 italic">Carregando acervo musical...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- SUBTAB 3: USER MANAGEMENT (Admin Only) -->
@@ -831,6 +1135,122 @@ if (!file_exists('config.php')) {
                                 Salvar Nova Senha
                             </button>
                         </form>
+                    </div>
+                </div>
+
+                <!-- SUBTAB: KEYBOARD SHORTCUTS (Visible to all users) -->
+                <div id="subtab-pane-shortcuts" class="space-y-6 hidden text-left">
+                    <div class="bg-slate-950/60 border border-slate-900 rounded-2xl p-5 space-y-2">
+                        <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+                            <i data-lucide="keyboard" class="w-4 h-4 text-sky-400"></i> Atalhos de Teclado
+                        </h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            O PHPlayer oferece atalhos de teclado globais para gerenciar sua reprodução de forma rápida, eficiente e sem tirar as mãos do teclado. Os atalhos funcionam de qualquer view da aplicação (exceto quando você estiver digitando em campos de texto).
+                        </p>
+                    </div>
+
+                    <div class="bg-slate-950/20 border border-slate-900 rounded-2xl p-6 space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            
+                            <!-- Shortcut 1 -->
+                            <div class="flex items-center justify-between p-4 rounded-xl bg-slate-900/40 border border-slate-900 hover:border-slate-800/80 transition-all">
+                                <div class="space-y-1 pr-4">
+                                    <span class="text-xs font-bold text-slate-200 block">Pesquisa Rápida</span>
+                                    <span class="text-[11px] text-slate-400 block leading-relaxed">
+                                        Foca instantaneamente a barra de busca de áudio ou vídeo. Se não estiver em uma aba compatível, o PHPlayer navega automaticamente para a biblioteca de músicas para efetuar a pesquisa.
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <kbd class="px-2 py-1 bg-slate-950 text-slate-300 border border-slate-800 rounded-md font-mono text-[10px] font-bold shadow-md shadow-black/40">Ctrl</kbd>
+                                    <span class="text-xs text-slate-500 font-bold font-sans">+</span>
+                                    <kbd class="px-2 py-1 bg-slate-950 text-slate-300 border border-slate-800 rounded-md font-mono text-[10px] font-bold shadow-md shadow-black/40 font-semibold">F</kbd>
+                                    <span class="text-xs text-slate-500 font-bold font-sans">ou</span>
+                                    <kbd class="px-2.5 py-1 bg-slate-950 text-slate-300 border border-slate-800 rounded-md font-mono text-[10px] font-bold shadow-md shadow-black/40 font-semibold">/</kbd>
+                                </div>
+                            </div>
+
+                            <!-- Play/Pause Space shortcut -->
+                            <div class="flex items-center justify-between p-4 rounded-xl bg-slate-900/40 border border-slate-900 hover:border-slate-800/80 transition-all">
+                                <div class="space-y-1 pr-4">
+                                    <span class="text-xs font-bold text-slate-200 block">Reproduzir / Pausar</span>
+                                    <span class="text-[11px] text-slate-400 block leading-relaxed">
+                                        Alterna instantaneamente o estado de reprodução (reproduzindo ou pausado) do áudio ou música ativa.
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <kbd class="px-4 py-1 bg-slate-950 text-slate-300 border border-slate-800 rounded-md font-mono text-[10px] font-bold shadow-md shadow-black/40 font-semibold">Espaço</kbd>
+                                </div>
+                            </div>
+
+                            <!-- Shortcut 2 -->
+                            <div class="flex items-center justify-between p-4 rounded-xl bg-slate-900/40 border border-slate-900 hover:border-slate-800/80 transition-all">
+                                <div class="space-y-1 pr-4">
+                                    <span class="text-xs font-bold text-slate-200 block">Próxima Música</span>
+                                    <span class="text-[11px] text-slate-400 block leading-relaxed">
+                                        Avança para a próxima faixa na fila de escuta ativa.
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <kbd class="px-2 py-1 bg-slate-950 text-slate-300 border border-slate-800 rounded-md font-mono text-[10px] font-bold shadow-md shadow-black/40 font-semibold">Seta Direita</kbd>
+                                    <kbd class="px-2 py-1 bg-slate-950 text-slate-300 border border-slate-800 rounded-md font-mono text-[10.5px] font-bold shadow-md shadow-black/40 font-semibold">&rarr;</kbd>
+                                </div>
+                            </div>
+
+                            <!-- Shortcut 3 -->
+                            <div class="flex items-center justify-between p-4 rounded-xl bg-slate-900/40 border border-slate-900 hover:border-slate-800/80 transition-all">
+                                <div class="space-y-1 pr-4">
+                                    <span class="text-xs font-bold text-slate-200 block">Música Anterior</span>
+                                    <span class="text-[11px] text-slate-400 block leading-relaxed">
+                                        Retorna ao início da música atual ou reproduz a faixa anterior na fila de escuta ativa.
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <kbd class="px-2 py-1 bg-slate-950 text-slate-300 border border-slate-800 rounded-md font-mono text-[10px] font-bold shadow-md shadow-black/40 font-semibold">Seta Esquerda</kbd>
+                                    <kbd class="px-2 py-1 bg-slate-950 text-slate-300 border border-slate-800 rounded-md font-mono text-[10.5px] font-bold shadow-md shadow-black/40 font-semibold">&larr;</kbd>
+                                </div>
+                            </div>
+
+                            <!-- Shortcut 4 -->
+                            <div class="flex items-center justify-between p-4 rounded-xl bg-slate-900/40 border border-slate-900 hover:border-slate-800/80 transition-all">
+                                <div class="space-y-1 pr-4">
+                                    <span class="text-xs font-bold text-slate-200 block">Aumentar Volume</span>
+                                    <span class="text-[11px] text-slate-400 block leading-relaxed">
+                                        Aumenta o volume atual do reprodutor de mídia em 5% a cada acionamento.
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <kbd class="px-2 py-1 bg-slate-950 text-slate-300 border border-slate-800 rounded-md font-mono text-[10px] font-bold shadow-md shadow-black/40 font-semibold">+</kbd>
+                                    <span class="text-xs text-slate-500 font-bold font-sans">ou</span>
+                                    <kbd class="px-2 py-1 bg-slate-950 text-slate-300 border border-slate-800 rounded-md font-mono text-[10px] font-bold shadow-md shadow-black/40 font-semibold">=</kbd>
+                                </div>
+                            </div>
+
+                            <!-- Shortcut 5 -->
+                            <div class="flex items-center justify-between p-4 rounded-xl bg-slate-900/40 border border-slate-900 hover:border-slate-800/80 transition-all">
+                                <div class="space-y-1 pr-4">
+                                    <span class="text-xs font-bold text-slate-200 block">Diminuir Volume</span>
+                                    <span class="text-[11px] text-slate-400 block leading-relaxed">
+                                        Diminui o volume atual do reprodutor em 5% e entra em modo mudo automaticamente se chegar a 0%.
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <kbd class="px-2 py-1 bg-slate-950 text-slate-300 border border-slate-800 rounded-md font-mono text-[10px] font-bold shadow-md shadow-black/40 font-semibold">-</kbd>
+                                    <span class="text-xs text-slate-500 font-bold font-sans">ou</span>
+                                    <kbd class="px-2 py-1 bg-slate-950 text-slate-300 border border-slate-800 rounded-md font-mono text-[10px] font-bold shadow-md shadow-black/40 font-semibold">_</kbd>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Note alert -->
+                        <div class="p-4 bg-slate-900/25 border border-slate-900 rounded-xl space-y-1 text-slate-400 text-xs text-left">
+                            <span class="text-slate-300 font-bold font-sans block flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 bg-sky-500 rounded-full"></span> Nota de Uso do Teclado:
+                            </span>
+                            <p class="leading-relaxed text-[11px]">
+                                Os atalhos de teclado foram desenvolvidos de forma inteligente para que não interfiram nas suas atividades comuns. Sempre que você estiver focado em um campo de cadastro, enviando um arquivo, comentando ou configurando parâmetros nos menus, as funções do player são pausadas temporariamente para evitar ações acidentais.
+                            </p>
+                        </div>
                     </div>
                 </div>
 
@@ -953,6 +1373,505 @@ if (!file_exists('config.php')) {
 
                 <div id="playlists-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
             </section>
+
+            <!-- VIEW: PODCASTS -->
+            <section id="pane-podcast" class="space-y-6 flex-1 hidden">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-slate-950 via-[#0b101b] to-slate-950 p-6 rounded-3xl border border-slate-900/50 shadow-xl">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 bg-orange-500/10 rounded-2xl text-orange-400">
+                            <i data-lucide="radio" class="w-8 h-8 animate-pulse"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                                Sincronizador de Podcasts
+                            </h2>
+                            <p class="text-xs text-slate-500 mt-1 max-w-md">
+                                Insira o endereço RSS para sincronizar e baixar os últimos 5 episódios automaticamente. Cada podcast será organizado como um Álbum na sua área.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950/40 p-6 rounded-3xl border border-slate-900 shadow-md">
+                    <h3 class="text-xs font-black text-white tracking-widest uppercase mb-4 text-orange-400">Sincronizar Nova Fonte</h3>
+                    
+                    <div class="admin-only space-y-4">
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <input
+                                id="podcast-feed-input"
+                                type="text"
+                                placeholder="https://exemplo.com/podcast/rss"
+                                class="flex-1 bg-slate-900 border border-slate-800 focus:border-orange-500 rounded-xl px-4 py-3 text-xs outline-none transition font-semibold text-white placeholder-slate-500"
+                            />
+                            <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 shrink-0">
+                                <span class="text-[10px] text-slate-500 uppercase font-black tracking-wider whitespace-nowrap">Máx. episódios:</span>
+                                <select id="podcast-max-episodes" class="bg-transparent text-xs font-bold text-white outline-none">
+                                    <option value="3" class="bg-slate-950 text-white">3</option>
+                                    <option value="5" selected class="bg-slate-950 text-white">5</option>
+                                    <option value="10" class="bg-slate-950 text-white">10</option>
+                                    <option value="20" class="bg-slate-950 text-white">20</option>
+                                    <option value="50" class="bg-slate-950 text-white">50</option>
+                                </select>
+                            </div>
+                            <button
+                                id="btn-sync-podcast"
+                                onclick="runPodcastSync()"
+                                class="bg-gradient-to-r from-orange-500 to-amber-600 font-black hover:opacity-90 text-white rounded-xl px-6 py-3 text-xs tracking-wide transition flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-orange-500/5 shrink-0"
+                            >
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i> Sincronizar Feed
+                            </button>
+                        </div>
+
+                        <!-- Presets -->
+                        <div class="flex flex-wrap items-center gap-2 pt-1 text-xs" id="desktop-podcast-suggestions">
+                            <span class="text-slate-505 font-bold text-[11px] text-slate-400">Sugestões (Podcast Addict):</span>
+                        </div>
+                    </div>
+
+                    <div id="podcast-status-msg" class="mt-4 p-4 rounded-xl text-xs flex items-start gap-2.5 transition border hidden"></div>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-sm font-black text-white tracking-widest uppercase text-slate-400 pl-1">Biblioteca de Podcasts</h3>
+                    <div id="podcasts-loading" class="py-12 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
+                        <i data-lucide="loader" class="w-6 h-6 animate-spin text-orange-500"></i>
+                        Carregando biblioteca...
+                    </div>
+                    <div id="podcasts-empty" class="text-center py-12 bg-slate-950/20 border border-slate-900 border-dashed rounded-3xl space-y-3 hidden">
+                        <i data-lucide="headphones" class="w-12 h-12 text-slate-700 mx-auto"></i>
+                        <p class="text-xs text-slate-500">Nenhum canal de Podcast sincronizado ainda.</p>
+                    </div>
+                    <div id="podcasts-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
+                </div>
+
+                <div id="podcast-details" class="bg-slate-950/65 p-6 rounded-3xl border border-slate-900 shadow-xl space-y-6 hidden">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-900 pb-5">
+                        <div class="flex items-center gap-4">
+                            <div class="w-16 h-16 rounded-xl bg-slate-950 overflow-hidden shrink-0 border border-slate-900">
+                                <img id="pod-detail-img" src="" class="w-full h-full object-cover">
+                            </div>
+                            <div>
+                                <span class="text-[9px] bg-orange-500/15 text-orange-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Podcast Ativo</span>
+                                <h3 id="pod-detail-name" class="text-lg font-black text-white mt-1">Podcast</h3>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <div class="admin-only flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 shrink-0">
+                                <span class="text-[10px] text-slate-500 uppercase font-black tracking-wider whitespace-nowrap">Máx. episódios:</span>
+                                <select id="pod-detail-limit" class="bg-transparent text-xs font-bold text-white outline-none">
+                                    <option value="3" class="bg-slate-950 text-white">3</option>
+                                    <option value="5" class="bg-slate-950 text-white">5</option>
+                                    <option value="10" class="bg-slate-950 text-white">10</option>
+                                    <option value="20" class="bg-slate-950 text-white">20</option>
+                                    <option value="50" class="bg-slate-950 text-white">50</option>
+                                </select>
+                            </div>
+                            <button id="pod-detail-update-btn" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-orange-400 hover:text-orange-300 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Atualizar
+                            </button>
+                            <button id="pod-play-all-btn" class="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-black text-xs rounded-xl transition flex items-center gap-2 cursor-pointer shadow-lg shadow-orange-500/10">
+                                <i data-lucide="play" class="w-4 h-4 fill-white text-white"></i> Tocar em Ordem
+                            </button>
+                        </div>
+                    </div>
+                    <div id="pod-episodes-list" class="space-y-2.5"></div>
+                </div>
+            </section>
+
+            <!-- VIEW: RADIOS -->
+            <section id="pane-radios" class="space-y-6 flex-1 hidden">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-slate-950 via-[#0b101b] to-slate-950 p-6 rounded-3xl border border-slate-900/50 shadow-xl">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 bg-emerald-500/10 rounded-2xl text-emerald-400">
+                            <i data-lucide="radio" class="w-8 h-8 animate-pulse"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                                Estações de Rádio On-line
+                            </h2>
+                            <p class="text-xs text-slate-500 mt-1 max-w-sm sm:max-w-md">
+                                Configure e ouça suas transmissões de rádio favoritas. Aceitamos URLs de playlists como <span class="font-mono text-slate-400">.m3u</span>, <span class="font-mono text-slate-400 font-bold">.pls</span> e <span class="font-mono text-slate-400">.asx</span> que resolveremos de forma transparente.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="admin-only bg-slate-950/40 p-6 rounded-3xl border border-slate-900 shadow-md">
+                    <h3 class="text-xs font-black text-white tracking-widest uppercase mb-4 text-emerald-400 flex items-center gap-1.5">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Cadastrar Nova Emissora
+                    </h3>
+                    
+                    <form onsubmit="handleAddRadioPhp(event)" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block pl-1">Nome da Rádio</label>
+                                <input
+                                    id="radio-name-input"
+                                    type="text"
+                                    required
+                                    placeholder="Ex: Antena 1, Jovem Pan..."
+                                    class="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-xl px-4 py-3 text-xs outline-none transition font-semibold text-white placeholder-slate-500"
+                                />
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block pl-1">Endereço (M3U, PLS, ASX ou Stream Direto)</label>
+                                <input
+                                    id="radio-url-input"
+                                    type="text"
+                                    required
+                                    placeholder="https://exemplo.com/fluxo.m3u"
+                                    class="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-xl px-4 py-3 text-xs outline-none transition font-semibold text-white placeholder-slate-500"
+                                />
+                            </div>
+                        </div>
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-2">
+                            <!-- Presets -->
+                            <div class="flex flex-wrap items-center gap-2 text-xs" id="desktop-radio-suggestions">
+                                <span class="font-bold text-[11px] text-slate-400">Sugestões (radios.com.br):</span>
+                            </div>
+                            <button
+                                type="submit"
+                                id="btn-add-radio"
+                                class="bg-gradient-to-r from-emerald-500 to-teal-600 font-extrabold hover:opacity-90 text-white rounded-xl px-6 py-3 text-xs tracking-wide transition flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-500/5 border border-transparent shrink-0"
+                            >
+                                <i data-lucide="check" class="w-4 h-4"></i> Cadastrar Rádio
+                            </button>
+                        </div>
+                    </form>
+
+                    <div id="radio-status-msg" class="mt-4 p-4 rounded-xl text-xs flex items-center gap-2.5 transition border hidden"></div>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-sm font-black text-white tracking-widest uppercase text-slate-400 pl-1">Emissoras Disponíveis</h3>
+                    
+                    <div id="radios-loading" class="py-12 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
+                        <i data-lucide="loader" class="w-6 h-6 animate-spin text-emerald-500"></i>
+                        Carregando emissoras...
+                    </div>
+                    
+                    <div id="radios-empty" class="text-center py-12 bg-slate-950/20 border border-slate-900 border-dashed rounded-3xl space-y-3 hidden">
+                        <i data-lucide="radio" class="w-12 h-12 text-slate-700 mx-auto"></i>
+                        <p class="text-xs text-slate-500">Nenhuma rádio sintonizada ainda pela administração.</p>
+                    </div>
+                    
+                    <div id="radios-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+                </div>
+            </section>
+
+            <!-- VIEW: REPRODUTOR -->
+            <section id="pane-reprodutor" class="space-y-6 flex-1 hidden text-left font-sans">
+                <!-- EMPTY STATE (WHEN NO MUSIC RUNNING) -->
+                <div id="reprodutor-empty-state" class="flex flex-col items-center justify-center py-20 bg-slate-950/20 border border-slate-900 rounded-3xl p-10 text-center space-y-4 max-w-lg mx-auto">
+                    <div class="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400">
+                        <i data-lucide="music" class="w-8 h-8 animate-bounce text-sky-450"></i>
+                    </div>
+                    <h3 class="text-base font-extrabold text-white">Nenhuma música em execução</h3>
+                    <p class="text-xs text-slate-500 max-w-sm">
+                        Selecione uma faixa da sua biblioteca de áudio ou do painel de controle e clique em reproduzir para carregar o reprodutor móvel.
+                    </p>
+                </div>
+
+                <!-- ACTIVE REPRODUCING STATE -->
+                <div id="reprodutor-active-state" class="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-start text-left hidden">
+                    <!-- COLUMN 1: VINYL AND PROGRESS -->
+                    <div class="lg:col-span-5 space-y-6">
+                        <div class="bg-[#0c1322]/80 border border-slate-900/80 p-6 md:p-8 rounded-3xl flex flex-col items-center justify-between shadow-2xl relative overflow-hidden">
+                            <!-- Top Info Header Row -->
+                            <div class="flex items-center justify-between w-full pb-4 border-b border-slate-900">
+                                <div>
+                                    <span class="inline-flex items-center gap-1 text-[9px] font-black uppercase bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-full border border-emerald-500/10">
+                                        <i data-lucide="check" class="w-2.5 h-2.5"></i> Salvo Local
+                                    </span>
+                                </div>
+                                <div class="text-center">
+                                    <p class="text-[9px] text-slate-505 uppercase tracking-widest font-black">REPRODUTOR PHPLAYER</p>
+                                    <p id="reprodutor-album" class="text-[10px] text-sky-450 font-bold max-w-[150px] truncate mt-0.5">Álbum</p>
+                                </div>
+                                <button id="reprodutor-fav-btn" onclick="toggleReprodutorFavorite(event)" class="p-2 bg-slate-900 hover:bg-slate-850 rounded-xl transition cursor-pointer border border-slate-850 text-slate-400 hover:text-white">
+                                    <i data-lucide="heart" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+
+                            <!-- Big Rotating Vinyl Area -->
+                            <div class="flex flex-col items-center justify-center py-6">
+                                <div class="relative w-56 h-56 sm:w-64 sm:h-64 aspect-square rounded-full bg-slate-950 flex items-center justify-center shadow-2xl border-4 border-slate-900 overflow-hidden group select-none">
+                                    <div class="absolute inset-1 rounded-full border border-slate-800/10"></div>
+                                    <div class="absolute inset-4 rounded-full border border-slate-800/20"></div>
+                                    <div class="absolute inset-8 rounded-full border border-slate-800/30"></div>
+                                    <div class="absolute inset-12 rounded-full border border-slate-800/40"></div>
+                                    <div class="absolute inset-16 rounded-full border border-slate-800/50"></div>
+                                    
+                                    <div class="w-[50%] h-[50%] rounded-full overflow-hidden z-10 border-2 border-slate-950 shadow-md">
+                                        <img id="reprodutor-cover" src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300" class="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                                    </div>
+
+                                    <div class="absolute w-4 h-4 bg-slate-900 border-2 border-slate-950 rounded-full z-20"></div>
+                                </div>
+
+                                <div class="text-center mt-6 w-full max-w-sm space-y-1">
+                                    <h3 id="reprodutor-title" class="text-base font-extrabold text-white truncate max-w-xs mx-auto">Título</h3>
+                                    <p id="reprodutor-artist" class="text-xs text-sky-400 font-bold truncate max-w-xs mx-auto">Artista</p>
+                                    <div class="flex items-center justify-center pt-2">
+                                        <span id="reprodutor-genre" class="text-[8px] font-black tracking-widest bg-slate-900/40 border border-slate-850 px-2.5 py-0.5 rounded-full text-slate-500 uppercase">GÊNERO</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Playback progress bar -->
+                            <div class="w-full space-y-2 mt-4">
+                                <input id="reprodutor-seek" oninput="seek(this.value)" type="range" min="0" value="0" step="0.5" class="w-full accent-sky-400 bg-slate-900 border border-slate-850 h-1.5 rounded-lg outline-none cursor-pointer">
+                                <div class="flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                                    <span id="reprodutor-current-time">0:00</span>
+                                    <span id="reprodutor-duration">0:00</span>
+                                </div>
+                            </div>
+
+                            <!-- Buttons Panel (Shuffle, Skip, Play, Next, Repeat) -->
+                            <div class="w-full flex items-center justify-between px-1 md:px-4 mt-6">
+                                <button id="reprodutor-shuffle-btn" onclick="toggleShuffle()" class="p-2.5 rounded-xl border transition cursor-pointer bg-slate-950 border-transparent text-slate-500 hover:text-slate-350">
+                                    <i data-lucide="shuffle" class="w-4 h-4"></i>
+                                </button>
+
+                                <button onclick="prev()" class="p-3 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-white rounded-2xl transition cursor-pointer">
+                                    <i data-lucide="skip-back" class="w-5 h-5 fill-current"></i>
+                                </button>
+
+                                <button id="reprodutor-master-play-btn" onclick="togglePlay()" class="p-5.5 bg-gradient-to-tr from-sky-500 to-indigo-605 text-white rounded-full transition shadow-xl shadow-sky-500/10 transform active:scale-95 cursor-pointer">
+                                    <i data-lucide="play" class="w-6 h-6 fill-current ml-0.5"></i>
+                                </button>
+
+                                <button onclick="next()" class="p-3 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-white rounded-2xl transition cursor-pointer">
+                                    <i data-lucide="skip-forward" class="w-5 h-5 fill-current"></i>
+                                </button>
+
+                                <button id="reprodutor-loop-btn" onclick="toggleLoop()" class="p-2.5 rounded-xl border transition cursor-pointer bg-slate-950 border-transparent text-slate-500 hover:text-slate-350">
+                                    <i data-lucide="repeat" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+
+                            <!-- Party Mode Switch -->
+                            <div class="flex items-center justify-between bg-slate-900/30 border border-slate-900 rounded-2xl p-4 mt-4 w-full">
+                                <div class="space-y-0.5 text-left">
+                                    <span class="text-xs font-extrabold text-white flex items-center gap-1.5 leading-none">
+                                        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-pink-400"></i> Modo Festa (Party Mode)
+                                    </span>
+                                    <p class="text-[10px] text-slate-500 leading-normal">Desativa a pausa manual e os controles normais de navegação!</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer select-none shrink-0 ml-3">
+                                    <input id="reprodutor-party-checkbox" type="checkbox" onchange="togglePartyModeFromReprodutor(this)" class="sr-only peer" />
+                                    <div class="w-9 h-5 bg-slate-950 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-550 after:border-slate-500 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-500 peer-checked:after:bg-white border border-slate-850"></div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Queue Panel below -->
+                        <div class="bg-[#090e18] border border-slate-900 p-5 rounded-2xl text-left space-y-3 flex flex-col h-72">
+                            <div class="flex items-center justify-between border-b border-slate-900 pb-2 shrink-0">
+                                <h4 class="text-xs font-black uppercase text-slate-400 tracking-wider">Fila de Reprodução</h4>
+                                <span id="reprodutor-queue-count" class="text-[10px] text-sky-400 font-bold tracking-tight">0 de 0 fatias</span>
+                            </div>
+                            <div id="reprodutor-queue-list" class="flex-1 overflow-y-auto pr-1 space-y-1.5 custom-scroll text-slate-300">
+                                <!-- Queued songs render here dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- COLUMN 2: AJUSTES ADICIONAIS, EQUALIZER AND VISUALIZER -->
+                    <div class="lg:col-span-3 space-y-4">
+                        <!-- TIMERS AND TRANSITIONS (Ajustes Adicionais) -->
+                        <div class="bg-[#090e18] border border-slate-900 p-5 rounded-2xl text-left space-y-4">
+                            <h4 class="text-xs font-black uppercase text-slate-400 tracking-wider">Ajustes Adicionais</h4>
+                            <div class="grid grid-cols-1 gap-4">
+                                <!-- Sleep Timer select inside php -->
+                                <div class="space-y-1.5">
+                                    <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                                        <i data-lucide="clock" class="w-3.5 h-3.5 text-sky-400"></i> Temporizador (Sleep Timer)
+                                    </label>
+                                    <select id="reprodutor-sleep-timer-select" onchange="changeReprodutorSleepTimer(this.value)" class="w-full bg-slate-950 border border-slate-900 rounded-xl py-2 px-3 text-xs text-white outline-none cursor-pointer">
+                                        <option value="0">Desativado</option>
+                                        <option value="5">5 minutos</option>
+                                        <option value="15">15 minutos</option>
+                                        <option value="30">30 minutos</option>
+                                        <option value="60">1 hora</option>
+                                    </select>
+                                </div>
+
+                                <!-- Crossfade Duration selector -->
+                                <div class="space-y-1.5">
+                                    <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                                        <i data-lucide="layers" class="w-3.5 h-3.5 text-sky-450"></i> Transição Suave (Crossfade)
+                                    </label>
+                                    <select id="reprodutor-crossfade-select" onchange="changeReprodutorCrossfade(this.value)" class="w-full bg-slate-950 border border-slate-900 rounded-xl py-2 px-3 text-xs text-white outline-none cursor-pointer">
+                                        <option value="0">Sem transição (Corte seco)</option>
+                                        <option value="2">2 segundos</option>
+                                        <option value="4">4 segundos</option>
+                                        <option value="7">7 segundos</option>
+                                        <option value="10">10 segundos</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- EMBEDDED EQUALIZER -->
+                        <div class="bg-[#090e18] border border-slate-900 rounded-2xl overflow-hidden text-left flex flex-col font-sans">
+                            <!-- Title bar -->
+                            <div class="flex items-center justify-between p-4 border-b border-slate-900 bg-[#0d131f]/15">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="sliders" class="w-4 h-4 text-sky-455 shrink-0"></i>
+                                    <span class="text-xs font-bold text-white uppercase tracking-wider">Equalizador de Áudio</span>
+                                </div>
+                            </div>
+                            <!-- Presets -->
+                            <div class="p-3 border-b border-slate-900 bg-slate-900/10">
+                                <label class="text-[8px] uppercase font-bold text-slate-500 tracking-wider block mb-2">Predefinições (Presets)</label>
+                                <div class="grid grid-cols-4 gap-1">
+                                    <button onclick="setEqPresetPhp('flat')" id="preset-php-flat" class="preset-btn px-1 py-0.5 bg-sky-500/10 border border-sky-500 text-sky-400 rounded text-[9px] hover:border-sky-500 hover:text-sky-400 transition font-bold shadow-lg shadow-sky-500/5 cursor-pointer">Flat</button>
+                                    <button onclick="setEqPresetPhp('bass')" id="preset-php-bass" class="preset-btn px-1 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded text-[9px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Grav</button>
+                                    <button onclick="setEqPresetPhp('pop')" id="preset-php-pop" class="preset-btn px-1 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded text-[9px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Pop</button>
+                                    <button onclick="setEqPresetPhp('rock')" id="preset-php-rock" class="preset-btn px-1 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded text-[9px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Rock</button>
+                                    <button onclick="setEqPresetPhp('vocal')" id="preset-php-vocal" class="preset-btn px-1 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded text-[9px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Voz</button>
+                                    <button onclick="setEqPresetPhp('electronic')" id="preset-php-electronic" class="preset-btn px-1 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded text-[9px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Eletr</button>
+                                    <button onclick="setEqPresetPhp('suave')" id="preset-php-suave" class="preset-btn px-1 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded text-[9px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Suav</button>
+                                    <button onclick="setEqPresetPhp('classical')" id="preset-php-classical" class="preset-btn px-1 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded text-[9px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Clás</button>
+                                </div>
+                            </div>
+                            <!-- Sliders -->
+                            <div class="px-3 py-6 flex justify-around items-center h-44 bg-slate-900/5">
+                                <div class="flex flex-col items-center h-full gap-1">
+                                    <span class="text-[8px] text-slate-500 font-mono" id="php-eq-gain-val-0">0dB</span>
+                                    <div class="flex-1 w-6 relative flex justify-center">
+                                        <input type="range" min="-12" max="12" value="0" id="php-eq-slider-0" oninput="onEqSliderChangePhp(0, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="-webkit-appearance: slider-vertical; width: 4px; height: 100%;">
+                                    </div>
+                                    <span class="text-[8px] font-bold text-white">60Hz</span>
+                                    <span class="text-[7px] text-sky-455 uppercase font-black tracking-wider">Graves</span>
+                                </div>
+                                <div class="flex flex-col items-center h-full gap-1">
+                                    <span class="text-[8px] text-slate-500 font-mono" id="php-eq-gain-val-1">0dB</span>
+                                    <div class="flex-1 w-6 relative flex justify-center">
+                                        <input type="range" min="-12" max="12" value="0" id="php-eq-slider-1" oninput="onEqSliderChangePhp(1, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="-webkit-appearance: slider-vertical; width: 4px; height: 100%;">
+                                    </div>
+                                    <span class="text-[8px] font-bold text-white">230Hz</span>
+                                    <span class="text-[7px] text-slate-500 uppercase font-bold tracking-wider">MGrav</span>
+                                </div>
+                                <div class="flex flex-col items-center h-full gap-1">
+                                    <span class="text-[8px] text-slate-500 font-mono" id="php-eq-gain-val-2">0dB</span>
+                                    <div class="flex-1 w-6 relative flex justify-center">
+                                        <input type="range" min="-12" max="12" value="0" id="php-eq-slider-2" oninput="onEqSliderChangePhp(2, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="-webkit-appearance: slider-vertical; width: 4px; height: 100%;">
+                                    </div>
+                                    <span class="text-[8px] font-bold text-white">910Hz</span>
+                                    <span class="text-[7px] text-slate-500 uppercase font-bold tracking-wider">Médio</span>
+                                </div>
+                                <div class="flex flex-col items-center h-full gap-1">
+                                    <span class="text-[8px] text-slate-500 font-mono" id="php-eq-gain-val-3">0dB</span>
+                                    <div class="flex-1 w-6 relative flex justify-center">
+                                        <input type="range" min="-12" max="12" value="0" id="php-eq-slider-3" oninput="onEqSliderChangePhp(3, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="-webkit-appearance: slider-vertical; width: 4px; height: 100%;">
+                                    </div>
+                                    <span class="text-[8px] font-bold text-white">4kHz</span>
+                                    <span class="text-[7px] text-slate-500 uppercase font-bold tracking-wider">Pres</span>
+                                </div>
+                                <div class="flex flex-col items-center h-full gap-1">
+                                    <span class="text-[8px] text-slate-500 font-mono" id="php-eq-gain-val-4">0dB</span>
+                                    <div class="flex-1 w-6 relative flex justify-center">
+                                        <input type="range" min="-12" max="12" value="0" id="php-eq-slider-4" oninput="onEqSliderChangePhp(4, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="-webkit-appearance: slider-vertical; width: 4px; height: 100%;">
+                                    </div>
+                                    <span class="text-[8px] font-bold text-white">14kHz</span>
+                                    <span class="text-[7px] text-sky-455 uppercase font-black tracking-wider">Agudo</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- EMBEDDED VISUALIZER -->
+                        <div class="bg-[#090e18] border border-slate-900 rounded-2xl overflow-hidden flex flex-col font-sans">
+                            <!-- Title bar -->
+                            <div class="flex items-center justify-between p-4 border-b border-slate-900 bg-[#0d131f]/15">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="activity" class="w-4 h-4 text-sky-455 shrink-0 animate-pulse"></i>
+                                    <span class="text-xs font-bold text-white uppercase tracking-wider">Visualizador de Áudio</span>
+                                </div>
+                            </div>
+                            <!-- Toolbar controls -->
+                            <div class="p-2 border-b border-slate-900 bg-slate-900/10 flex flex-col gap-2">
+                                <div class="flex items-center gap-0.5 bg-slate-950 border border-slate-900 p-0.5 rounded-lg justify-around">
+                                    <button onclick="setVisualizerStylePhp('bars')" id="v-style-bars" class="px-2 py-1 rounded-md text-[9px] font-bold uppercase transition flex items-center gap-1 bg-sky-500/10 text-sky-400 cursor-pointer">
+                                        Barras
+                                    </button>
+                                    <button onclick="setVisualizerStylePhp('scope')" id="v-style-scope" class="px-2 py-1 rounded-md text-[9px] font-bold uppercase transition flex items-center gap-1 text-slate-400 hover:text-white hover:bg-slate-900 cursor-pointer">
+                                        Onda
+                                    </button>
+                                    <button onclick="setVisualizerStylePhp('beat')" id="v-style-beat" class="px-2 py-1 rounded-md text-[9px] font-bold uppercase transition flex items-center gap-1 text-slate-400 hover:text-white hover:bg-slate-900 cursor-pointer">
+                                        Batida
+                                    </button>
+                                </div>
+                                <div class="flex items-center gap-0.5 bg-slate-950 border border-slate-900 p-0.5 rounded-lg justify-around">
+                                    <button onclick="setVisualizerColorPhp('wmp')" id="v-color-wmp" class="px-1.5 py-0.5 rounded text-[8px] uppercase font-bold tracking-wider transition bg-cyan-500/10 text-cyan-405 border border-cyan-500/20 cursor-pointer">WMP</button>
+                                    <button onclick="setVisualizerColorPhp('neon')" id="v-color-neon" class="px-1.5 py-0.5 rounded text-[8px] uppercase font-bold tracking-wider transition text-slate-400 hover:text-white cursor-pointer">Neon</button>
+                                    <button onclick="setVisualizerColorPhp('fire')" id="v-color-fire" class="px-1.5 py-0.5 rounded text-[8px] uppercase font-bold tracking-wider transition text-slate-400 hover:text-white cursor-pointer">Fire</button>
+                                    <button onclick="setVisualizerColorPhp('cyber')" id="v-color-cyber" class="px-1.5 py-0.5 rounded text-[8px] uppercase font-bold tracking-wider transition text-slate-400 hover:text-white cursor-pointer">Cyber</button>
+                                </div>
+                            </div>
+                            <!-- Canvas -->
+                            <div class="h-32 w-full relative bg-slate-950 flex items-center justify-center p-1 overflow-hidden">
+                                <canvas id="php-visualizer-canvas" class="w-full h-full block rounded-xl"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- COLUMN 3: LYRICS ALWAYS OPEN -->
+                    <div class="lg:col-span-4 bg-[#090e18] border border-slate-900 rounded-3xl overflow-hidden shadow-2xl flex flex-col h-full min-h-[580px] lg:min-h-[660px] font-sans">
+                        <!-- Header -->
+                        <div class="flex items-center justify-between p-4 border-b border-slate-900 bg-[#0d131f]/15">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <i data-lucide="file-text" class="w-4 h-4 text-sky-455 shrink-0"></i>
+                                <div class="text-left min-w-0">
+                                    <div class="flex items-center gap-1 flex-wrap">
+                                        <span id="lyrics-title" class="text-xs font-bold text-white max-w-[120px] sm:max-w-[160px] truncate block">Título</span>
+                                        <span id="lyrics-source" class="text-[8px] bg-sky-500/15 text-sky-400 px-1 py-0.5 rounded font-black tracking-wider uppercase hidden">Lyrics.ovh</span>
+                                    </div>
+                                    <span id="lyrics-artist" class="text-[9px] text-sky-450 truncate block font-semibold">Artista</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <div class="flex bg-slate-900/40 p-0.5 border border-slate-800/40 rounded-lg gap-0.5 shrink-0 select-none">
+                                    <button id="btn-lyrics-karaoke" onclick="setLyricsMode('karaoke')" class="px-2 py-0.5 font-bold uppercase tracking-wider text-[8px] rounded cursor-pointer flex items-center gap-0.5 transition-all duration-200">
+                                        Karaoke
+                                    </button>
+                                    <button id="btn-lyrics-standard" onclick="setLyricsMode('standard')" class="px-2 py-0.5 font-bold uppercase tracking-wider text-[8px] rounded cursor-pointer flex items-center gap-0.5 transition-all duration-200">
+                                        Leitura
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Lyrics search controls -->
+                        <div class="px-4 py-2 bg-[#0a0f18]/80 border-b border-slate-900/80 flex flex-col gap-2">
+                            <div class="grid grid-cols-2 gap-1.5 w-full">
+                                <div class="space-y-0.5">
+                                    <label class="text-[7px] uppercase font-bold text-slate-500 tracking-wider">Artista</label>
+                                    <input type="text" id="lyrics-search-artist" placeholder="Artista" class="w-full bg-slate-900/60 border border-slate-800/80 rounded-lg px-2 py-1 text-[10px] text-white placeholder-slate-500 font-medium focus:outline-none focus:border-sky-500 transition" onkeydown="if(event.key === 'Enter') searchLyricsCustom()">
+                                </div>
+                                <div class="space-y-0.5">
+                                    <label class="text-[7px] uppercase font-bold text-slate-500 tracking-wider">Música</label>
+                                    <input type="text" id="lyrics-search-title" placeholder="Música" class="w-full bg-slate-900/60 border border-slate-800/80 rounded-lg px-2 py-1 text-[10px] text-white placeholder-slate-500 font-medium focus:outline-none focus:border-sky-500 transition" onkeydown="if(event.key === 'Enter') searchLyricsCustom()">
+                                </div>
+                            </div>
+                            <button onclick="searchLyricsCustom()" class="w-full px-3 py-1 bg-sky-600 hover:bg-sky-500 font-bold text-[9px] uppercase tracking-wider text-white rounded-lg transition cursor-pointer flex items-center justify-center gap-1 shrink-0 h-[24px]">
+                                <i data-lucide="search" class="w-3 h-3"></i>
+                                Buscar Letras
+                            </button>
+                        </div>
+
+                        <!-- Lyrics scrolling panel -->
+                        <div id="lyrics-content" class="flex-1 overflow-y-auto p-4 text-center whitespace-pre-line custom-scroll text-xs leading-relaxed text-slate-350 min-h-[300px]">
+                            <!-- Loaded on demand -->
+                        </div>
+                        <!-- Footer -->
+                        <div class="p-2 border-t border-slate-900 bg-slate-950/85 text-center text-[8px] font-mono text-slate-650 uppercase tracking-widest block shrink-0">
+                            Letras em Tempo Real
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -973,6 +1892,9 @@ if (!file_exists('config.php')) {
                 <button onclick="togglePlay()" id="player-play-btn" class="p-2 bg-white text-slate-950 rounded-full hover:scale-105 active:scale-95 transition cursor-pointer"><i data-lucide="play" class="w-4 h-4 fill-current"></i></button>
                 <button onclick="next()" class="text-slate-400 hover:text-white transition cursor-pointer"><i data-lucide="skip-forward" class="w-4 h-4"></i></button>
                 <button onclick="toggleLoop()" id="player-loop" class="text-slate-500 hover:text-white transition cursor-pointer"><i data-lucide="repeat" class="w-4 h-4"></i></button>
+                <button onclick="togglePlayerCurrentFav(event)" id="player-favorite-heart-btn" class="text-slate-500 hover:text-rose-550 transition cursor-pointer p-1.5 rounded-lg hover:bg-slate-900 shrink-0 hidden" title="Adicionar aos Favoritos">
+                    <i data-lucide="heart" class="w-4 h-4"></i>
+                </button>
             </div>
             <div class="w-full flex items-center gap-2">
                 <span id="player-current-time" class="text-[9px] font-mono text-slate-500 w-8 text-right">0:00</span>
@@ -982,6 +1904,53 @@ if (!file_exists('config.php')) {
         </div>
 
         <div class="flex items-center justify-end gap-2.5 w-1/3">
+            <button onclick="showLyricsPhp()" class="text-slate-400 hover:text-sky-400 transition cursor-pointer p-1.5 rounded-lg hover:bg-slate-900 shrink-0" title="Mostrar Letras">
+                <i data-lucide="file-text" class="w-4 h-4"></i>
+            </button>
+            <button onclick="showEqualizerPhp()" class="text-slate-400 hover:text-sky-400 transition cursor-pointer p-1.5 rounded-lg hover:bg-slate-900 shrink-0" title="Equalizador">
+                <i data-lucide="sliders" class="w-4 h-4"></i>
+            </button>
+            <button onclick="showVisualizerPhp()" class="text-slate-400 hover:text-sky-400 transition cursor-pointer p-1.5 rounded-lg hover:bg-slate-900 shrink-0" title="Visualizador (Estilo WMP)">
+                <i data-lucide="activity" class="w-4 h-4"></i>
+            </button>
+            <button onclick="togglePartyModePhp()" id="player-party-mode-btn" class="text-slate-400 hover:text-pink-400 transition cursor-pointer p-1.5 rounded-lg hover:bg-slate-900 shrink-0 flex items-center gap-1" title="Modo Festa (Desativa Pausa e Bloqueia Navegação)">
+                <i data-lucide="sparkles" class="w-4 h-4"></i>
+            </button>
+            <div id="php-sleep-container" class="relative group shrink-0">
+                <button id="php-sleep-btn" class="p-1.5 text-slate-400 hover:text-white transition cursor-pointer border border-transparent rounded-lg flex items-center gap-1 font-mono text-[9px]" title="Sleep Timer">
+                    <i data-lucide="clock" class="w-4 h-4"></i>
+                </button>
+                <div class="absolute bottom-full right-0 pb-2 pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 transition-all duration-150 z-50">
+                    <div class="w-32 bg-slate-950 border border-slate-900 rounded-xl shadow-2xl py-1 overflow-hidden">
+                        <div class="px-2 py-0.5 border-b border-slate-900 mb-1">
+                            <span class="text-[8px] font-bold text-slate-500 uppercase tracking-wider block">Desligar em:</span>
+                        </div>
+                        <button onclick="setSleepTimerPhp(5)" class="w-full text-left px-2.5 py-1 text-[11px] text-slate-350 hover:text-white hover:bg-slate-900 transition font-medium">5 minutos</button>
+                        <button onclick="setSleepTimerPhp(15)" class="w-full text-left px-2.5 py-1 text-[11px] text-slate-350 hover:text-white hover:bg-slate-900 transition font-medium">15 minutos</button>
+                        <button onclick="setSleepTimerPhp(30)" class="w-full text-left px-2.5 py-1 text-[11px] text-slate-350 hover:text-white hover:bg-slate-900 transition font-medium">30 minutos</button>
+                        <button onclick="setSleepTimerPhp(45)" class="w-full text-left px-2.5 py-1 text-[11px] text-slate-350 hover:text-white hover:bg-slate-900 transition font-medium">45 minutos</button>
+                        <button onclick="setSleepTimerPhp(60)" class="w-full text-left px-2.5 py-1 text-[11px] text-slate-350 hover:text-white hover:bg-slate-900 transition font-medium">60 minutos</button>
+                        <button onclick="setSleepTimerPhp(null)" class="w-full text-left px-2.5 py-1 text-[10px] text-rose-450 hover:text-rose-350 hover:bg-rose-950/20 border-t border-slate-900 mt-1 transition font-bold text-rose-400">Desativar</button>
+                    </div>
+                </div>
+            </div>
+            <div id="php-crossfade-container" class="relative group shrink-0">
+                <button id="php-crossfade-btn" class="p-1.5 text-slate-400 hover:text-white transition cursor-pointer border border-transparent rounded-lg flex items-center gap-1 font-mono text-[9px]" title="Efeito Crossfade (Transição)">
+                    <i data-lucide="layers" class="w-4 h-4"></i>
+                </button>
+                <div class="absolute bottom-full right-0 pb-2 pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 transition-all duration-150 z-50">
+                    <div class="w-32 bg-slate-950 border border-slate-900 rounded-xl shadow-2xl py-1 overflow-hidden">
+                        <div class="px-2 py-0.5 border-b border-slate-900 mb-1">
+                            <span class="text-[8px] font-bold text-slate-500 uppercase tracking-wider block">Crossfade (Transição):</span>
+                        </div>
+                        <button onclick="setCrossfadePhp(2)" class="w-full text-left px-2.5 py-1 text-[11px] text-slate-350 hover:text-white hover:bg-slate-900 transition font-medium">2 segundos</button>
+                        <button onclick="setCrossfadePhp(4)" class="w-full text-left px-2.5 py-1 text-[11px] text-slate-350 hover:text-white hover:bg-slate-900 transition font-medium">4 segundos</button>
+                        <button onclick="setCrossfadePhp(7)" class="w-full text-left px-2.5 py-1 text-[11px] text-slate-350 hover:text-white hover:bg-slate-900 transition font-medium">7 segundos</button>
+                        <button onclick="setCrossfadePhp(10)" class="w-full text-left px-2.5 py-1 text-[11px] text-slate-350 hover:text-white hover:bg-[#0a111e] transition font-medium">10 segundos</button>
+                        <button onclick="setCrossfadePhp(0)" class="w-full text-left px-2.5 py-1 text-[10px] text-rose-450 hover:text-rose-350 hover:bg-rose-950/20 border-t border-slate-900 mt-1 transition font-bold text-rose-400">Desativar</button>
+                    </div>
+                </div>
+            </div>
             <button onclick="mute()" id="player-mute" class="text-slate-400 hover:text-white transition cursor-pointer shrink-0"><i data-lucide="volume-2" class="w-4 h-4"></i></button>
             <input id="player-volume" oninput="volume(this.value)" type="range" min="0" max="1" step="0.05" value="0.7" class="w-16 h-1 bg-slate-800 accent-sky-500 rounded-lg cursor-pointer shrink-0">
         </div>
@@ -1062,12 +2031,218 @@ if (!file_exists('config.php')) {
                 </div>
             </div>
             
-            <!-- Modal Footer -->
-            <div class="p-4 bg-slate-950/60 border-t border-slate-900 text-center">
-                <span class="text-[9px] font-mono text-slate-600 uppercase tracking-widest">
-                    Imagens carregadas via scraping dinâmico e APIs públicas
-                </span>
+              <!-- DUMMY HIDDEN MODAL HOLDERS FOR BACKWARD COMPATIBILITY -->
+    <div id="equalizer-modal" class="hidden"></div>
+    <div id="visualizer-modal" class="hidden"></div>
+    <div id="lyrics-modal" class="hidden"></div>
+
+    <!-- ID3 TAGS EDITOR MODAL (Admin Only) -->
+    <div id="id3-edit-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-56 p-4 backdrop-blur-sm hidden">
+        <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl max-w-md w-full flex flex-col overflow-hidden shadow-2xl font-sans animate-fade-in">
+            <!-- Modal Header -->
+            <div class="p-5 border-b border-slate-900 flex items-center justify-between col-span-2">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="edit-3" class="w-4 h-4 text-sky-400"></i>
+                    <h3 class="text-xs font-black uppercase text-white tracking-wider">Editar Tags ID3 / Metadados</h3>
+                </div>
+                <button onclick="closeId3EditModal()" class="p-1.5 hover:bg-slate-900 text-slate-400 hover:text-white rounded-lg transition cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
             </div>
+
+            <!-- Modal Content (Forms) -->
+            <form id="id3-edit-form" onsubmit="saveId3Tags(event)" class="p-5 space-y-4 text-left">
+                <input type="hidden" id="id3-edit-song-id" name="id">
+                
+                <div class="space-y-1">
+                    <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Título da Música</label>
+                    <input type="text" id="id3-edit-title" name="title" required class="w-full bg-slate-900 border border-slate-800 text-sky-400 font-semibold p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Artista</label>
+                    <input type="text" id="id3-edit-artist" name="artist" class="w-full bg-slate-900 border border-slate-800 text-white p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Álbum</label>
+                    <input type="text" id="id3-edit-album" name="album" class="w-full bg-slate-900 border border-slate-800 text-white p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1">
+                        <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Gênero</label>
+                        <input type="text" id="id3-edit-genre" name="genre" class="w-full bg-slate-900 border border-slate-800 text-white p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Ano do Álbum</label>
+                        <input type="number" id="id3-edit-year" name="album_year" placeholder="Ex: 2024" min="1900" max="2100" class="w-full bg-slate-900 border border-slate-800 text-white p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition">
+                    </div>
+                </div>
+
+                <div class="pt-2 flex gap-3">
+                    <button type="button" onclick="closeId3EditModal()" class="flex-1 py-2.5 bg-slate-900 hover:bg-slate-850 hover:text-white text-slate-400 border border-slate-800/80 rounded-xl text-xs font-bold transition cursor-pointer">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-sky-500 to-indigo-600 text-white rounded-xl text-xs font-black transition shadow-lg shadow-sky-500/10 hover:shadow-sky-500/20 cursor-pointer">
+                        Salvar Tags
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ID3 TAGS BULK EDITOR MODAL (Admin Only) -->
+    <div id="id3-bulk-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-56 p-4 backdrop-blur-sm hidden font-sans">
+        <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl max-w-md w-full flex flex-col overflow-hidden shadow-2xl font-sans animate-fade-in text-left">
+            <!-- Modal Header -->
+            <div class="p-5 border-b border-slate-900 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="layers" class="w-4 h-4 text-sky-400"></i>
+                    <div>
+                        <h3 class="text-xs font-black uppercase text-white tracking-wider">Alteração em Massa</h3>
+                        <p class="text-[10px] text-slate-450 font-medium">Editar <span id="id3-bulk-selected-count" class="font-bold text-sky-400">0</span> músicas selecionadas</p>
+                    </div>
+                </div>
+                <button onclick="closeId3BulkModal()" class="p-1.5 hover:bg-slate-900 text-slate-400 hover:text-white rounded-lg transition cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Modal Content (Forms) -->
+            <form id="id3-bulk-form" onsubmit="saveBulkId3Tags(event)" class="p-5 space-y-4 font-sans">
+                <p class="text-[10px] text-slate-400 leading-normal bg-[#040812]/80 p-3 rounded-xl border border-slate-900 flex gap-2">
+                    <i data-lucide="info" class="w-4 h-4 text-sky-400 shrink-0 mt-0.5"></i>
+                    <span>Selecione a caixa de seleção ao lado de cada campo para ativar o preenchimento e aplicar nos arquivos selecionados.</span>
+                </p>
+
+                <!-- Album field -->
+                <div class="space-y-1.5 pt-1">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="bulk-use-album" onchange="toggleBulkField('album')" class="w-3.5 h-3.5 text-sky-500 bg-slate-900 border-slate-800 rounded focus:ring-sky-500 cursor-pointer">
+                        <label for="bulk-use-album" class="text-[9px] font-bold text-slate-300 uppercase tracking-wider cursor-pointer flex items-center gap-1 select-none">
+                            Alterar Álbum
+                        </label>
+                    </div>
+                    <input type="text" id="id3-bulk-album" placeholder="Ex: Cosmic Hits" disabled class="w-full bg-slate-900/40 border border-slate-900 text-slate-500 p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition opacity-40">
+                </div>
+
+                <!-- Year field -->
+                <div class="space-y-1.5">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="bulk-use-year" onchange="toggleBulkField('year')" class="w-3.5 h-3.5 text-sky-500 bg-slate-900 border-slate-800 rounded focus:ring-sky-500 cursor-pointer">
+                        <label for="bulk-use-year" class="text-[9px] font-bold text-slate-300 uppercase tracking-wider cursor-pointer flex items-center gap-1 select-none">
+                            Alterar Ano do Álbum
+                        </label>
+                    </div>
+                    <input type="number" id="id3-bulk-year" placeholder="Ex: 2024" min="1900" max="2100" disabled class="w-full bg-slate-900/40 border border-slate-900 text-slate-500 p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition opacity-40">
+                </div>
+
+                <!-- Artist field -->
+                <div class="space-y-1.5">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="bulk-use-artist" onchange="toggleBulkField('artist')" class="w-3.5 h-3.5 text-sky-500 bg-slate-900 border-slate-800 rounded focus:ring-sky-500 cursor-pointer">
+                        <label for="bulk-use-artist" class="text-[9px] font-bold text-slate-300 uppercase tracking-wider cursor-pointer flex items-center gap-1 select-none">
+                            Alterar Artista
+                        </label>
+                    </div>
+                    <input type="text" id="id3-bulk-artist" placeholder="Ex: SoundHelix" disabled class="w-full bg-slate-900/40 border border-slate-900 text-slate-500 p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition opacity-40">
+                </div>
+
+                <!-- Genre field -->
+                <div class="space-y-1.5">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="bulk-use-genre" onchange="toggleBulkField('genre')" class="w-3.5 h-3.5 text-sky-500 bg-slate-900 border-slate-800 rounded focus:ring-sky-500 cursor-pointer">
+                        <label for="bulk-use-genre" class="text-[9px] font-bold text-slate-300 uppercase tracking-wider cursor-pointer flex items-center gap-1 select-none">
+                            Alterar Gênero
+                        </label>
+                    </div>
+                    <input type="text" id="id3-bulk-genre" placeholder="Ex: Synthwave" disabled class="w-full bg-slate-900/40 border border-slate-900 text-slate-500 p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition opacity-40">
+                </div>
+
+                <div class="pt-4 flex gap-3 text-xs font-bold font-sans">
+                    <button type="button" onclick="closeId3BulkModal()" class="flex-1 py-2.5 bg-slate-900 hover:bg-slate-850 hover:text-white text-slate-350 border border-slate-800/80 rounded-xl transition cursor-pointer">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-sky-500 to-indigo-600 text-white rounded-xl transition shadow-lg shadow-sky-500/10 hover:shadow-sky-500/20 cursor-pointer font-black">
+                        Aplicar em Massa
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ID3 ALBUM BULK EDITOR MODAL (Admin Only) -->
+    <div id="id3-album-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-57 p-4 backdrop-blur-sm hidden font-sans">
+        <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl max-w-lg w-full flex flex-col overflow-hidden shadow-2xl font-sans animate-fade-in text-left max-h-[90vh]">
+            <!-- Modal Header -->
+            <div class="p-5 border-b border-slate-900 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="disc" class="w-4 h-4 text-sky-450 animate-spin-slow"></i>
+                    <div>
+                        <h3 class="text-xs font-black uppercase text-white tracking-wider">Editar Álbum Completo</h3>
+                        <p class="text-[10px] text-slate-450 font-medium">Você está editando o álbum: <span id="id3-album-title-text" class="font-bold text-sky-400"></span></p>
+                    </div>
+                </div>
+                <button onclick="closeId3AlbumModal()" class="p-1.5 hover:bg-slate-900 text-slate-400 hover:text-white rounded-lg transition cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Modal Content (Forms) -->
+            <form id="id3-album-form" onsubmit="saveAlbumId3Tags(event)" class="p-5 space-y-4 font-sans overflow-y-auto flex-1 custom-scroll">
+                <!-- Warning/Explanation -->
+                <p class="text-[10px] text-slate-400 leading-normal bg-[#040812]/80 p-3 rounded-xl border border-slate-900 flex gap-2">
+                    <i data-lucide="info" class="w-4.5 h-4.5 text-sky-400 shrink-0 mt-0.5"></i>
+                    <span>Este editor altera os metadados do álbum e o título de cada música individualmente. Clique em "Salvar Álbum" no final da página para gravar permanentemente no banco de dados.</span>
+                </p>
+
+                <!-- Target Hidden Values -->
+                <input type="hidden" id="id3-album-original-name">
+
+                <!-- New Album Field -->
+                <div class="space-y-1">
+                    <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Novo Nome do Álbum</label>
+                    <input type="text" id="id3-album-name" required autocomplete="off" class="w-full bg-[#050914] border border-slate-800/90 text-sky-400 font-semibold p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition">
+                </div>
+
+                <!-- Artist field -->
+                <div class="space-y-1">
+                    <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Artista</label>
+                    <input type="text" id="id3-album-artist" autocomplete="off" class="w-full bg-[#050914] border border-slate-800/90 text-sky-400 font-semibold p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <!-- Genre field -->
+                    <div class="space-y-1">
+                        <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Gênero</label>
+                        <input type="text" id="id3-album-genre" autocomplete="off" class="w-full bg-[#050914] border border-slate-800/90 text-sky-400 font-semibold p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition">
+                    </div>
+
+                    <!-- Year field -->
+                    <div class="space-y-1">
+                        <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Ano</label>
+                        <input type="number" id="id3-album-year" min="1900" max="2100" placeholder="Ex: 2024" autocomplete="off" class="w-full bg-[#050914] border border-slate-800/90 text-sky-400 font-semibold p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition">
+                    </div>
+                </div>
+
+                <!-- Song list preview -->
+                <div class="space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-900">
+                    <label class="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">Títulos das Músicas deste Álbum (<span id="id3-album-songs-count">0</span>)</label>
+                    <div id="id3-album-songs-list" class="max-h-56 overflow-y-auto pr-1 text-[11px] text-slate-400 space-y-2 custom-scroll">
+                        <!-- Filled dynamically with input fields -->
+                    </div>
+                </div>
+
+                <div class="pt-2 flex gap-3 text-xs font-bold font-sans shrink-0">
+                    <button type="button" onclick="closeId3AlbumModal()" class="flex-1 py-2.5 bg-slate-900 hover:bg-slate-850 hover:text-white text-slate-350 border border-slate-800/80 rounded-xl transition cursor-pointer">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-sky-500 to-indigo-600 text-white rounded-xl transition shadow-lg shadow-sky-500/10 hover:shadow-sky-500/20 cursor-pointer font-black">
+                        Salvar Álbum
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -1117,6 +2292,8 @@ if (!file_exists('config.php')) {
         let uploadingVideoId = null;
         
         let selectedArtist = '';
+        let phpSelectedArtist = '';
+        let phpSelectedAlbum = '';
         let artistBioText = '';
         let artistPhotoUrl = '';
         let loadingArtistBio = false;
@@ -1130,6 +2307,7 @@ if (!file_exists('config.php')) {
         let isPlaying = false;
         let isShuffle = false;
         let isLoop = false;
+        let isPartyMode = false;
         let activeQueue = [];
         let activeQueueIdx = -1;
         const audio = document.getElementById('real-audio');
@@ -1186,12 +2364,48 @@ if (!file_exists('config.php')) {
                     const curTime = document.getElementById('player-current-time');
                     if (seek) seek.value = audio.currentTime;
                     if (curTime) curTime.textContent = formatSecs(audio.currentTime);
+
+                    // Sync reprodutor seek slider and current time
+                    const repSeek = document.getElementById('reprodutor-seek');
+                    const repCurTime = document.getElementById('reprodutor-current-time');
+                    if (repSeek && document.activeElement !== repSeek) repSeek.value = audio.currentTime;
+                    if (repCurTime) repCurTime.textContent = formatSecs(audio.currentTime);
+
+                    // Real-time Karaoke dynamic highlight syncing
+                    const lyricsModal = document.getElementById('lyrics-modal');
+                    if (lyricsModal && !lyricsModal.classList.contains('hidden') && typeof window.updateLyricsKaraoke === 'function') {
+                        window.updateLyricsKaraoke(audio.currentTime);
+                    }
+
+                    // Dynamic Crossfade / Volume transition logic in PHP
+                    if (window.phpCrossfadeDuration > 0 && audio.duration) {
+                        const timeLeft = audio.duration - audio.currentTime;
+                        const targetUserVolume = (typeof window.phpUserVolume !== 'undefined') ? window.phpUserVolume : 0.7;
+
+                        if (timeLeft <= window.phpCrossfadeDuration && timeLeft > 0) {
+                            // Fade out near end
+                            const mult = Math.max(0, timeLeft / window.phpCrossfadeDuration);
+                            audio.volume = targetUserVolume * mult;
+                        } else if (audio.currentTime <= window.phpCrossfadeDuration && audio.currentTime >= 0) {
+                            // Fade in near beginning
+                            const mult = Math.min(1, audio.currentTime / window.phpCrossfadeDuration);
+                            audio.volume = targetUserVolume * mult;
+                        } else {
+                            audio.volume = targetUserVolume;
+                        }
+                    }
                 });
                 audio.addEventListener('loadedmetadata', () => {
                     const seek = document.getElementById('player-seek');
                     const dur = document.getElementById('player-duration');
                     if (seek) seek.max = audio.duration || 180;
                     if (dur) dur.textContent = formatSecs(audio.duration || 180);
+
+                    // Sync reprodutor duration
+                    const repSeek = document.getElementById('reprodutor-seek');
+                    const repDur = document.getElementById('reprodutor-duration');
+                    if (repSeek) repSeek.max = audio.duration || 180;
+                    if (repDur) repDur.textContent = formatSecs(audio.duration || 180);
                 });
                 audio.addEventListener('ended', () => {
                     if (isLoop) {
@@ -1209,6 +2423,38 @@ if (!file_exists('config.php')) {
                 if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
                     return;
                 }
+
+                const isCtrlF = (e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F');
+                const isSlash = e.key === '/';
+                if (isCtrlF || isSlash) {
+                    e.preventDefault();
+                    if (typeof activeTab !== 'undefined' && activeTab === 'videos') {
+                        const vSearch = document.getElementById('video-search-input');
+                        if (vSearch) {
+                            vSearch.focus();
+                            vSearch.select();
+                        }
+                    } else {
+                        setTab('tracks');
+                        setTimeout(() => {
+                            const mSearch = document.getElementById('search-input');
+                            if (mSearch) {
+                                mSearch.focus();
+                                mSearch.select();
+                            }
+                        }, 80);
+                    }
+                    return;
+                }
+
+                if (e.key === ' ' || e.key === 'Spacebar') {
+                    e.preventDefault();
+                    if (typeof togglePlay === 'function') {
+                        togglePlay();
+                    }
+                    return;
+                }
+
                 if (e.key === 'ArrowRight') {
                     e.preventDefault();
                     next();
@@ -1245,6 +2491,68 @@ if (!file_exists('config.php')) {
             });
         };
 
+        function applyUserLayoutBg() {
+            if (!currentUser) return;
+            const sidebarBg = currentUser.sidebarBg || '';
+            const footerBg = currentUser.footerBg || '';
+            const topBg = currentUser.topBg || '';
+
+            const sidebarEl = document.querySelector('aside');
+            if (sidebarEl) {
+                if (sidebarBg) {
+                    sidebarEl.style.backgroundColor = sidebarBg;
+                    sidebarEl.style.backgroundImage = 'none';
+                } else {
+                    sidebarEl.style.backgroundColor = '';
+                    sidebarEl.style.backgroundImage = '';
+                }
+            }
+
+            const footerEl = document.getElementById('player-toolbar');
+            if (footerEl) {
+                if (footerBg) {
+                    footerEl.style.backgroundColor = footerBg;
+                    footerEl.style.backgroundImage = 'none';
+                } else {
+                    footerEl.style.backgroundColor = '';
+                    footerEl.style.backgroundImage = '';
+                }
+            }
+
+            const headerEl = document.querySelector('header');
+            if (headerEl) {
+                if (topBg) {
+                    headerEl.style.backgroundColor = topBg;
+                    headerEl.style.backgroundImage = 'none';
+                } else {
+                    headerEl.style.backgroundColor = '';
+                    headerEl.style.backgroundImage = '';
+                }
+            }
+
+            const miniPlayer = document.getElementById('mini-player');
+            if (miniPlayer) {
+                if (footerBg) {
+                    miniPlayer.style.backgroundColor = footerBg;
+                    miniPlayer.style.backgroundImage = 'none';
+                } else {
+                    miniPlayer.style.backgroundColor = '';
+                    miniPlayer.style.backgroundImage = '';
+                }
+            }
+
+            const expPlayer = document.getElementById('expanded-player');
+            if (expPlayer) {
+                if (sidebarBg) {
+                    expPlayer.style.backgroundColor = sidebarBg;
+                    expPlayer.style.backgroundImage = 'none';
+                } else {
+                    expPlayer.style.backgroundColor = '';
+                    expPlayer.style.backgroundImage = '';
+                }
+            }
+        }
+
         async function bootPlayer() {
             if (!currentUser || !currentUser.username) {
                 const lp = document.getElementById('login-panel');
@@ -1275,6 +2583,7 @@ if (!file_exists('config.php')) {
             
             selectedDesktopTheme = currentUser.theme || 'default';
             applyUserTheme(selectedDesktopTheme);
+            applyUserLayoutBg();
             updateThemeCardsUI();
 
             const savedLang = localStorage.getItem('phplayer_lang') || 'pt';
@@ -1310,36 +2619,58 @@ if (!file_exists('config.php')) {
             try {
                 const r1 = await fetch(API + '?route=tracks');
                 const t1 = await r1.text();
+                let parsedTracks;
                 try {
-                    allTracks = JSON.parse(t1);
+                    parsedTracks = JSON.parse(t1);
                 } catch(e) {
                     throw new Error("Erro de dados de músicas: resposta inválida do servidor (não-JSON). Detalhes:\n" + t1.substring(0, 150));
                 }
-                if (allTracks && allTracks.error) {
-                    throw new Error(allTracks.error);
+                if (parsedTracks && parsedTracks.error) {
+                    throw new Error(parsedTracks.error);
+                }
+                if (!Array.isArray(parsedTracks)) {
+                    throw new Error("Dados de músicas recebidos do servidor em formato inválido.");
+                }
+                allTracks = parsedTracks;
+                
+                if (window.updateDashboardGenresDropdown) {
+                    window.updateDashboardGenresDropdown();
+                } else {
+                    updateDashboardGenresDropdown();
                 }
                 
                 const r2 = await fetch(API + '?route=playlists&username=' + encodeURIComponent(currentUser.username));
                 const t2 = await r2.text();
+                let parsedPlaylists;
                 try {
-                    allPlaylists = JSON.parse(t2);
+                    parsedPlaylists = JSON.parse(t2);
                 } catch(e) {
                     throw new Error("Erro de dados de playlists: resposta inválida do servidor (não-JSON). Detalhes:\n" + t2.substring(0, 150));
                 }
-                if (allPlaylists && allPlaylists.error) {
-                    throw new Error(allPlaylists.error);
+                if (parsedPlaylists && parsedPlaylists.error) {
+                    throw new Error(parsedPlaylists.error);
                 }
+                if (!Array.isArray(parsedPlaylists)) {
+                    throw new Error("Dados de playlists recebidos do servidor em formato inválido.");
+                }
+                allPlaylists = parsedPlaylists;
 
                 const r3 = await fetch(API + '?route=favorites&username=' + encodeURIComponent(currentUser.username));
                 const t3 = await r3.text();
+                let parsedFavorites;
                 try {
-                    allFavorites = JSON.parse(t3);
+                    parsedFavorites = JSON.parse(t3);
                 } catch(e) {
                     throw new Error("Erro de dados de favoritos: resposta inválida do servidor (não-JSON). Detalhes:\n" + t3.substring(0, 150));
                 }
-                if (allFavorites && allFavorites.error) {
-                    throw new Error(allFavorites.error);
+                if (parsedFavorites && parsedFavorites.error) {
+                    throw new Error(parsedFavorites.error);
                 }
+                if (!Array.isArray(parsedFavorites)) {
+                    throw new Error("Dados de favoritos recebidos do servidor em formato inválido.");
+                }
+                allFavorites = parsedFavorites;
+
                 if (activeTab === 'playlists' && window.renderPlaylistsGrid) {
                     window.renderPlaylistsGrid();
                 }
@@ -1350,6 +2681,10 @@ if (!file_exists('config.php')) {
         }
 
         function selectArtist(art) {
+            if (isPartyMode) {
+                alert("O Modo Festa está ativo! A navegação está bloqueada para manter a diversão focada no player.");
+                return;
+            }
             selectedArtist = art;
             selectedPlaylistId = '';
             activePlaylistAlbum = '';
@@ -1369,7 +2704,7 @@ if (!file_exists('config.php')) {
             if (paneVideos) paneVideos.classList.add('hidden');
 
             // Highlight track tab correctly inside sidebar
-            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'playlists'];
+            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'playlists', 'podcast', 'radios'];
             btns.forEach(b => {
                 const el = document.getElementById('tab-btn-' + b);
                 if (el) {
@@ -1450,7 +2785,7 @@ if (!file_exists('config.php')) {
 
         let configActiveSubTab = 'theme';
         function setConfigSubTab(subTabName) {
-            const adminTabs = ['media', 'users', 'files'];
+            const adminTabs = ['media', 'users', 'files', 'id3'];
             if (adminTabs.includes(subTabName) && (!currentUser || currentUser.role !== 'admin')) {
                 subTabName = 'theme';
             }
@@ -1464,9 +2799,13 @@ if (!file_exists('config.php')) {
             if (pwdPane) pwdPane.classList.add('hidden');
             const filesPane = document.getElementById('subtab-pane-files');
             if (filesPane) filesPane.classList.add('hidden');
+            const shortcutsPane = document.getElementById('subtab-pane-shortcuts');
+            if (shortcutsPane) shortcutsPane.classList.add('hidden');
+            const id3Pane = document.getElementById('subtab-pane-id3');
+            if (id3Pane) id3Pane.classList.add('hidden');
             
             // Hide all nav button markers
-            const subBtns = ['theme', 'media', 'users', 'password', 'files'];
+            const subBtns = ['theme', 'media', 'users', 'password', 'files', 'shortcuts', 'id3'];
             subBtns.forEach(sb => {
                 const el = document.getElementById('subtab-btn-' + sb);
                 if (el) {
@@ -1493,7 +2832,645 @@ if (!file_exists('config.php')) {
             if (subTabName === 'files') {
                 loadFileManager(fileManagerCurrentPath || '');
             }
+            if (subTabName === 'id3') {
+                renderId3SongsList();
+            }
             lucide.createIcons();
+        }
+
+        let id3SearchQuery = '';
+        let selectedId3SongIds = [];
+
+        function filterId3Songs() {
+            id3SearchQuery = document.getElementById('id3-search-input').value.toLowerCase();
+            renderId3SongsList();
+        }
+
+        function toggleSelectAllId3(masterCheckbox) {
+            const tbody = document.getElementById('id3-songs-table-body');
+            if (!tbody) return;
+            
+            const filtered = allTracks.filter(t => {
+                const titleStr = (t.title || '').toLowerCase();
+                const artistStr = (t.artist || '').toLowerCase();
+                const albumStr = (t.album || '').toLowerCase();
+                const genreStr = (t.genre || '').toLowerCase();
+                return titleStr.includes(id3SearchQuery) || 
+                       artistStr.includes(id3SearchQuery) || 
+                       albumStr.includes(id3SearchQuery) ||
+                       genreStr.includes(id3SearchQuery);
+            });
+
+            if (masterCheckbox.checked) {
+                filtered.forEach(t => {
+                    const id = String(t.id);
+                    if (!selectedId3SongIds.includes(id)) {
+                        selectedId3SongIds.push(id);
+                    }
+                });
+            } else {
+                filtered.forEach(t => {
+                    const id = String(t.id);
+                    const idx = selectedId3SongIds.indexOf(id);
+                    if (idx > -1) {
+                        selectedId3SongIds.splice(idx, 1);
+                    }
+                });
+            }
+
+            const checkboxes = tbody.querySelectorAll('.id3-song-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = masterCheckbox.checked;
+            });
+
+            updateId3SelectionCount();
+        }
+
+        function updateRowCheckbox(checkboxEl, songId) {
+            const id = String(songId);
+            if (checkboxEl.checked) {
+                if (!selectedId3SongIds.includes(id)) {
+                    selectedId3SongIds.push(id);
+                }
+            } else {
+                const idx = selectedId3SongIds.indexOf(id);
+                if (idx > -1) {
+                    selectedId3SongIds.splice(idx, 1);
+                }
+            }
+            
+            updateSelectAllCheckboxState();
+            updateId3SelectionCount();
+        }
+
+        function updateSelectAllCheckboxState() {
+            const master = document.getElementById('id3-select-all');
+            if (!master) return;
+            
+            const tbody = document.getElementById('id3-songs-table-body');
+            if (!tbody) return;
+            
+            const checkboxes = tbody.querySelectorAll('.id3-song-checkbox');
+            if (checkboxes.length === 0) {
+                master.checked = false;
+                return;
+            }
+            
+            let allChecked = true;
+            checkboxes.forEach(cb => {
+                if (!cb.checked) allChecked = false;
+            });
+            master.checked = allChecked;
+        }
+
+        function updateId3SelectionCount() {
+            const count = selectedId3SongIds.length;
+            
+            const badge = document.getElementById('id3-selected-count-badge');
+            if (badge) badge.textContent = count;
+            
+            const bar = document.getElementById('id3-bulk-bar');
+            if (bar) {
+                if (count > 0) {
+                    bar.classList.remove('hidden');
+                } else {
+                    bar.classList.add('hidden');
+                }
+            }
+
+            const modalCount = document.getElementById('id3-bulk-selected-count');
+            if (modalCount) modalCount.textContent = count;
+        }
+
+        function clearId3Selection() {
+            selectedId3SongIds = [];
+            
+            const master = document.getElementById('id3-select-all');
+            if (master) master.checked = false;
+            
+            const tbody = document.getElementById('id3-songs-table-body');
+            if (tbody) {
+                const checkboxes = tbody.querySelectorAll('.id3-song-checkbox');
+                checkboxes.forEach(cb => cb.checked = false);
+            }
+            
+            updateId3SelectionCount();
+        }
+
+        function toggleBulkField(field) {
+            const useCheckbox = document.getElementById('bulk-use-' + field);
+            const inputField = document.getElementById('id3-bulk-' + field);
+            if (!useCheckbox || !inputField) return;
+            
+            if (useCheckbox.checked) {
+                inputField.removeAttribute('disabled');
+                inputField.classList.remove('bg-slate-900/40', 'text-slate-500', 'opacity-40');
+                inputField.classList.add('bg-slate-900', 'text-white');
+                inputField.focus();
+            } else {
+                inputField.setAttribute('disabled', 'true');
+                inputField.classList.add('bg-slate-900/40', 'text-slate-500', 'opacity-40');
+                inputField.classList.remove('bg-slate-900', 'text-white');
+                inputField.value = '';
+            }
+        }
+
+        function openId3BulkModal() {
+            if (selectedId3SongIds.length === 0) {
+                alert('Selecione ao menos uma música primeiro.');
+                return;
+            }
+            
+            const fields = ['album', 'year', 'artist', 'genre'];
+            fields.forEach(f => {
+                const cb = document.getElementById('bulk-use-' + f);
+                if (cb) cb.checked = false;
+                toggleBulkField(f);
+            });
+            
+            document.getElementById('id3-bulk-selected-count').textContent = selectedId3SongIds.length;
+            document.getElementById('id3-bulk-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeId3BulkModal() {
+            document.getElementById('id3-bulk-modal').classList.add('hidden');
+        }
+
+        async function saveBulkId3Tags(event) {
+            event.preventDefault();
+            
+            if (selectedId3SongIds.length === 0) {
+                alert('Nenhuma música selecionada.');
+                return;
+            }
+            
+            const useAlbum = document.getElementById('bulk-use-album').checked;
+            const useYear = document.getElementById('bulk-use-year').checked;
+            const useArtist = document.getElementById('bulk-use-artist').checked;
+            const useGenre = document.getElementById('bulk-use-genre').checked;
+            
+            if (!useAlbum && !useYear && !useArtist && !useGenre) {
+                alert('Selecione e ative ao menos um campo para realizar a alteração em massa.');
+                return;
+            }
+            
+            const payload = {
+                ids: selectedId3SongIds,
+                update_album: useAlbum,
+                album: useAlbum ? document.getElementById('id3-bulk-album').value.trim() : '',
+                update_album_year: useYear,
+                album_year: useYear ? document.getElementById('id3-bulk-year').value.trim() : '',
+                update_artist: useArtist,
+                artist: useArtist ? document.getElementById('id3-bulk-artist').value.trim() : '',
+                update_genre: useGenre,
+                genre: useGenre ? document.getElementById('id3-bulk-genre').value.trim() : ''
+            };
+            
+            try {
+                const response = await fetch(API + '?route=update_tracks_bulk', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Username': currentUser.username
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    closeId3BulkModal();
+                    clearId3Selection();
+                    
+                    await loadData();
+                    renderId3SongsList();
+                    
+                    if (typeof selectArtist === 'function' && selectedArtist) {
+                        selectArtist(selectedArtist);
+                    }
+                    
+                    alert('Alteração em massa aplicada com sucesso em Músicas.');
+                } else {
+                    alert('Erro ao atualizar em massa: ' + (result.error || 'Erro desconhecido'));
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de conexão ao salvar alterações em massa.');
+            }
+        }
+
+        function renderId3SongsList() {
+            const tbody = document.getElementById('id3-songs-table-body');
+            const countEl = document.getElementById('id3-songs-count');
+            if (!tbody) return;
+
+            const filtered = allTracks.filter(t => {
+                const titleStr = (t.title || '').toLowerCase();
+                const artistStr = (t.artist || '').toLowerCase();
+                const albumStr = (t.album || '').toLowerCase();
+                const genreStr = (t.genre || '').toLowerCase();
+                return titleStr.includes(id3SearchQuery) || 
+                       artistStr.includes(id3SearchQuery) || 
+                       albumStr.includes(id3SearchQuery) ||
+                       genreStr.includes(id3SearchQuery);
+            });
+
+            const displayed = filtered.slice(0, 50);
+
+            if (countEl) {
+                if (filtered.length > 50) {
+                    countEl.innerHTML = `Exibindo <span class="font-bold text-sky-400 mx-1">50</span> de <span class="font-bold text-white mx-1">${filtered.length}</span> encontradas`;
+                } else {
+                    countEl.innerHTML = `<span class="font-bold text-white mx-1">${filtered.length}</span> encontradas`;
+                }
+            }
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="py-8 text-center text-slate-500 italic">Nenhuma música encontrada para a sua busca.</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            displayed.forEach((track, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-900/40 border-b border-slate-900/30 transition duration-150 align-middle text-slate-300";
+                
+                const title = track.title || 'Sem Título';
+                const artist = track.artist || 'Artista Desconhecido';
+                const album = track.album || 'Álbum Desconhecido';
+                const year = track.album_year || '-';
+                const genre = track.genre || 'Desconhecido';
+                const isChecked = selectedId3SongIds.includes(String(track.id));
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 text-center">
+                        <input type="checkbox" class="id3-song-checkbox cursor-pointer w-3.5 h-3.5 text-sky-500 bg-slate-900 border-slate-800 rounded focus:ring-sky-500" value="${track.id}" ${isChecked ? 'checked' : ''} onchange="updateRowCheckbox(this, '${track.id}')">
+                    </td>
+                    <td class="py-3 px-4 font-mono text-[10px] text-slate-500 select-none">${index + 1}</td>
+                    <td class="py-3 px-4 font-bold text-sky-400 max-w-[180px] truncate" title="${title}">${title}</td>
+                    <td class="py-3 px-4 text-slate-300 max-w-[140px] truncate" title="${artist}">${artist}</td>
+                    <td class="py-3 px-4 text-slate-400 max-w-[140px] truncate" title="${album}">${album}</td>
+                    <td class="py-3 px-4 font-mono text-[10px] text-slate-400" title="${year}">${year}</td>
+                    <td class="py-3 px-4 text-slate-500 max-w-[100px] truncate" title="${genre}">${genre}</td>
+                    <td class="py-3 px-4 text-right">
+                        <div class="flex items-center justify-end gap-1.5">
+                            <button onclick="openId3EditModal('${track.id}')" class="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-sky-500 border border-slate-800 text-[10px] text-white font-heavy py-1 px-2.5 rounded-lg transition shrink-0 cursor-pointer hover:border-transparent select-none active:scale-95" title="Editar Tags desta música">
+                                <i data-lucide="music" class="w-3 h-3 text-sky-400"></i> Música
+                            </button>
+                            <button onclick="openAlbumBulkEdit('${track.id}')" class="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-indigo-650 border border-slate-800 text-[10px] text-white font-heavy py-1 px-2.5 rounded-lg transition shrink-0 cursor-pointer hover:border-transparent select-none active:scale-95" title="Editar Álbum Completo">
+                                <i data-lucide="disc" class="w-3 h-3 text-indigo-400"></i> Álbum
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            updateSelectAllCheckboxState();
+            lucide.createIcons();
+        }
+
+        function openAlbumBulkEdit(trackId) {
+            try {
+                const baseTrack = allTracks.find(t => String(t.id) === String(trackId));
+                if (!baseTrack) {
+                    alert('Música base não encontrada para edição.');
+                    return;
+                }
+                openAlbumBulkEditByName(baseTrack.album || 'Álbum Desconhecido');
+            } catch (err) {
+                console.error("Erro em openAlbumBulkEdit:", err);
+                alert("Ocorreu um erro ao abrir: " + err.message);
+            }
+        }
+
+        window.openAlbumBulkEditByElement = function(element, event) {
+            if (event) {
+                try {
+                    event.preventDefault();
+                    event.stopPropagation();
+                } catch(e) {}
+            }
+            if (!element) return;
+            
+            try {
+                const btn = element.closest('button') || element;
+                const trackIdsStr = btn.getAttribute('data-track-ids');
+                const albumName = btn.getAttribute('data-album-name') || 'Álbum Desconhecido';
+                
+                if (!trackIdsStr) {
+                    // Fallback to fuzzy match instantly
+                    openAlbumBulkEditByName(albumName);
+                    return;
+                }
+                // Split and normalize matching tracking keys safely
+                const ids = trackIdsStr.split(',').map(id => id.trim().toLowerCase());
+                
+                // Find all tracks matching these ids
+                const albumTracks = allTracks.filter(t => t && t.id && ids.includes(String(t.id).trim().toLowerCase()));
+                if (albumTracks.length === 0) {
+                    console.warn('Nenhuma música encontrada para os IDs solicitados, tentando fuzzy fallback por nome...', ids);
+                    // Also try fuzzy fallback by album name to prevent failure
+                    openAlbumBulkEditByName(albumName);
+                    return;
+                }
+                
+                const baseTrack = albumTracks[0] || {};
+                
+                // Fill field values nicely
+                const titleTextEl = document.getElementById('id3-album-title-text');
+                const origNameInput = document.getElementById('id3-album-original-name');
+                const nameInput = document.getElementById('id3-album-name');
+                const artistInput = document.getElementById('id3-album-artist');
+                const genreInput = document.getElementById('id3-album-genre');
+                const yearInput = document.getElementById('id3-album-year');
+                
+                if (titleTextEl) titleTextEl.textContent = albumName;
+                if (origNameInput) origNameInput.value = albumName;
+                if (nameInput) nameInput.value = albumName;
+                if (artistInput) artistInput.value = baseTrack.artist || 'Artista Desconhecido';
+                if (genreInput) genreInput.value = baseTrack.genre || 'Desconhecido';
+                if (yearInput) yearInput.value = baseTrack.album_year || '';
+
+                // Render list preview of songs in that album with editable text inputs
+                const listEl = document.getElementById('id3-album-songs-list');
+                const countEl = document.getElementById('id3-album-songs-count');
+                if (countEl) countEl.textContent = albumTracks.length;
+                if (listEl) {
+                    listEl.innerHTML = '';
+                    
+                    albumTracks.forEach((t, i) => {
+                        const div = document.createElement('div');
+                        div.className = "py-3 flex flex-col gap-1.5 border-b border-slate-900/40 last:border-0";
+                        div.innerHTML = `
+                            <div class="flex items-center justify-between text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                                <span>Música #${i+1}</span>
+                                ${t.duration ? `<span class="font-mono text-[9px]">${formatSecs(t.duration)}</span>` : ''}
+                            </div>
+                            <input type="text" data-track-id="${t.id}" autocomplete="off" class="id3-album-track-title-input w-full bg-slate-950 border border-slate-900 text-sky-400 p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition font-semibold" value="${(t.title || '').replace(/"/g, '&quot;')}">
+                        `;
+                        listEl.appendChild(div);
+                    });
+                }
+
+                // Display modal
+                const modalEl = document.getElementById('id3-album-modal');
+                if (modalEl) {
+                    modalEl.classList.remove('hidden');
+                } else {
+                    console.error('Modal id3-album-modal não encontrado no DOM');
+                }
+                if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                    window.lucide.createIcons();
+                } else if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                    lucide.createIcons();
+                }
+            } catch (err) {
+                console.error("Erro em openAlbumBulkEditByElement:", err);
+                alert("Erro ao abrir ID3: " + err.message);
+            }
+        };
+
+        function openAlbumBulkEditByName(albumName, artistName = '') {
+            if (!albumName) return;
+            
+            try {
+                // If artistName is not specified but selectedArtist is set, use it!
+                const artistFilter = artistName || selectedArtist || '';
+                const lowerAlbumName = albumName.toLowerCase();
+                const isEmptyAlbum = lowerAlbumName === 'single' || lowerAlbumName === 'álbum desconhecido' || lowerAlbumName === 'album desconhecido';
+                
+                // Find all tracks belonging to this album, optionally filtering by artist
+                let albumTracks = allTracks.filter(t => {
+                    const tAlbum = t.album || '';
+                    const isAlbumMatch = (isEmptyAlbum && !tAlbum) || (!isEmptyAlbum && tAlbum.toLowerCase() === lowerAlbumName);
+                    
+                    if (artistFilter) {
+                        const tArtist = t.artist || '';
+                        const isArtistMatch = (!tArtist && artistFilter.toLowerCase() === 'artista desconhecido') || 
+                                              (tArtist && tArtist.toLowerCase() === artistFilter.toLowerCase());
+                        return isAlbumMatch && isArtistMatch;
+                    }
+                    return isAlbumMatch;
+                });
+                
+                // Fallback: If no tracks found using artist filter, search by album name only
+                if (albumTracks.length === 0 && artistFilter) {
+                    albumTracks = allTracks.filter(t => {
+                        const tAlbum = t.album || '';
+                        return (isEmptyAlbum && !tAlbum) || (!isEmptyAlbum && tAlbum.toLowerCase() === lowerAlbumName);
+                    });
+                }
+                
+                if (albumTracks.length === 0) {
+                    alert('Nenhuma música encontrada para este álbum: ' + albumName);
+                    return;
+                }
+
+                const baseTrack = albumTracks[0] || {};
+
+                // Fill field values nicely
+                const titleTextEl = document.getElementById('id3-album-title-text');
+                const origNameInput = document.getElementById('id3-album-original-name');
+                const nameInput = document.getElementById('id3-album-name');
+                const artistInput = document.getElementById('id3-album-artist');
+                const genreInput = document.getElementById('id3-album-genre');
+                const yearInput = document.getElementById('id3-album-year');
+                
+                if (titleTextEl) titleTextEl.textContent = albumName;
+                if (origNameInput) origNameInput.value = albumName;
+                if (nameInput) nameInput.value = albumName;
+                if (artistInput) artistInput.value = baseTrack.artist || 'Artista Desconhecido';
+                if (genreInput) genreInput.value = baseTrack.genre || 'Desconhecido';
+                if (yearInput) yearInput.value = baseTrack.album_year || '';
+
+                // Render list preview of songs in that album with editable text inputs
+                const listEl = document.getElementById('id3-album-songs-list');
+                const countEl = document.getElementById('id3-album-songs-count');
+                if (countEl) countEl.textContent = albumTracks.length;
+                if (listEl) {
+                    listEl.innerHTML = '';
+                    
+                    albumTracks.forEach((t, i) => {
+                        const div = document.createElement('div');
+                        div.className = "py-3 flex flex-col gap-1.5 border-b border-slate-900/40 last:border-0";
+                        div.innerHTML = `
+                            <div class="flex items-center justify-between text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                                <span>Música #${i+1}</span>
+                                ${t.duration ? `<span class="font-mono text-[9px]">${formatSecs(t.duration)}</span>` : ''}
+                            </div>
+                            <input type="text" data-track-id="${t.id}" autocomplete="off" class="id3-album-track-title-input w-full bg-slate-950 border border-slate-900 text-sky-450 p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition font-semibold" value="${(t.title || '').replace(/"/g, '&quot;')}">
+                        `;
+                        listEl.appendChild(div);
+                    });
+                }
+
+                // Display modal
+                const modalEl = document.getElementById('id3-album-modal');
+                if (modalEl) {
+                    modalEl.classList.remove('hidden');
+                } else {
+                    console.error('Modal id3-album-modal não encontrado no DOM');
+                }
+                if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                    window.lucide.createIcons();
+                } else if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                    lucide.createIcons();
+                }
+            } catch (err) {
+                console.error("Erro em openAlbumBulkEditByName:", err);
+                alert("Erro ao abrir ID3 por Nome: " + err.message);
+            }
+        }
+
+        function closeId3AlbumModal() {
+            document.getElementById('id3-album-modal').classList.add('hidden');
+        }
+
+        async function saveAlbumId3Tags(event) {
+            event.preventDefault();
+
+            const oldAlbumName = document.getElementById('id3-album-original-name').value;
+            const newAlbumName = document.getElementById('id3-album-name').value.trim();
+            const newArtist = document.getElementById('id3-album-artist').value.trim();
+            const newGenre = document.getElementById('id3-album-genre').value.trim();
+            const newYear = document.getElementById('id3-album-year').value.trim();
+
+            if (!newAlbumName) {
+                alert('O Nome do Álbum é obrigatório.');
+                return;
+            }
+
+            // Find all track inputs inside the modal
+            const inputs = document.querySelectorAll('.id3-album-track-title-input');
+            const tracksData = [];
+            let hasEmptyTitle = false;
+
+            inputs.forEach(input => {
+                const id = parseInt(input.getAttribute('data-track-id'));
+                const title = input.value.trim();
+                if (!title) {
+                    hasEmptyTitle = true;
+                }
+                tracksData.push({ id, title });
+            });
+
+            if (hasEmptyTitle) {
+                alert('O título de todas as músicas deve ser preenchido.');
+                return;
+            }
+
+            const payload = {
+                global: {
+                    album: newAlbumName,
+                    artist: newArtist,
+                    genre: newGenre,
+                    album_year: newYear
+                },
+                tracks: tracksData
+            };
+
+            try {
+                const response = await fetch(API + '?route=update_album_tracks_metadata', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Username': currentUser.username
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    closeId3AlbumModal();
+                    
+                    // Reload data
+                    await loadData();
+                    
+                    // Refresh current view (supports ID3 editor tab or general artist view)
+                    if (typeof renderId3SongsList === 'function') {
+                        renderId3SongsList();
+                    }
+                    
+                    if (typeof selectArtist === 'function' && selectedArtist) {
+                        selectArtist(selectedArtist);
+                    }
+                    
+                    alert('Álbum e músicas alterados com sucesso (' + result.affected + ' músicas atualizadas).');
+                } else {
+                    alert('Erro ao atualizar o álbum: ' + (result.error || 'Erro desconhecido'));
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de conexão ao salvar alterações do álbum.');
+            }
+        }
+
+        function openId3EditModal(songId) {
+            const track = allTracks.find(t => t.id == songId);
+            if (!track) return;
+
+            document.getElementById('id3-edit-song-id').value = track.id;
+            document.getElementById('id3-edit-title').value = track.title || '';
+            document.getElementById('id3-edit-artist').value = track.artist || '';
+            document.getElementById('id3-edit-album').value = track.album || '';
+            document.getElementById('id3-edit-genre').value = track.genre || '';
+            document.getElementById('id3-edit-year').value = track.album_year || '';
+
+            document.getElementById('id3-edit-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeId3EditModal() {
+            document.getElementById('id3-edit-modal').classList.add('hidden');
+        }
+
+        async function saveId3Tags(event) {
+            event.preventDefault();
+            const id = document.getElementById('id3-edit-song-id').value;
+            const title = document.getElementById('id3-edit-title').value.trim();
+            const artist = document.getElementById('id3-edit-artist').value.trim();
+            const album = document.getElementById('id3-edit-album').value.trim();
+            const genre = document.getElementById('id3-edit-genre').value.trim();
+            const album_year = document.getElementById('id3-edit-year').value.trim();
+
+            if (!id || !title) {
+                alert('O ID e o Título são obrigatórios.');
+                return;
+            }
+
+            try {
+                const response = await fetch(API + '?route=update_track_title', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Username': currentUser.username
+                    },
+                    body: JSON.stringify({ id, title, artist, album, genre, album_year })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    closeId3EditModal();
+                    
+                    // Reload data from api
+                    await loadData();
+                    
+                    // Refresh the ID3 list
+                    renderId3SongsList();
+                    
+                    // Refresh the active list view in player dashboard
+                    if (typeof selectArtist === 'function' && selectedArtist) {
+                        selectArtist(selectedArtist);
+                    }
+                } else {
+                    alert('Erro ao atualizar ID3: ' + (result.error || 'Erro desconhecido'));
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de conexão ao salvar tags ID3.');
+            }
         }
 
         let fileManagerCurrentPath = '';
@@ -2028,6 +4005,7 @@ if (!file_exists('config.php')) {
                 "stat-favorites": "Favoritos",
                 "album-collection-title": "Coleção de Álbuns",
                 "btn-random-album": "Tocar Álbum Aleatório",
+                "dashboard-search-placeholder": "Buscar álbuns...",
                 
                 "search-placeholder": "Pesquisar título, artista, álbum...",
                 "title-library": "Minha Biblioteca",
@@ -2088,6 +4066,7 @@ if (!file_exists('config.php')) {
                 "stat-favorites": "Favorites",
                 "album-collection-title": "Album Collection",
                 "btn-random-album": "Play Random Album",
+                "dashboard-search-placeholder": "Search albums...",
                 
                 "search-placeholder": "Search title, artist, album...",
                 "title-library": "My Library",
@@ -2148,6 +4127,7 @@ if (!file_exists('config.php')) {
                 "stat-favorites": "Favoritos",
                 "album-collection-title": "Colección de Álbumes",
                 "btn-random-album": "Tocar Álbum Aleatorio",
+                "dashboard-search-placeholder": "Buscar álbumes...",
                 
                 "search-placeholder": "Buscar título, artista, álbum...",
                 "title-library": "Mi Biblioteca",
@@ -2244,6 +4224,31 @@ if (!file_exists('config.php')) {
                     }
                 }
             });
+
+            // Translate the static Sort options
+            const sortSelect = document.getElementById('php-dashboard-sort-filter');
+            if (sortSelect) {
+                const optRandom = sortSelect.querySelector('option[value="random"]');
+                const optAlpha = sortSelect.querySelector('option[value="alphabetical"]');
+                const optRecent = sortSelect.querySelector('option[value="recent"]');
+                if (lang === 'en') {
+                    if (optRandom) optRandom.textContent = 'Random';
+                    if (optAlpha) optAlpha.textContent = 'Alphabetical';
+                    if (optRecent) optRecent.textContent = 'Most Recent';
+                } else if (lang === 'es') {
+                    if (optRandom) optRandom.textContent = 'Aleatorios';
+                    if (optAlpha) optAlpha.textContent = 'Orden Alfabético';
+                    if (optRecent) optRecent.textContent = 'Más Recientes';
+                } else {
+                    if (optRandom) optRandom.textContent = 'Aleatórios';
+                    if (optAlpha) optAlpha.textContent = 'Ordem Alfabética';
+                    if (optRecent) optRecent.textContent = 'Mais Recentes';
+                }
+            }
+
+            // Also update the Genres select dropdown with translated placeholder
+            updateDashboardGenresDropdown();
+
             lucide.createIcons();
         };
 
@@ -2278,7 +4283,108 @@ if (!file_exists('config.php')) {
         function applyUserTheme(themeName) {
             const active = themeName || 'default';
             document.documentElement.setAttribute('data-theme', active);
+
+            let styleTag = document.getElementById('custom-theme-style');
+            if (active.indexOf('custom:') === 0) {
+                const hexColor = active.replace('custom:', '');
+                if (/^#[0-9a-f]{6}$/i.test(hexColor)) {
+                    const r = parseInt(hexColor.slice(1, 3), 16);
+                    const g = parseInt(hexColor.slice(3, 5), 16);
+                    const b = parseInt(hexColor.slice(5, 7), 16);
+                    
+                    const adjust = (r, g, b, pct) => {
+                        const nr = Math.min(255, Math.max(0, Math.round(r + (255 - r) * pct)));
+                        const ng = Math.min(255, Math.max(0, Math.round(g + (255 - g) * pct)));
+                        const nb = Math.min(255, Math.max(0, Math.round(b + (255 - b) * pct)));
+                        return "#" + nr.toString(16).padStart(2, '0') + ng.toString(16).padStart(2, '0') + nb.toString(16).padStart(2, '0');
+                    };
+                    const darken = (r, g, b, pct) => {
+                        const nr = Math.min(255, Math.max(0, Math.round(r * (1 - pct))));
+                        const ng = Math.min(255, Math.max(0, Math.round(g * (1 - pct))));
+                        const nb = Math.min(255, Math.max(0, Math.round(b * (1 - pct))));
+                        return "#" + nr.toString(16).padStart(2, '0') + ng.toString(16).padStart(2, '0') + nb.toString(16).padStart(2, '0');
+                    };
+                    
+                    const sky300 = adjust(r, g, b, 0.4);
+                    const sky400 = adjust(r, g, b, 0.2);
+                    const sky550 = adjust(r, g, b, 0.1);
+                    const sky500 = hexColor;
+                    const sky600 = darken(r, g, b, 0.2);
+                    const indigo500 = hexColor;
+                    const indigo600 = darken(r, g, b, 0.35);
+                    
+                    const css = ':root, :root[data-theme^="custom:"] { ' +
+                        '--theme-sky-300: ' + sky300 + ' !important; ' +
+                        '--theme-sky-400: ' + sky400 + ' !important; ' +
+                        '--theme-sky-450: ' + sky550 + ' !important; ' +
+                        '--theme-sky-500: ' + sky500 + ' !important; ' +
+                        '--theme-sky-600: ' + sky600 + ' !important; ' +
+                        '--theme-indigo-500: ' + indigo500 + ' !important; ' +
+                        '--theme-indigo-600: ' + indigo600 + ' !important; ' +
+                    '}';
+                    if (!styleTag) {
+                        styleTag = document.createElement('style');
+                        styleTag.id = 'custom-theme-style';
+                        document.head.appendChild(styleTag);
+                    }
+                    styleTag.textContent = css;
+                }
+            } else {
+                if (styleTag) styleTag.textContent = '';
+            }
         }
+
+        window.onPhpCustomColorChange = function(val) {
+            applyUserTheme('custom:' + val);
+            const ind = document.getElementById('indicator-theme-custom');
+            if (ind) {
+                ind.style.backgroundColor = val;
+            }
+        };
+
+        window.onPhpLayoutBgLiveChange = function(val) {
+            const hexPattern = /^#[0-9a-f]{6}$/i;
+            if (hexPattern.test(val)) {
+                const picker = document.getElementById('php-layout-bg-picker');
+                const text = document.getElementById('php-layout-bg-text');
+                if (picker && picker.value !== val) picker.value = val;
+                if (text && text.value !== val) text.value = val;
+
+                if (currentUser) {
+                    currentUser.sidebarBg = val;
+                    currentUser.footerBg = val;
+                    currentUser.topBg = val;
+                    applyUserLayoutBg();
+                }
+            }
+        };
+
+        window.applyPhpLayoutColor = async function(val) {
+            window.onPhpLayoutBgLiveChange(val);
+            await window.savePhpLayoutColor();
+        };
+
+        window.savePhpLayoutColor = async function() {
+            if (!currentUser) return;
+            const chosenBg = currentUser.sidebarBg || '#020617';
+            try {
+                const response = await fetch('api.php?route=users&username=' + encodeURIComponent(currentUser.username), {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sidebarBg: chosenBg })
+                });
+                const res = await response.json();
+                if (res.success) {
+                    localStorage.setItem('phplayer_user', JSON.stringify(currentUser));
+                    alert('Cor do layout salva com sucesso!');
+                } else {
+                    alert('Erro ao salvar cor do layout.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de conexão ao salvar cor.');
+            }
+        };
 
         function updateThemeCardsUI() {
             const activeShow = selectedDesktopTheme || (currentUser ? (currentUser.theme || 'default') : 'default');
@@ -2295,6 +4401,34 @@ if (!file_exists('config.php')) {
                     }
                 }
             });
+
+            // Special handling for Custom Theme card inside updateThemeCardsUI
+            const customInd = document.getElementById('indicator-theme-custom');
+            const customCard = document.getElementById('php-custom-theme-card');
+            const customBadge = document.getElementById('php-custom-badge');
+            const customPicker = document.getElementById('php-custom-color-picker');
+
+            if (customCard && customInd) {
+                if (activeShow.indexOf('custom:') === 0) {
+                    const customHex = activeShow.replace('custom:', '');
+                    customInd.style.backgroundColor = customHex;
+                    customInd.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-white"></i>';
+                    customCard.className = 'theme-card relative p-4 rounded-2xl border text-left flex flex-col gap-3 justify-between bg-slate-900 border-sky-500 shadow-md transition select-none';
+                    if (customBadge) customBadge.classList.remove('hidden');
+                    if (customBadge) customBadge.style.display = 'inline-block';
+                    if (customPicker) customPicker.value = customHex;
+                } else {
+                    customInd.innerHTML = '<i data-lucide="palette" class="w-4 h-4 text-white"></i>';
+                    if (currentUser && currentUser.theme && currentUser.theme.indexOf('custom:') === 0) {
+                        customInd.style.backgroundColor = currentUser.theme.replace('custom:', '');
+                    } else {
+                        customInd.style.backgroundColor = '#0ea5e9';
+                    }
+                    customCard.className = 'theme-card relative p-4 rounded-2xl border text-left flex flex-col gap-3 justify-between bg-slate-950/40 border-slate-900/60 hover:border-slate-800 transition select-none';
+                    if (customBadge) customBadge.classList.add('hidden');
+                    if (customBadge) customBadge.style.display = 'none';
+                }
+            }
             lucide.createIcons();
         }
 
@@ -2548,15 +4682,22 @@ if (!file_exists('config.php')) {
         window.runGoogleSync = runGoogleSync;
 
         function setTab(tabName) {
+            if (isPartyMode) {
+                alert("O Modo Festa está ativo! A navegação está bloqueada para manter a diversão focada no player.");
+                return;
+            }
             activeTab = tabName;
             document.getElementById('pane-dashboard').classList.add('hidden');
             document.getElementById('pane-tracks').classList.add('hidden');
             if (document.getElementById('pane-config')) document.getElementById('pane-config').classList.add('hidden');
             document.getElementById('pane-videos').classList.add('hidden');
             if (document.getElementById('pane-playlists')) document.getElementById('pane-playlists').classList.add('hidden');
+            if (document.getElementById('pane-podcast')) document.getElementById('pane-podcast').classList.add('hidden');
+            if (document.getElementById('pane-radios')) document.getElementById('pane-radios').classList.add('hidden');
+            if (document.getElementById('pane-reprodutor')) document.getElementById('pane-reprodutor').classList.add('hidden');
             
             // Clear navigation classes
-            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'playlists'];
+            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'playlists', 'podcast', 'radios', 'reprodutor'];
             btns.forEach(b => {
                 const el = document.getElementById('tab-btn-' + b);
                 if (el) {
@@ -2570,6 +4711,12 @@ if (!file_exists('config.php')) {
                     activeBtn.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-[#f43f5e] bg-rose-500/10 border border-rose-500/20";
                 } else if (tabName === 'playlists') {
                     activeBtn.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20";
+                } else if (tabName === 'podcast') {
+                    activeBtn.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/20";
+                } else if (tabName === 'radios') {
+                    activeBtn.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20";
+                } else if (tabName === 'reprodutor') {
+                    activeBtn.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-sky-400 bg-sky-500/10 border border-sky-500/20";
                 } else {
                     activeBtn.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-sky-400 bg-sky-500/10 border border-sky-500/20";
                 }
@@ -2604,10 +4751,26 @@ if (!file_exists('config.php')) {
                 }
                 setConfigSubTab('theme');
                 updateThemeCardsUI();
+                if (currentUser) {
+                    const currentBg = currentUser.sidebarBg || '#020617';
+                    const picker = document.getElementById('php-layout-bg-picker');
+                    const text = document.getElementById('php-layout-bg-text');
+                    if (picker) picker.value = currentBg;
+                    if (text) text.value = currentBg;
+                }
                 if (window.loadLastfmKeyForUI) window.loadLastfmKeyForUI();
             } else if (tabName === 'videos') {
                 renderVideoGallery();
                 document.getElementById('pane-videos').classList.remove('hidden');
+            } else if (tabName === 'podcast') {
+                loadPodcastsPhp();
+                document.getElementById('pane-podcast').classList.remove('hidden');
+            } else if (tabName === 'radios') {
+                loadRadiosPhp();
+                document.getElementById('pane-radios').classList.remove('hidden');
+            } else if (tabName === 'reprodutor') {
+                if (typeof updateReprodutorTab === 'function') updateReprodutorTab();
+                document.getElementById('pane-reprodutor').classList.remove('hidden');
             }
             lucide.createIcons();
         }
@@ -2756,6 +4919,62 @@ if (!file_exists('config.php')) {
             }
         }
 
+        window.phpDashboardGenre = 'all';
+        window.phpDashboardSort = 'random';
+        window.phpDashboardQuery = '';
+
+        window.onPhpDashboardSearchInput = function(val) {
+            window.phpDashboardQuery = val;
+            updateRandomDashboardAlbums();
+            renderAlbumGrid();
+        };
+
+        function updateDashboardGenresDropdown() {
+            const dropdown = document.getElementById('php-dashboard-genre-filter');
+            if (!dropdown) return;
+            
+            // Get unique genres
+            const genresSet = new Set();
+            allTracks.forEach(t => {
+                if (t.genre && t.genre.trim() !== '') {
+                    genresSet.add(t.genre.trim());
+                }
+            });
+            const genresArray = Array.from(genresSet).sort();
+            
+            // Re-render select options
+            const currentLang = localStorage.getItem('phplayer_lang') || 'pt';
+            let allGenresText = 'Todos os Gêneros';
+            if (currentLang === 'en') {
+                allGenresText = 'All Genres';
+            } else if (currentLang === 'es') {
+                allGenresText = 'Todos los Géneros';
+            }
+            
+            dropdown.innerHTML = `<option value="all">${allGenresText}</option>`;
+            genresArray.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g;
+                opt.textContent = g;
+                if (window.phpDashboardGenre === g) {
+                    opt.selected = true;
+                }
+                dropdown.appendChild(opt);
+            });
+        }
+
+        window.onPhpDashboardGenreChange = function(val) {
+            window.phpDashboardGenre = val;
+            updateRandomDashboardAlbums();
+            renderAlbumGrid();
+        };
+
+        window.onPhpDashboardSortChange = function(val) {
+            window.phpDashboardSort = val;
+            updateRandomDashboardAlbums();
+            renderAlbumGrid();
+        };
+
         function updateRandomDashboardAlbums() {
             if (!allTracks || allTracks.length === 0) {
                 randomDashboardAlbums = [];
@@ -2766,22 +4985,66 @@ if (!file_exists('config.php')) {
             allTracks.forEach(t => {
                 const key = t.album || 'Single';
                 if (!albsMap[key]) {
-                    albsMap[key] = { name: key, artist: t.artist, genre: t.genre || 'Desconhecido', cover: t.cover_url || t.coverUrl, tracks: [] };
-                } else if (t.genre && (!albsMap[key].genre || albsMap[key].genre === 'DESCONHECIDO' || albsMap[key].genre === 'Local Scan' || albsMap[key].genre === 'Desconhecido')) {
-                    albsMap[key].genre = t.genre;
+                    albsMap[key] = { 
+                        name: key, 
+                        artist: t.artist, 
+                        genre: t.genre || 'Desconhecido', 
+                        cover: t.cover_url || t.coverUrl, 
+                        tracks: [],
+                        maxDate: t.createdAt || ''
+                    };
+                } else {
+                    if (t.genre && (!albsMap[key].genre || albsMap[key].genre === 'DESCONHECIDO' || albsMap[key].genre === 'Local Scan' || albsMap[key].genre === 'Desconhecido')) {
+                        albsMap[key].genre = t.genre;
+                    }
+                    if (t.createdAt && (!albsMap[key].maxDate || t.createdAt > albsMap[key].maxDate)) {
+                        albsMap[key].maxDate = t.createdAt;
+                    }
                 }
                 albsMap[key].tracks.push(t);
             });
 
-            const albumsArray = Object.values(albsMap);
+            let albumsArray = Object.values(albsMap);
             if (albumsArray.length === 0) {
                 randomDashboardAlbums = [];
                 return;
             }
 
-            // Shuffle and pick up to 12 random albums
-            const shuffled = [...albumsArray].sort(() => Math.random() - 0.5);
-            randomDashboardAlbums = shuffled.slice(0, 12);
+            // Filter by search query if any
+            const query = (window.phpDashboardQuery || '').toLowerCase().trim();
+            if (query) {
+                albumsArray = albumsArray.filter(alb => {
+                    return alb.name.toLowerCase().includes(query) || 
+                           alb.artist.toLowerCase().includes(query);
+                });
+            }
+
+            // 1. Filter by Genre if selected
+            const selectedGenre = window.phpDashboardGenre || 'all';
+            if (selectedGenre !== 'all') {
+                albumsArray = albumsArray.filter(alb => {
+                    return (alb.genre && alb.genre.toLowerCase() === selectedGenre.toLowerCase()) ||
+                           alb.tracks.some(t => t.genre && t.genre.toLowerCase() === selectedGenre.toLowerCase());
+                });
+            }
+
+            // 2. Sort albums based on window.phpDashboardSort
+            const currentSort = window.phpDashboardSort || 'random';
+            if (currentSort === 'alphabetical') {
+                albumsArray.sort((a, b) => a.name.localeCompare(b.name));
+                randomDashboardAlbums = albumsArray; // show all
+            } else if (currentSort === 'recent') {
+                albumsArray.sort((a, b) => {
+                    const de = new Date(b.maxDate).getTime() || 0;
+                    const da = new Date(a.maxDate).getTime() || 0;
+                    return de - da;
+                });
+                randomDashboardAlbums = albumsArray; // show all
+            } else {
+                // 'random' (Auto-rotated 12 random albums)
+                const shuffled = [...albumsArray].sort(() => Math.random() - 0.5);
+                randomDashboardAlbums = shuffled.slice(0, 12);
+            }
         }
 
         window.playRandomAlbum = function() {
@@ -2791,10 +5054,34 @@ if (!file_exists('config.php')) {
                 const key = t.album || 'Single';
                 if (!albsMap[key]) {
                     albsMap[key] = { name: key, artist: t.artist, genre: t.genre || 'Desconhecido', cover: t.cover_url || t.coverUrl, tracks: [] };
+                } else {
+                    if (t.genre && (!albsMap[key].genre || albsMap[key].genre === 'DESCONHECIDO' || albsMap[key].genre === 'Local Scan' || albsMap[key].genre === 'Desconhecido')) {
+                        albsMap[key].genre = t.genre;
+                    }
                 }
                 albsMap[key].tracks.push(t);
             });
-            const albumsArray = Object.values(albsMap);
+            let albumsArray = Object.values(albsMap);
+            if (albumsArray.length === 0) return;
+
+            // Filter by search query if any
+            const query = (window.phpDashboardQuery || '').toLowerCase().trim();
+            if (query) {
+                albumsArray = albumsArray.filter(alb => {
+                    return alb.name.toLowerCase().includes(query) || 
+                           alb.artist.toLowerCase().includes(query);
+                });
+            }
+
+            // Filter by Genre if selected
+            const selectedGenre = window.phpDashboardGenre || 'all';
+            if (selectedGenre !== 'all') {
+                albumsArray = albumsArray.filter(alb => {
+                    return (alb.genre && alb.genre.toLowerCase() === selectedGenre.toLowerCase()) ||
+                           alb.tracks.some(t => t.genre && t.genre.toLowerCase() === selectedGenre.toLowerCase());
+                });
+            }
+
             if (albumsArray.length === 0) return;
             const randomAlb = albumsArray[Math.floor(Math.random() * albumsArray.length)];
             if (randomAlb.tracks.length > 0) {
@@ -2827,7 +5114,7 @@ if (!file_exists('config.php')) {
                 cell.className = "p-3 bg-slate-950/60 border border-slate-900/40 rounded-2xl flex flex-col group hover:border-sky-500/40 cursor-pointer transition duration-350";
                 cell.innerHTML = `
                     <div class="relative rounded-xl overflow-hidden aspect-square bg-slate-900/40 flex items-center justify-center border border-slate-905/60 shadow-inner">
-                        <img src="${alb.cover || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300'}" class="w-[70%] h-[70%] rounded-xl object-cover shadow-md border border-slate-800/40 group-hover:scale-105 duration-300 transition" referrerpolicy="no-referrer">
+                        <img src="${alb.cover || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300'}" class="w-full h-full object-cover shadow-md border border-slate-800/40 group-hover:scale-105 duration-300 transition" referrerpolicy="no-referrer">
                         <div class="absolute inset-0 bg-black/60 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition duration-300">
                             <button onclick="playAlbumByName(event, '${alb.name.replace(new RegExp("'", "g"), "\\'")}')" class="p-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-full shadow-lg cursor-pointer transform hover:scale-105 transition" title="Reproduzir Álbum em Ordem">
                                 <i data-lucide="play" class="w-3.5 h-3.5 fill-current text-white"></i>
@@ -2864,32 +5151,56 @@ if (!file_exists('config.php')) {
             }
 
             const currentLang = localStorage.getItem('phplayer_lang') || 'pt';
+            const isRandom = (window.phpDashboardSort === 'random');
             let countLabel = "";
             let rotateBtnText = "";
-            if (currentLang === 'en') {
-                countLabel = `Showing ${Math.min(12, totalAlbumsCount)} of ${totalAlbumsCount} random albums (Auto-rotated every 8s)`;
-                rotateBtnText = "Next Albums ⟳";
-            } else if (currentLang === 'es') {
-                countLabel = `Mostrando ${Math.min(12, totalAlbumsCount)} de ${totalAlbumsCount} álbumes aleatorios (Rotación automática cada 8s)`;
-                rotateBtnText = "Siguientes álbumes ⟳";
+            
+            const currentCount = randomDashboardAlbums ? randomDashboardAlbums.length : 0;
+            if (isRandom) {
+                if (currentLang === 'en') {
+                    countLabel = `Showing ${Math.min(12, currentCount)} of ${currentCount} random albums (Auto-rotated every 8s)`;
+                    rotateBtnText = "Next Albums ⟳";
+                } else if (currentLang === 'es') {
+                    countLabel = `Mostrando ${Math.min(12, currentCount)} de ${currentCount} álbumes aleatorios (Rotación automática cada 8s)`;
+                    rotateBtnText = "Siguientes álbumes ⟳";
+                } else {
+                    countLabel = `Mostrando ${Math.min(12, currentCount)} de ${currentCount} álbuns aleatórios (Rotação a cada 8s)`;
+                    rotateBtnText = "Próximos Álbuns ⟳";
+                }
             } else {
-                countLabel = `Mostrando ${Math.min(12, totalAlbumsCount)} de ${totalAlbumsCount} álbuns aleatórios (Rotação a cada 8s)`;
-                rotateBtnText = "Próximos Álbuns ⟳";
+                if (currentLang === 'en') {
+                    countLabel = `Showing ${currentCount} albums sorted`;
+                } else if (currentLang === 'es') {
+                    countLabel = `Mostrando ${currentCount} álbumes ordenados`;
+                } else {
+                    countLabel = `Mostrando ${currentCount} álbuns ordenados`;
+                }
             }
 
-            pagDiv.innerHTML = `
-                <div class="flex items-center justify-between gap-4 py-3 mt-4 text-xs font-medium border-t border-slate-900/40 pt-4">
-                    <div class="text-slate-500 font-semibold flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        ${countLabel}
+            if (isRandom && currentCount > 12) {
+                pagDiv.innerHTML = `
+                    <div class="flex items-center justify-between gap-4 py-3 mt-4 text-xs font-medium border-t border-slate-900/40 pt-4">
+                        <div class="text-slate-500 font-semibold flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            ${countLabel}
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="changeDashboardAlbumPage(1)" class="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sky-400 font-extrabold hover:text-white hover:border-sky-500/30 transition cursor-pointer select-none active:scale-95">
+                                ${rotateBtnText}
+                            </button>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button onclick="changeDashboardAlbumPage(1)" class="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sky-400 font-extrabold hover:text-white hover:border-sky-500/30 transition cursor-pointer select-none active:scale-95">
-                            ${rotateBtnText}
-                        </button>
+                `;
+            } else {
+                pagDiv.innerHTML = `
+                    <div class="flex items-center justify-between gap-4 py-3 mt-4 text-xs font-medium border-t border-slate-900/40 pt-4">
+                        <div class="text-slate-500 font-semibold flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-sky-500"></span>
+                            ${countLabel}
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            }
             lucide.createIcons();
         }
 
@@ -2915,16 +5226,775 @@ if (!file_exists('config.php')) {
             loadTrack(activeQueue[0]);
         }
 
+        let sleepTimerSecs = null;
+        let sleepTimerInterval = null;
+
+        function setSleepTimerPhp(minutes) {
+            if (sleepTimerInterval) clearInterval(sleepTimerInterval);
+            if (minutes === null) {
+                sleepTimerSecs = null;
+                updateSleepTimerButton();
+                return;
+            }
+            sleepTimerSecs = minutes * 60;
+            updateSleepTimerButton();
+            
+            sleepTimerInterval = setInterval(() => {
+                if (sleepTimerSecs === null) {
+                    clearInterval(sleepTimerInterval);
+                    return;
+                }
+                if (sleepTimerSecs <= 1) {
+                    if (isPlaying) {
+                        togglePlay();
+                    }
+                    sleepTimerSecs = null;
+                    clearInterval(sleepTimerInterval);
+                    updateSleepTimerButton();
+                } else {
+                    sleepTimerSecs--;
+                    updateSleepTimerButton();
+                }
+            }, 1000);
+        }
+
+        function updateSleepTimerButton() {
+            const btn = document.getElementById('php-sleep-btn');
+            if (!btn) return;
+            if (sleepTimerSecs === null) {
+                btn.innerHTML = `<i data-lucide="clock" class="w-4 h-4"></i>`;
+                btn.className = 'p-1.5 text-slate-400 hover:text-white transition cursor-pointer border border-transparent rounded-lg flex items-center gap-1 font-mono text-[9px]';
+            } else {
+                const mins = Math.floor(sleepTimerSecs / 60);
+                const secs = String(sleepTimerSecs % 60).padStart(2, '0');
+                btn.innerHTML = `<i data-lucide="clock" class="w-3.5 h-3.5 text-sky-400 mr-1 animate-pulse"></i><span class="text-[10px] text-sky-400 font-mono">${mins}:${secs}</span>`;
+                btn.className = 'p-1.5 border border-sky-950 bg-sky-950/40 text-sky-400 rounded-lg flex items-center gap-1 font-mono text-[9px] cursor-pointer';
+            }
+            if (window.lucide) window.lucide.createIcons();
+
+            // Sync reprodutor sleep select
+            const repSelect = document.getElementById('reprodutor-sleep-timer-select');
+            if (repSelect) {
+                if (sleepTimerSecs === null) {
+                    repSelect.value = "0";
+                } else {
+                    const mins = Math.ceil(sleepTimerSecs / 60);
+                    if ([5, 15, 30, 60].includes(mins)) {
+                        repSelect.value = String(mins);
+                    }
+                }
+            }
+        }
+
+        window.phpCrossfadeDuration = 0;
+        window.setCrossfadePhp = function(secs) {
+            window.phpCrossfadeDuration = parseInt(secs) || 0;
+            const btn = document.getElementById('php-crossfade-btn');
+            if (btn) {
+                if (window.phpCrossfadeDuration === 0) {
+                    btn.innerHTML = `<i data-lucide="layers" class="w-4 h-4"></i>`;
+                    btn.className = 'p-1.5 text-slate-400 hover:text-white transition cursor-pointer border border-transparent rounded-lg flex items-center gap-1 font-mono text-[9px]';
+                } else {
+                    btn.innerHTML = `<i data-lucide="layers" class="w-3.5 h-3.5 text-sky-450 mr-1 animate-pulse"></i><span class="text-[10px] text-sky-450 font-mono">${window.phpCrossfadeDuration}s</span>`;
+                    btn.className = 'p-1.5 border border-sky-950 bg-sky-950/40 text-sky-450 rounded-lg flex items-center gap-1 font-mono text-[9px] cursor-pointer';
+                }
+            }
+            if (window.lucide) window.lucide.createIcons();
+            
+            // Sync with mobile status display
+            const mobStatus = document.getElementById('mobile-crossfade-status');
+            if (mobStatus) {
+                mobStatus.textContent = window.phpCrossfadeDuration === 0 ? 'Desativado' : window.phpCrossfadeDuration + 's';
+                mobStatus.className = window.phpCrossfadeDuration === 0 ? 'text-[9px] text-slate-500 font-bold uppercase tracking-wider' : 'text-[9px] text-sky-455 font-bold uppercase tracking-wider animate-pulse';
+            }
+
+            // Sync reprodutor crossfade select
+            const crossSelect = document.getElementById('reprodutor-crossfade-select');
+            if (crossSelect) {
+                crossSelect.value = String(window.phpCrossfadeDuration);
+            }
+        };
+
+        window.setMobileCrossfade = function(secs) {
+            window.setCrossfadePhp(secs);
+        };
+
+        let phpLyricsMode = localStorage.getItem('php_lyrics_mode') || 'karaoke';
+        let phpLyricsData = [];
+        let currentActiveLineIdx = -1;
+
+        window.updateLyricsButtonsState = function() {
+            const mode = phpLyricsMode;
+            const btnKaraoke = document.getElementById('btn-lyrics-karaoke');
+            const btnStandard = document.getElementById('btn-lyrics-standard');
+            
+            if (mode === 'karaoke') {
+                if (btnKaraoke) btnKaraoke.className = "px-2.5 py-1 font-black uppercase tracking-wider text-[9px] rounded-lg cursor-pointer flex items-center gap-1 transition-all duration-200 bg-sky-500/10 text-sky-400 border border-sky-550/20";
+                if (btnStandard) btnStandard.className = "px-2.5 py-1 font-bold uppercase tracking-wider text-[9px] rounded-lg cursor-pointer flex items-center gap-1 transition-all duration-200 text-slate-500 hover:text-slate-350";
+            } else {
+                if (btnKaraoke) btnKaraoke.className = "px-2.5 py-1 font-bold uppercase tracking-wider text-[9px] rounded-lg cursor-pointer flex items-center gap-1 transition-all duration-200 text-slate-500 hover:text-slate-350";
+                if (btnStandard) btnStandard.className = "px-2.5 py-1 font-black uppercase tracking-wider text-[9px] rounded-lg cursor-pointer flex items-center gap-1 transition-all duration-200 bg-slate-900 text-slate-300 border border-slate-800/80";
+            }
+        };
+
+        window.setLyricsMode = function(mode) {
+            phpLyricsMode = mode;
+            localStorage.setItem('php_lyrics_mode', mode);
+            window.updateLyricsButtonsState();
+            if (window.phpCurrentTrackLyricsRaw) {
+                window.renderLyricsContent();
+            }
+            if (window.lucide) window.lucide.createIcons();
+        };
+
+        window.parseLrc = function(lyricsText) {
+            const lines = lyricsText.split('\n');
+            const lrcData = [];
+            const timestampRegex = /\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\]/g;
+            let hasTimestamps = false;
+
+            for (let line of lines) {
+                line = line.trim();
+                if (!line) continue;
+                
+                timestampRegex.lastIndex = 0;
+                const matches = [...line.matchAll(timestampRegex)];
+                if (matches.length > 0) {
+                    hasTimestamps = true;
+                    const cleanText = line.replace(timestampRegex, '').trim();
+                    for (const match of matches) {
+                        const m = parseInt(match[1], 10);
+                        const s = parseInt(match[2], 10);
+                        const msStr = match[3] || '0';
+                        const ms = parseFloat('0.' + msStr);
+                        const time = m * 60 + s + ms;
+                        lrcData.push({ time, text: cleanText });
+                    }
+                } else {
+                    if (line.startsWith('[') && line.includes(':') && line.endsWith(']')) {
+                        continue;
+                    }
+                    lrcData.push({ time: -1, text: line });
+                }
+            }
+
+            if (!hasTimestamps) {
+                const cleanLines = lines
+                    .map(l => l.trim())
+                    .filter(l => !l.startsWith('[') || !l.endsWith(']'));
+                
+                const aud = document.getElementById('real-audio');
+                const duration = (aud && aud.duration) ? aud.duration : (window.phpCurrentTrack ? window.phpCurrentTrack.duration || 180 : 180);
+                const lineTime = duration / Math.max(1, cleanLines.length);
+                
+                return cleanLines.map((text, idx) => ({
+                    time: idx * lineTime,
+                    text: text
+                }));
+            }
+
+            const finalData = lrcData.filter(item => item.time >= 0);
+            finalData.sort((a, b) => a.time - b.time);
+            return finalData;
+        };
+
+        window.renderLyricsContent = function() {
+            const contentEl = document.getElementById('lyrics-content');
+            if (!contentEl) return;
+            
+            const rawLyrics = window.phpCurrentTrackLyricsRaw;
+            if (!rawLyrics) return;
+            
+            if (phpLyricsMode === 'karaoke') {
+                phpLyricsData = window.parseLrc(rawLyrics);
+                currentActiveLineIdx = -1;
+                
+                if (phpLyricsData.length === 0) {
+                    contentEl.innerHTML = `<p class="text-sm text-slate-500">Nenhuma linha parseável de letras.</p>`;
+                    return;
+                }
+                
+                let html = `<div class="space-y-5 py-12 max-w-lg mx-auto flex flex-col items-center">`;
+                phpLyricsData.forEach((item, index) => {
+                    const cleanTxt = item.text || '...';
+                    html += `
+                        <div id="karaoke-line-${index}" onclick="window.seekAudioTo(${item.time})" class="karaoke-line text-slate-400 font-medium text-base sm:text-lg opacity-60 transition-all duration-300 transform scale-95 origin-center cursor-pointer py-1 hover:text-white hover:scale-100" title="Clique para ir a este trecho">
+                            ${cleanTxt}
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+                contentEl.innerHTML = html;
+                
+                const aud = document.getElementById('real-audio');
+                if (aud) {
+                    window.updateLyricsKaraoke(aud.currentTime);
+                }
+            } else {
+                const display = rawLyrics.replace(/\[\d{2}:\d{2}(?:\.\d{2,3})?\]/g, '').trim();
+                contentEl.innerHTML = `<div class="whitespace-pre-line leading-relaxed text-slate-350 hover:text-white text-sm md:text-base font-medium max-w-lg mx-auto py-6" style="text-shadow: 0 1px 3px rgba(0,0,0,0.5)">${display}</div>`;
+            }
+        };
+
+        window.seekAudioTo = function(seconds) {
+            const aud = document.getElementById('real-audio');
+            if (aud && seconds >= 0) {
+                aud.currentTime = seconds;
+                window.updateLyricsKaraoke(seconds);
+            }
+        };
+
+        window.updateLyricsKaraoke = function(currentTime) {
+            if (phpLyricsMode !== 'karaoke' || phpLyricsData.length === 0) return;
+            
+            let activeIdx = -1;
+            for (let i = 0; i < phpLyricsData.length; i++) {
+                if (currentTime >= phpLyricsData[i].time) {
+                    activeIdx = i;
+                } else {
+                    break;
+                }
+            }
+            
+            if (activeIdx !== currentActiveLineIdx) {
+                if (currentActiveLineIdx !== -1) {
+                    const prevEl = document.getElementById(`karaoke-line-${currentActiveLineIdx}`);
+                    if (prevEl) {
+                        prevEl.className = "karaoke-line text-slate-400 font-medium text-base sm:text-lg opacity-60 transition-all duration-300 transform scale-95 origin-center cursor-pointer py-1 hover:text-white hover:scale-100";
+                    }
+                }
+                
+                currentActiveLineIdx = activeIdx;
+                
+                if (activeIdx !== -1) {
+                    const activeEl = document.getElementById(`karaoke-line-${activeIdx}`);
+                    if (activeEl) {
+                        activeEl.className = "karaoke-line text-sky-400 text-lg sm:text-2xl font-black font-sans leading-relaxed transition-all duration-350 transform scale-105 origin-center brightness-125 drop-shadow-[0_0_12px_rgba(56,189,248,0.35)] py-2";
+                        
+                        const container = document.getElementById('lyrics-content');
+                        if (container && Date.now() - (window.phpLyricsLastScroll || 0) > 4000) {
+                            window.phpLyricsIsProgrammaticScroll = true;
+                            const containerHeight = container.clientHeight;
+                            const lineTop = activeEl.offsetTop;
+                            const lineHeight = activeEl.clientHeight;
+                            container.scrollTo({
+                                top: lineTop - (containerHeight / 2) + (lineHeight / 2),
+                                behavior: 'smooth'
+                            });
+                        }
+                    }
+                }
+            }
+        };
+
+        window.fetchLyricsPhp = async function(artist, title) {
+            const contentEl = document.getElementById('lyrics-content');
+            const sourceEl = document.getElementById('lyrics-source');
+            const titleEl = document.getElementById('lyrics-title');
+            const artistEl = document.getElementById('lyrics-artist');
+            
+            if (!contentEl) return;
+            
+            if (titleEl) titleEl.textContent = title || "Sem título";
+            if (artistEl) artistEl.textContent = artist || "Sem artista";
+            
+            if (sourceEl) {
+                sourceEl.classList.add('hidden');
+                sourceEl.textContent = '';
+            }
+            contentEl.innerHTML = '<div class="flex flex-col items-center gap-2 py-10"><i data-lucide="loader" class="w-6 h-6 animate-spin text-sky-400"></i><span class="text-xs text-slate-500">Buscando letra...</span></div>';
+            if (window.lucide) window.lucide.createIcons();
+            
+            window.phpCurrentTrackLyricsRaw = '';
+            window.updateLyricsButtonsState();
+            
+            try {
+                const res = await fetch(API + '?route=lyrics&title=' + encodeURIComponent(title) + '&artist=' + encodeURIComponent(artist));
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.lyrics) {
+                        window.phpCurrentTrackLyricsRaw = data.lyrics;
+                        if (sourceEl && data.source) {
+                            sourceEl.textContent = data.source;
+                            sourceEl.classList.remove('hidden');
+                            sourceEl.className = "text-[8px] bg-sky-500/15 text-sky-400 px-1.5 py-0.5 rounded font-black tracking-wider uppercase";
+                        }
+                        window.renderLyricsContent();
+                    } else {
+                        contentEl.innerHTML = `<p class="text-sm text-slate-500">Letras não encontradas para "${title}". Corrija o nome do artista/música e tente novamente.</p>`;
+                    }
+                } else {
+                    contentEl.innerHTML = '<p class="text-sm text-slate-500">Erro na requisição das letras.</p>';
+                }
+            } catch (err) {
+                contentEl.innerHTML = '<p class="text-sm text-slate-500">Falha ao se conectar ao serviço de letras.</p>';
+            }
+            if (window.lucide) window.lucide.createIcons();
+        };
+
+        window.searchLyricsCustom = function() {
+            const artistInput = document.getElementById('lyrics-search-artist');
+            const titleInput = document.getElementById('lyrics-search-title');
+            if (!artistInput || !titleInput) return;
+            
+            const artist = artistInput.value.trim();
+            const title = titleInput.value.trim();
+            
+            if (!artist || !title) {
+                alert("Por favor, preencha o Artista e o nome da Música.");
+                return;
+            }
+            
+            window.fetchLyricsPhp(artist, title);
+        };
+
+        async function showLyricsPhp() {
+            const track = window.phpCurrentTrack;
+            const modal = document.getElementById('lyrics-modal');
+            const titleEl = document.getElementById('lyrics-title');
+            const artistEl = document.getElementById('lyrics-artist');
+            const contentEl = document.getElementById('lyrics-content');
+            const sourceEl = document.getElementById('lyrics-source');
+            const artistInput = document.getElementById('lyrics-search-artist');
+            const titleInput = document.getElementById('lyrics-search-title');
+            
+            if (!modal || !titleEl || !artistEl || !contentEl) return;
+            
+            if (!window.phpLyricsListenerAttached) {
+                contentEl.addEventListener('scroll', () => {
+                    if (window.phpLyricsIsProgrammaticScroll) {
+                        window.phpLyricsIsProgrammaticScroll = false;
+                        return;
+                    }
+                    window.phpLyricsLastScroll = Date.now();
+                });
+                window.phpLyricsListenerAttached = true;
+            }
+            window.phpLyricsLastScroll = 0;
+            window.updateLyricsButtonsState();
+            
+            if (track) {
+                titleEl.textContent = track.title;
+                artistEl.textContent = track.artist;
+                if (artistInput) artistInput.value = track.artist || '';
+                if (titleInput) titleInput.value = track.title || '';
+                
+                if (sourceEl) {
+                    sourceEl.classList.add('hidden');
+                    sourceEl.textContent = '';
+                }
+                modal.classList.remove('hidden');
+                window.fetchLyricsPhp(track.artist, track.title);
+            } else {
+                titleEl.textContent = 'Pesquisa de Letras';
+                artistEl.textContent = 'Busque no Lyrics.ovh';
+                if (artistInput) artistInput.value = '';
+                if (titleInput) titleInput.value = '';
+                
+                if (sourceEl) {
+                    sourceEl.classList.add('hidden');
+                    sourceEl.textContent = '';
+                }
+                contentEl.innerHTML = `
+                    <div class="flex flex-col items-center gap-3.5 py-16 text-center">
+                        <div class="p-4 bg-sky-500/10 text-sky-400 rounded-full">
+                            <i data-lucide="music" class="w-8 h-8"></i>
+                        </div>
+                        <div class="max-w-md space-y-1.5">
+                            <h4 class="text-white font-bold text-sm">Pesquisa de Letras Lyrics.ovh</h4>
+                            <p class="text-xs text-slate-500 leading-relaxed">Digite o nome do artista e da música nos campos de busca acima e clique em "Buscar Letra" para obter qualquer letra instantaneamente.</p>
+                        </div>
+                    </div>
+                `;
+                modal.classList.remove('hidden');
+                if (window.lucide) window.lucide.createIcons();
+            }
+        }
+        
+        window.closeLyricsModal = function() {
+            const modal = document.getElementById('lyrics-modal');
+            if (modal) modal.classList.add('hidden');
+        };
+
+        // EQUALIZER WEB AUDIO CONTROLLER (PHP DESKTOP)
+        let phpAudioContext = null;
+        let phpSourceNode = null;
+        let phpBiquadFilters = [];
+        let phpEqGains = [0, 0, 0, 0, 0];
+        let phpAnalyserNode = null;
+        let phpVisualizerStyle = 'bars';
+        let phpVisualizerColor = 'wmp';
+        let phpVisualizerAnimFrame = null;
+        let phpPeaks = new Array(256).fill(0);
+
+        const phpPresets = {
+            flat: [0, 0, 0, 0, 0],
+            bass: [6, 4, 0, 0, -1],
+            pop: [-1, 2, 4, 2, -1],
+            rock: [4, 2, -2, 2, 5],
+            vocal: [-2, 1, 3, 4, 2],
+            electronic: [5, 3, 1, 2, 4],
+            suave: [3, 1, 0, 1, -2],
+            classical: [3, 2, 1, -1, 3]
+        };
+
+        function initPhpEqualizer() {
+            if (phpAudioContext) return;
+            const audioEl = document.getElementById('real-audio');
+            if (!audioEl) return;
+            
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextClass) return;
+                
+                phpAudioContext = new AudioContextClass();
+                phpSourceNode = phpAudioContext.createMediaElementSource(audioEl);
+                
+                const freqs = [60, 230, 910, 4000, 14000];
+                phpBiquadFilters = freqs.map((freq, idx) => {
+                    const filter = phpAudioContext.createBiquadFilter();
+                    filter.type = 'peaking';
+                    filter.frequency.value = freq;
+                    filter.Q.value = 1.0;
+                    filter.gain.value = phpEqGains[idx];
+                    return filter;
+                });
+                
+                phpAnalyserNode = phpAudioContext.createAnalyser();
+                phpAnalyserNode.fftSize = 256;
+
+                let lastNode = phpSourceNode;
+                phpBiquadFilters.forEach(filter => {
+                    lastNode.connect(filter);
+                    lastNode = filter;
+                });
+                lastNode.connect(phpAnalyserNode);
+                phpAnalyserNode.connect(phpAudioContext.destination);
+            } catch (err) {
+                console.warn('Web Audio error php:', err);
+            }
+        }
+
+        window.showVisualizerPhp = function() {
+            setTab('reprodutor');
+            initPhpEqualizer();
+            if (phpAudioContext && phpAudioContext.state === 'suspended') {
+                phpAudioContext.resume();
+            }
+            startPhpVisualizerLoop();
+        };
+
+        window.closeVisualizerModalPhp = function() {
+            // Inline player visualizer remains active on the main dashboard
+        };
+
+        window.setVisualizerStylePhp = function(style) {
+            phpVisualizerStyle = style;
+            const styles = ['bars', 'scope', 'beat'];
+            styles.forEach(s => {
+                const btn = document.getElementById('v-style-' + s);
+                if (btn) {
+                    if (s === style) {
+                        btn.className = 'px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition flex items-center gap-1.5 bg-sky-500/10 text-sky-400 cursor-pointer';
+                    } else {
+                        btn.className = 'px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition flex items-center gap-1.5 text-slate-400 hover:text-white hover:bg-slate-900 cursor-pointer';
+                    }
+                }
+            });
+        };
+
+        window.setVisualizerColorPhp = function(color) {
+            phpVisualizerColor = color;
+            const colors = ['wmp', 'neon', 'fire', 'cyber'];
+            colors.forEach(c => {
+                const btn = document.getElementById('v-color-' + c);
+                if (btn) {
+                    if (c === color) {
+                        let activeBg = 'bg-cyan-500/10 text-cyan-405 border border-cyan-500/20';
+                        if (c === 'neon') activeBg = 'bg-purple-500/10 text-purple-400 border border-purple-500/20';
+                        if (c === 'fire') activeBg = 'bg-orange-500/10 text-orange-400 border border-orange-500/20';
+                        if (c === 'cyber') activeBg = 'bg-green-500/10 text-green-400 border border-green-500/20';
+                        btn.className = 'px-2 py-1 rounded text-[9px] uppercase font-bold tracking-wider transition ' + activeBg + ' cursor-pointer';
+                    } else {
+                        btn.className = 'px-2 py-1 rounded text-[9px] uppercase font-bold tracking-wider transition text-slate-400 hover:text-white cursor-pointer';
+                    }
+                }
+            });
+        };
+
+        function startPhpVisualizerLoop() {
+            if (phpVisualizerAnimFrame) return;
+
+            const canvas = document.getElementById('php-visualizer-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            let angleOffset = 0;
+
+            function draw() {
+                phpVisualizerAnimFrame = requestAnimationFrame(draw);
+
+                const width = canvas.clientWidth;
+                const height = canvas.clientHeight;
+
+                if (canvas.width !== width || canvas.height !== height) {
+                    canvas.width = width;
+                    canvas.height = height;
+                }
+
+                ctx.fillStyle = '#020617';
+                ctx.fillRect(0, 0, width, height);
+
+                ctx.strokeStyle = 'rgba(15, 23, 42, 0.5)';
+                ctx.lineWidth = 1;
+                const gridSize = 16;
+                for (let x = 0; x < width; x += gridSize) {
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+                }
+                for (let y = 0; y < height; y += gridSize) {
+                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+                }
+
+                const bufferLength = phpAnalyserNode ? phpAnalyserNode.frequencyBinCount : 128;
+                const dataArray = new Uint8Array(bufferLength);
+
+                let active = false;
+                if (phpAnalyserNode) {
+                    if (phpVisualizerStyle === 'scope') {
+                        phpAnalyserNode.getByteTimeDomainData(dataArray);
+                    } else {
+                        phpAnalyserNode.getByteFrequencyData(dataArray);
+                    }
+                    for (let i = 0; i < bufferLength; i++) {
+                        if (dataArray[i] > 0 && dataArray[i] !== 128) {
+                            active = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!active) {
+                    const time = Date.now() * 0.003;
+                    for (let i = 0; i < bufferLength; i++) {
+                        if (phpVisualizerStyle === 'scope') {
+                            dataArray[i] = 128 + Math.sin(i * 0.15 + time) * 35 * Math.sin(i * 0.03);
+                        } else {
+                            dataArray[i] = Math.max(10, (Math.sin(i * 0.1 + time) + 1.0) * 45 * Math.sin(i * 0.01 + 0.5));
+                        }
+                    }
+                }
+
+                let bassSum = 0;
+                const bassBins = Math.min(10, bufferLength);
+                for (let i = 0; i < bassBins; i++) {
+                    bassSum += (phpVisualizerStyle === 'scope' ? Math.abs(dataArray[i] - 128) * 2 : dataArray[i]);
+                }
+                const bassAvg = bassSum / bassBins;
+                const beatScale = 1.0 + (bassAvg / 255) * 0.35;
+
+                let primaryColor = '#06b6d4';
+                let secondaryColor = '#3b82f6';
+                let glowColor = 'rgba(6, 182, 212, 0.5)';
+
+                if (phpVisualizerColor === 'neon') {
+                    primaryColor = '#a855f7'; secondaryColor = '#f43f5e'; glowColor = 'rgba(168, 85, 247, 0.5)';
+                } else if (phpVisualizerColor === 'fire') {
+                    primaryColor = '#f97316'; secondaryColor = '#eab308'; glowColor = 'rgba(249, 115, 22, 0.55)';
+                } else if (phpVisualizerColor === 'cyber') {
+                    primaryColor = '#39ff14'; secondaryColor = '#10b981'; glowColor = 'rgba(57, 255, 20, 0.6)';
+                }
+
+                if (phpVisualizerStyle === 'bars') {
+                    const barWidth = (width / bufferLength) * 1.5;
+                    let x = 0;
+                    for (let i = 0; i < bufferLength; i++) {
+                        const barHeight = (dataArray[i] / 255) * height * 0.8;
+                        if (barHeight > phpPeaks[i]) {
+                            phpPeaks[i] = barHeight;
+                        } else {
+                            phpPeaks[i] = Math.max(0, phpPeaks[i] - 1.2);
+                        }
+
+                        const grad = ctx.createLinearGradient(x, height, x, height - barHeight);
+                        grad.addColorStop(0, 'rgba(15, 23, 42, 0.8)');
+                        grad.addColorStop(0.5, secondaryColor);
+                        grad.addColorStop(1, primaryColor);
+
+                        ctx.fillStyle = grad;
+                        ctx.fillRect(x, height - barHeight, barWidth - 1, barHeight);
+
+                        ctx.fillStyle = primaryColor;
+                        ctx.shadowBlur = beatScale > 1.15 ? 8 : 4;
+                        ctx.shadowColor = glowColor;
+                        ctx.fillRect(x, height - phpPeaks[i] - 2, barWidth - 1, 1.5);
+                        ctx.shadowBlur = 0;
+
+                        x += barWidth;
+                        if (x >= width) break;
+                    }
+                } else if (phpVisualizerStyle === 'scope') {
+                    ctx.beginPath();
+                    ctx.lineWidth = 2.5 + (beatScale - 1.0) * 4;
+                    ctx.strokeStyle = primaryColor;
+                    ctx.shadowBlur = 12 * beatScale;
+                    ctx.shadowColor = glowColor;
+
+                    const sliceWidth = width / bufferLength;
+                    let x = 0;
+                    for (let i = 0; i < bufferLength; i++) {
+                        const v = dataArray[i] / 128.0;
+                        const y = (v * height) / 2;
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                        x += sliceWidth;
+                    }
+                    ctx.lineTo(width, height / 2);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+
+                    ctx.strokeStyle = 'rgba(51, 65, 85, 0.3)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(0, height / 2); ctx.lineTo(width, height / 2); ctx.stroke();
+                } else if (phpVisualizerStyle === 'beat') {
+                    const centerX = width / 2;
+                    const centerY = height / 2;
+                    const baseRadius = Math.min(width, height) * 0.22 * beatScale;
+
+                    angleOffset += 0.005 + (beatScale - 1.0) * 0.04;
+
+                    ctx.strokeStyle = 'rgba(30, 41, 59, 0.35)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.arc(centerX, centerY, baseRadius * 1.4, 0, Math.PI * 2); ctx.stroke();
+                    ctx.strokeStyle = 'rgba(30, 41, 59, 0.2)';
+                    ctx.beginPath(); ctx.arc(centerX, centerY, baseRadius * 1.8, 0, Math.PI * 2); ctx.stroke();
+
+                    const spikes = Math.min(128, bufferLength);
+                    ctx.beginPath();
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = primaryColor;
+                    ctx.shadowBlur = 8 * beatScale;
+                    ctx.shadowColor = glowColor;
+
+                    for (let i = 0; i < spikes; i++) {
+                        const angle = (i / spikes) * Math.PI * 2 + angleOffset;
+                        const magnitude = (dataArray[i] / 125) * baseRadius * 0.45;
+                        const innerR = baseRadius - (magnitude * 0.25);
+                        const outerR = baseRadius + magnitude;
+
+                        const p1X = centerX + Math.cos(angle) * innerR;
+                        const p1Y = centerY + Math.sin(angle) * innerR;
+                        const p2X = centerX + Math.cos(angle) * outerR;
+                        const p2Y = centerY + Math.sin(angle) * outerR;
+
+                        ctx.moveTo(p1X, p1Y);
+                        ctx.lineTo(p2X, p2Y);
+                    }
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+
+                    const solidG = ctx.createRadialGradient(centerX, centerY, 1, centerX, centerY, baseRadius);
+                    solidG.addColorStop(0, secondaryColor);
+                    solidG.addColorStop(0.8, primaryColor);
+                    solidG.addColorStop(1, 'transparent');
+                    ctx.fillStyle = solidG;
+                    ctx.beginPath(); ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2); ctx.fill();
+
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath(); ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2); ctx.stroke();
+                }
+            }
+
+            draw();
+        }
+
+        window.showEqualizerPhp = function() {
+            setTab('reprodutor');
+            initPhpEqualizer();
+            if (phpAudioContext && phpAudioContext.state === 'suspended') {
+                phpAudioContext.resume();
+            }
+        };
+
+        window.closeEqualizerModal = function() {
+            // Equalizer controls are safely embedded inline on the player dashboard
+        };
+
+        window.onEqSliderChangePhp = function(bandIndex, val) {
+            initPhpEqualizer();
+            if (phpAudioContext && phpAudioContext.state === 'suspended') {
+                phpAudioContext.resume();
+            }
+            
+            const numVal = parseFloat(val);
+            phpEqGains[bandIndex] = numVal;
+            
+            const label = document.getElementById('php-eq-gain-val-' + bandIndex);
+            if (label) {
+                label.textContent = (numVal > 0 ? '+' : '') + numVal + 'dB';
+            }
+            
+            if (phpBiquadFilters[bandIndex]) {
+                phpBiquadFilters[bandIndex].gain.value = numVal;
+            }
+            
+            setPhpActivePresetButtonStyle(null);
+        };
+
+        window.setEqPresetPhp = function(presetName) {
+            const gains = phpPresets[presetName] || phpPresets.flat;
+            
+            for (let i = 0; i < 5; i++) {
+                const slider = document.getElementById('php-eq-slider-' + i);
+                if (slider) slider.value = gains[i];
+                phpEqGains[i] = gains[i];
+                
+                const label = document.getElementById('php-eq-gain-val-' + i);
+                if (label) {
+                    label.textContent = (gains[i] > 0 ? '+' : '') + gains[i] + 'dB';
+                }
+                
+                if (phpBiquadFilters[i]) {
+                    phpBiquadFilters[i].gain.value = gains[i];
+                }
+            }
+            
+            setPhpActivePresetButtonStyle(presetName);
+        };
+
+        function setPhpActivePresetButtonStyle(activeName) {
+            const btns = document.querySelectorAll('.preset-btn');
+            btns.forEach(btn => {
+                if (activeName && btn.id === 'preset-php-' + activeName) {
+                    btn.className = "preset-btn px-1.5 py-1 bg-sky-500/10 border border-sky-500 text-sky-400 rounded-lg text-[10px] transition font-bold shadow-lg shadow-sky-500/5 scale-[1.02]";
+                } else {
+                    btn.className = "preset-btn px-1.5 py-1 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium";
+                }
+            });
+        }
+
         // MUSIC REPRODUCER LOGIC
         function loadTrack(track) {
+            window.phpCurrentTrack = track;
             const trackIdStr = String(track.id);
-            const isLocal = trackIdStr.startsWith('seed-');
-            audio.src = isLocal ? (track.fileName || track.file_name) : (API + '?route=stream&id=' + trackIdStr);
+            const isRadio = track.artist === 'Rádio On-line' || track.album === 'Sintonizada' || String(track.file_name || track.fileName || "").includes('://');
+            const isLocal = trackIdStr.startsWith('seed-') || trackIdStr.startsWith('radio-');
+            
+            if (isRadio) {
+                const streamUrl = track.fileName || track.file_name || track.url;
+                audio.src = API + '?route=proxy_radio&url=' + encodeURIComponent(streamUrl);
+            } else {
+                audio.src = isLocal ? (track.fileName || track.file_name || track.url) : (API + '?route=stream&id=' + trackIdStr);
+            }
             
             document.getElementById('track-cover').src = track.coverUrl || track.cover_url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100';
             document.getElementById('track-title').textContent = track.title;
             document.getElementById('track-artist').textContent = track.artist;
             
+            if (phpAudioContext && phpAudioContext.state === 'suspended') {
+                phpAudioContext.resume();
+            }
             audio.play();
             isPlaying = true;
             document.getElementById('player-play-btn').innerHTML = `<i data-lucide="pause" class="w-4 h-4 fill-current"></i>`;
@@ -2933,6 +6003,10 @@ if (!file_exists('config.php')) {
             // update highlighting on tables
             renderTracksTable();
             renderPlayerMiniQueue();
+            updatePlayerFavHeart();
+            if (typeof updateReprodutorTab === 'function') {
+                updateReprodutorTab();
+            }
         }
 
         function renderPlayerMiniQueue() {
@@ -2968,6 +6042,10 @@ if (!file_exists('config.php')) {
         };
 
         function togglePlay() {
+            if (isPartyMode) {
+                alert("O Modo Festa está ativo! A pausa manual está desativada para manter a reprodução contínua.");
+                return;
+            }
             if (activeQueue.length === 0 && allTracks.length > 0) {
                 activeQueue = allTracks;
                 activeQueueIdx = 0;
@@ -2984,6 +6062,9 @@ if (!file_exists('config.php')) {
                 document.getElementById('player-play-btn').innerHTML = `<i data-lucide="pause" class="w-4 h-4 fill-current"></i>`;
             }
             lucide.createIcons();
+            if (typeof updateReprodutorPlayPauseState === 'function') {
+                updateReprodutorPlayPauseState();
+            }
         }
 
         function next() {
@@ -3006,7 +6087,9 @@ if (!file_exists('config.php')) {
             audio.currentTime = val;
         }
 
+        window.phpUserVolume = 0.7;
         function volume(val) {
+            window.phpUserVolume = parseFloat(val);
             audio.volume = val;
         }
 
@@ -3024,18 +6107,260 @@ if (!file_exists('config.php')) {
         function toggleShuffle() {
             isShuffle = !isShuffle;
             document.getElementById('player-shuffle').className = isShuffle ? "text-sky-400 font-bold transition cursor-pointer" : "text-slate-500 hover:text-white transition cursor-pointer";
+            if (typeof updateReprodutorLoopShuffleState === 'function') {
+                updateReprodutorLoopShuffleState();
+            }
         }
 
         function toggleLoop() {
             isLoop = !isLoop;
             document.getElementById('player-loop').className = isLoop ? "text-sky-400 font-bold transition cursor-pointer" : "text-slate-500 hover:text-white transition cursor-pointer";
+            if (typeof updateReprodutorLoopShuffleState === 'function') {
+                updateReprodutorLoopShuffleState();
+            }
         }
+
+        window.togglePartyModePhp = function() {
+            isPartyMode = !isPartyMode;
+            const btn = document.getElementById('player-party-mode-btn');
+            if (isPartyMode) {
+                btn.className = "text-pink-400 font-bold transition cursor-pointer p-1.5 rounded-lg bg-pink-950/20 border border-pink-900/40 animate-pulse shrink-0 flex items-center gap-1";
+                btn.innerHTML = `<i data-lucide="sparkles" class="w-4 h-4 fill-current text-pink-400"></i> <span class="text-[9px] font-sans font-black uppercase tracking-wider hidden lg:inline-block">Festa Ativo</span>`;
+                
+                // Force continuous play if not currently playing
+                if (!isPlaying && activeQueue.length > 0) {
+                    togglePlay();
+                } else if (!isPlaying && allTracks.length > 0) {
+                    activeQueue = allTracks;
+                    activeQueueIdx = 0;
+                    loadTrack(allTracks[0]);
+                }
+            } else {
+                btn.className = "text-slate-400 hover:text-pink-400 transition cursor-pointer p-1.5 rounded-lg hover:bg-slate-900 shrink-0";
+                btn.innerHTML = `<i data-lucide="sparkles" class="w-4 h-4"></i>`;
+            }
+            if (window.lucide) lucide.createIcons();
+            const partyCheck = document.getElementById('reprodutor-party-checkbox');
+            if (partyCheck) partyCheck.checked = isPartyMode;
+        };
+
+        // NEW REPRODUTOR SYNC & CONTROLLER LOGIC
+        window.updateReprodutorTab = function() {
+            const track = window.phpCurrentTrack;
+            const emptyEl = document.getElementById('reprodutor-empty-state');
+            const activeEl = document.getElementById('reprodutor-active-state');
+            
+            if (!track) {
+                if (emptyEl) emptyEl.classList.remove('hidden');
+                if (activeEl) activeEl.classList.add('hidden');
+                return;
+            }
+            
+            if (emptyEl) emptyEl.classList.add('hidden');
+            if (activeEl) activeEl.classList.remove('hidden');
+            
+            // Automatically request lyrics for the active track
+            if (track && window.phpLastLoadedLyricsTrackId !== String(track.id)) {
+                window.phpLastLoadedLyricsTrackId = String(track.id);
+                window.fetchLyricsPhp(track.artist, track.title);
+            }
+
+            // Automatically ensure visualizer is running when reproducing
+            if (isPlaying) {
+                initPhpEqualizer();
+                if (phpAudioContext && phpAudioContext.state === 'suspended') {
+                    phpAudioContext.resume();
+                }
+                startPhpVisualizerLoop();
+            }
+            
+            // Sync metadata
+            const coverUrl = track.coverUrl || track.cover_url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300';
+            const coverEl = document.getElementById('reprodutor-cover');
+            if (coverEl) coverEl.src = coverUrl;
+            
+            const titleEl = document.getElementById('reprodutor-title');
+            if (titleEl) titleEl.textContent = track.title || 'Título';
+            
+            const artistEl = document.getElementById('reprodutor-artist');
+            if (artistEl) artistEl.textContent = track.artist || 'Artista';
+            
+            const albumEl = document.getElementById('reprodutor-album');
+            if (albumEl) albumEl.textContent = track.album || 'Álbum Desconhecido';
+            
+            const genreEl = document.getElementById('reprodutor-genre');
+            if (genreEl) genreEl.textContent = track.genre || track.gênero || 'GERAL';
+            
+            // Sync range inputs with current audio duration
+            const seekEl = document.getElementById('reprodutor-seek');
+            if (seekEl) {
+                seekEl.max = audio.duration || 180;
+                seekEl.value = audio.currentTime || 0;
+            }
+            const curTimeEl = document.getElementById('reprodutor-current-time');
+            if (curTimeEl) curTimeEl.textContent = formatSecs(audio.currentTime);
+            const durationEl = document.getElementById('reprodutor-duration');
+            if (durationEl) durationEl.textContent = formatSecs(audio.duration || 180);
+            
+            // Sync buttons classes
+            updateReprodutorPlayPauseState();
+            updateReprodutorLoopShuffleState();
+            
+            // Sync party mode
+            const partyCheck2 = document.getElementById('reprodutor-party-checkbox');
+            if (partyCheck2) partyCheck2.checked = isPartyMode;
+            
+            // Sync sleep timer option selector
+            const sleepSelect = document.getElementById('reprodutor-sleep-timer-select');
+            if (sleepSelect) {
+                if (sleepTimerSecs === null) {
+                    sleepSelect.value = "0";
+                } else {
+                    const mins = Math.ceil(sleepTimerSecs / 60);
+                    if ([5, 15, 30, 60].includes(mins)) {
+                        sleepSelect.value = String(mins);
+                    } else if (mins > 45) {
+                        sleepSelect.value = "60";
+                    } else if (mins > 22) {
+                        sleepSelect.value = "30";
+                    } else if (mins > 10) {
+                        sleepSelect.value = "15";
+                    } else {
+                        sleepSelect.value = "5";
+                    }
+                }
+            }
+            
+            // Sync crossfade selection list option
+            const crossSelect = document.getElementById('reprodutor-crossfade-select');
+            if (crossSelect) {
+                crossSelect.value = String(window.phpCrossfadeDuration || 0);
+            }
+            
+            // Update favorite button heart highlight
+            updatePlayerFavHeart();
+            
+            // Render Queue list inside Reprodutor view
+            renderReprodutorQueueList();
+        };
+
+        function updateReprodutorPlayPauseState() {
+            const masterPlayBtn = document.getElementById('reprodutor-master-play-btn');
+            const coverEl = document.getElementById('reprodutor-cover');
+            if (masterPlayBtn) {
+                if (isPlaying) {
+                     masterPlayBtn.innerHTML = `<i data-lucide="pause" class="w-6 h-6 fill-current"></i>`;
+                     if (coverEl) {
+                         coverEl.classList.remove('paused-animation');
+                         coverEl.classList.add('animate-spin-slow');
+                     }
+                } else {
+                     masterPlayBtn.innerHTML = `<i data-lucide="play" class="w-6 h-6 fill-current ml-0.5"></i>`;
+                     if (coverEl) {
+                         coverEl.classList.add('paused-animation');
+                     }
+                }
+                if (window.lucide) lucide.createIcons();
+            }
+        }
+
+        function updateReprodutorLoopShuffleState() {
+            const shuffleBtn = document.getElementById('reprodutor-shuffle-btn');
+            const loopBtn = document.getElementById('reprodutor-loop-btn');
+            if (shuffleBtn) {
+                if (isShuffle) {
+                    shuffleBtn.className = "p-2.5 rounded-xl border transition cursor-pointer bg-sky-500/10 border-sky-500 text-sky-400 font-bold";
+                } else {
+                    shuffleBtn.className = "p-2.5 rounded-xl border transition cursor-pointer bg-slate-950 border-transparent text-slate-500 hover:text-slate-350";
+                }
+            }
+            if (loopBtn) {
+                if (isLoop) {
+                    loopBtn.className = "p-2.5 rounded-xl border transition cursor-pointer bg-sky-500/10 border-sky-500 text-sky-400 font-bold";
+                } else {
+                    loopBtn.className = "p-2.5 rounded-xl border transition cursor-pointer bg-slate-950 border-transparent text-slate-500 hover:text-slate-350";
+                }
+            }
+        }
+
+        function renderReprodutorQueueList() {
+            const listEl = document.getElementById('reprodutor-queue-list');
+            const countEl = document.getElementById('reprodutor-queue-count');
+            if (!listEl) return;
+            
+            if (!activeQueue || activeQueue.length === 0) {
+                listEl.innerHTML = `<p class="text-xs text-slate-550 py-4 text-center">Nenhuma música na fila.</p>`;
+                if (countEl) countEl.textContent = '0 músicas';
+                return;
+            }
+            
+            if (countEl) {
+                countEl.textContent = `${activeQueueIdx + 1} de ${activeQueue.length} fatias`;
+            }
+            
+            let html = '';
+            activeQueue.forEach((tr, index) => {
+                const isCurrent = activeQueueIdx === index;
+                html += `
+                    <div onclick="playFromReprodutorQueue(${index})" class="flex items-center justify-between p-2 rounded-xl transition cursor-pointer select-none group border ${
+                        isCurrent 
+                        ? 'bg-sky-500/10 border-sky-500/20 text-sky-400 font-bold' 
+                        : 'bg-slate-955/30 border-transparent hover:bg-slate-900/60 text-slate-300 hover:text-white'
+                    }">
+                        <div class="flex items-center gap-3 truncate">
+                            <span class="text-[10px] font-mono text-slate-500 tracking-tight shrink-0 flex items-center justify-center w-5">
+                                ${isCurrent ? `<span class="w-1.5 h-1.5 rounded-full bg-sky-450 animate-pulse"></span>` : index + 1}
+                            </span>
+                            <img src="${tr.coverUrl || tr.cover_url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=50'}" class="w-6 h-6 rounded object-cover border border-slate-900 shrink-0" />
+                            <div class="truncate">
+                                <p class="text-[11px] truncate font-semibold leading-tight">${tr.title || 'Sem título'}</p>
+                                <p class="text-[10px] text-slate-500 truncate leading-none mt-0.5">${tr.artist || 'Sem artista'}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 text-[10px] text-slate-500 font-mono pr-2">
+                            <span>FAIXA</span>
+                        </div>
+                    </div>
+                `;
+            });
+            listEl.innerHTML = html;
+        }
+
+        window.playFromReprodutorQueue = function(idx) {
+            playFromMiniQueue(idx);
+        };
+
+        window.togglePartyModeFromReprodutor = function(checkbox) {
+            if (isPartyMode !== checkbox.checked) {
+                window.togglePartyModePhp();
+            }
+        };
+
+        window.changeReprodutorSleepTimer = function(val) {
+            const minutes = parseInt(val, 10);
+            if (minutes === 0) {
+                setSleepTimerPhp(null);
+            } else {
+                setSleepTimerPhp(minutes);
+            }
+        };
+
+        window.changeReprodutorCrossfade = function(val) {
+            setCrossfadePhp(val);
+        };
+
+        window.toggleReprodutorFavorite = async function(e) {
+            const track = window.phpCurrentTrack;
+            if (!track) return;
+            await toggleFav(e, track.id);
+        };
 
         // DATABASE OPERATIONS / RENDER TABLES
         function renderTracksTable() {
             const tableWrapper = document.getElementById('tracks-table-wrapper');
             const headerBlock = document.getElementById('tracks-header-block');
             const artistView = document.getElementById('artist-albums-view');
+            const gridLayout = document.getElementById('tracks-grid-layout');
             const tbody = document.getElementById('tracks-table-body');
             tbody.innerHTML = '';
             
@@ -3089,6 +6414,7 @@ if (!file_exists('config.php')) {
             }
 
             if (activePlaylistAlbum) {
+                if (gridLayout) gridLayout.classList.add('hidden');
                 tableWrapper.classList.add('hidden');
                 headerBlock.classList.add('hidden');
                 artistView.classList.remove('hidden');
@@ -3098,6 +6424,14 @@ if (!file_exists('config.php')) {
                 const albumName = activePlaylistAlbum;
                 const albumCover = loadedCoversCache[albumName] || firstTrack.cover_url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400';
                 const albumIdSafe = albumName.replace(/[^a-zA-Z0-9]/g, '-');
+
+                let albumYear = null;
+                for (const t of albumTracks) {
+                    if (t.album_year) {
+                        albumYear = parseInt(t.album_year);
+                        break;
+                    }
+                }
 
                 let html = `
                     <div class="space-y-8 animate-fade-in text-slate-100 pb-12">
@@ -3119,12 +6453,13 @@ if (!file_exists('config.php')) {
                                 <!-- Left side: Cover Art, info and buttons -->
                                 <div class="sm:col-span-1 space-y-4">
                                     <div class="aspect-square bg-slate-900/40 rounded-2xl overflow-hidden border border-slate-900 flex items-center justify-center relative shadow-lg">
-                                        <img id="album-cover-img-${albumIdSafe}" src="${albumCover}" referrerpolicy="no-referrer" class="w-[70%] h-[70%] rounded-xl object-cover shadow-md border border-slate-800/40">
+                                        <img id="album-cover-img-${albumIdSafe}" src="${albumCover}" referrerpolicy="no-referrer" class="w-full h-full object-cover shadow-md border border-slate-800/40">
                                     </div>
                                     <div>
                                         <h3 class="font-extrabold text-[#ffffff] text-sm leading-tight line-clamp-2">${albumName}</h3>
                                         <p class="text-[11px] text-sky-450 font-semibold mt-1">${firstTrack.artist || 'Artista Desconhecido'}</p>
-                                        <p class="text-[10px] text-slate-500 font-mono mt-1 uppercase tracking-wide">
+                                        <p class="text-[10px] text-slate-500 font-mono mt-1 uppercase tracking-wide flex items-center gap-1">
+                                            ${albumYear ? `<span class="bg-sky-500/10 text-sky-400 px-1 py-0.5 rounded font-black mr-1">${albumYear}</span>` : ''}
                                             ${albumTracks.length} ${albumTracks.length === 1 ? 'música' : 'músicas'} &bull; ÁLBUM
                                         </p>
                                     </div>
@@ -3139,6 +6474,11 @@ if (!file_exists('config.php')) {
                                                 <i data-lucide="shuffle" class="w-3 h-3"></i> Aleatório
                                             </button>
                                         </div>
+                                        ${currentUser.role === 'admin' ? `
+                                            <button onclick="downloadAlbum(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="w-full py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-emerald-500/30 cursor-pointer">
+                                                <i data-lucide="download" class="w-3 h-3"></i> Baixar Álbum (ZIP)
+                                            </button>
+                                        ` : ''}
                                     </div>
                                 </div>
                                 
@@ -3156,7 +6496,7 @@ if (!file_exists('config.php')) {
                                             </thead>
                                             <tbody class="divide-y divide-slate-900/40">
                     `;
-
+ 
                     albumTracks.forEach((track, index) => {
                         const isFav = allFavorites.includes(String(track.id));
                         const highlight = activeQueue[activeQueueIdx] && String(activeQueue[activeQueueIdx].id) === String(track.id);
@@ -3179,10 +6519,20 @@ if (!file_exists('config.php')) {
                                 <td class="py-2 px-3 text-center text-slate-400 font-mono text-[11px]">
                                     s${formatSecs(track.duration || 180)}
                                 </td>
-                                <td class="py-2 px-3 text-right w-12">
-                                    <button onclick="toggleFav(event, '\${track.id}')" class="p-1 rounded-lg border border-transparent hover:bg-slate-900 transition ${isFav ? 'text-[#f43f5e]' : 'text-slate-500 hover:text-white'} cursor-pointer" title="${isFav ? 'Remover dos Favoritos' : 'Marcar como Favorito'}">
-                                        <i data-lucide="heart" class="w-3 h-3 ${isFav ? 'fill-current' : ''}"></i>
-                                    </button>
+                                <td class="py-2 px-3 text-right w-20">
+                                    <div class="flex items-center justify-end gap-1">
+                                        ${currentUser.role === 'admin' ? `
+                                            <button onclick="downloadTrack(event, '\${track.id}')" class="p-1 text-slate-500 hover:text-sky-400 hover:bg-slate-900 rounded-lg transition cursor-pointer" title="Fazer Download da Faixa">
+                                                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                                            </button>
+                                        ` : ''}
+                                        <button onclick="toggleFav(event, '\${track.id}')" class="p-1 rounded-lg border border-transparent hover:bg-slate-900 transition ${isFav ? 'text-[#f43f5e]' : 'text-slate-500 hover:text-white'} cursor-pointer" title="${isFav ? 'Remover dos Favoritos' : 'Marcar como Favorito'}">
+                                            <i data-lucide="heart" class="w-3 h-3 ${isFav ? 'fill-current' : ''}"></i>
+                                        </button>
+                                        <button onclick="addToPlaylistDropdown(event, '\${track.id}')" class="p-1 text-slate-500 hover:text-sky-400 hover:bg-slate-900 rounded-lg transition cursor-pointer" title="Adicionar à Playlist">
+                                            <i data-lucide="list-plus" class="w-3.5 h-3.5"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         `;
@@ -3204,6 +6554,7 @@ if (!file_exists('config.php')) {
             }
 
             if (selectedArtist) {
+                if (gridLayout) gridLayout.classList.add('hidden');
                 tableWrapper.classList.add('hidden');
                 headerBlock.classList.add('hidden');
                 artistView.classList.remove('hidden');
@@ -3252,8 +6603,11 @@ if (!file_exists('config.php')) {
                 let html = `
                     <div class="space-y-8 animate-fade-in text-slate-100">
                         <!-- Featured Artist Banner Hero -->
-                        <div class="relative h-64 md:h-80 rounded-2xl overflow-hidden shadow-2xl border border-slate-900/40">
-                            <img src="${bannerPhoto}" referrerpolicy="no-referrer" alt="${selectedArtist}" class="absolute inset-0 w-full h-full object-cover scale-102 filter brightness-[0.35]">
+                        <div class="relative h-64 md:h-80 rounded-2xl overflow-hidden shadow-2xl border border-slate-900/40 bg-slate-950">
+                            <!-- Blurred backdrop layer to fill potential empty space beautifully -->
+                            <img src="${bannerPhoto}" referrerpolicy="no-referrer" alt="" class="absolute inset-0 w-full h-full object-cover filter blur-xl opacity-25 select-none scale-105 pointer-events-none">
+                            <!-- Foreground complete uncropped artist cover image -->
+                            <img src="${bannerPhoto}" referrerpolicy="no-referrer" alt="${selectedArtist}" class="absolute inset-0 w-full h-full object-contain filter brightness-[0.45]">
                             <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent"></div>
                             
                             ${currentUser.role === 'admin' ? '<div class="absolute top-4 right-4 z-20 flex gap-2"><button onclick="handleOpenArtistImageSearch()" class="p-2 px-3 bg-slate-950/80 hover:bg-slate-900 text-slate-300 hover:text-white rounded-xl text-[10px] font-black tracking-wider uppercase border border-slate-800/60 shadow-lg cursor-pointer transition select-none flex items-center gap-1.5 backdrop-blur-sm" title="Buscar logo do artista on-line"><i data-lucide=\"search\" class=\"w-3.5 h-3.5 text-sky-400\"></i> Buscar Logo On-line</button><button onclick="triggerArtistBannerUpload()" class="p-2 px-3 bg-slate-950/80 hover:bg-slate-900 text-slate-300 hover:text-white rounded-xl text-[10px] font-black tracking-wider uppercase border border-slate-800/60 shadow-lg cursor-pointer transition select-none flex items-center gap-1.5 backdrop-blur-sm" title="Alterar banner do artista"><i data-lucide=\"image\" class=\"w-3.5 h-3.5 text-sky-400\"></i> Alterar Banner</button></div><input type=\"file\" id=\"artist-banner-input\" accept=\"image/*\" class=\"hidden\" onchange=\"uploadArtistBanner(this)\" />' : ''}
@@ -3295,11 +6649,39 @@ if (!file_exists('config.php')) {
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12">
                 `;
                 
-                Object.keys(albums).forEach(albumName => {
+                const albumList = Object.keys(albums).map(albumName => {
                     const albumTracks = albums[albumName];
+                    let albumYear = null;
+                    for (const t of albumTracks) {
+                        if (t.album_year) {
+                            albumYear = parseInt(t.album_year);
+                            break;
+                        }
+                    }
+                    return {
+                        name: albumName,
+                        tracks: albumTracks,
+                        year: albumYear
+                    };
+                });
+
+                albumList.sort((a, b) => {
+                    if (a.year !== null && b.year !== null) {
+                        return b.year - a.year; // Newer albums on top (descending)
+                    }
+                    if (a.year !== null) return -1;
+                    if (b.year !== null) return 1;
+                    return a.name.localeCompare(b.name, 'pt-BR');
+                });
+
+                albumList.forEach(albumObj => {
+                    const albumName = albumObj.name;
+                    const albumTracks = albumObj.tracks;
+                    const albumYear = albumObj.year;
                     const firstTrack = albumTracks[0];
                     const albumCover = loadedCoversCache[albumName] || firstTrack.cover_url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400';
                     const albumIdSafe = albumName.replace(/[^a-zA-Z0-9]/g, '-');
+                    const albumTrackIds = albumTracks.map(t => t.id).join(',');
                     
                     html += `
                         <div class="bg-slate-950/40 border border-slate-900 rounded-2xl overflow-hidden hover:border-slate-850 transition duration-150 p-5 shadow-xl">
@@ -3307,14 +6689,15 @@ if (!file_exists('config.php')) {
                                 <!-- Left side: Big Cover Art, info and buttons -->
                                 <div class="sm:col-span-1 space-y-4">
                                     <div class="aspect-square bg-slate-900/40 rounded-2xl overflow-hidden border border-slate-900 flex items-center justify-center relative group shadow-lg">
-                                        <img id="album-cover-img-${albumIdSafe}" src="${albumCover}" referrerpolicy="no-referrer" class="w-[70%] h-[70%] rounded-xl object-cover shadow-md border border-slate-800/40 group-hover:scale-102 duration-300 transition">
+                                        <img id="album-cover-img-${albumIdSafe}" src="${albumCover}" referrerpolicy="no-referrer" class="w-full h-full object-cover shadow-md border border-slate-800/40 group-hover:scale-102 duration-300 transition">
                                         <div class="absolute inset-0 bg-black/45 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-200">
                                             <i data-lucide="disc" class="w-8 h-8 text-white animate-spin"></i>
                                         </div>
                                     </div>
                                     <div>
                                         <h3 class="font-extrabold text-[#ffffff] text-sm leading-tight line-clamp-2">${albumName}</h3>
-                                        <p class="text-[11px] text-slate-500 font-mono mt-1 uppercase tracking-wide">
+                                        <p class="text-[11px] text-slate-500 font-mono mt-1 uppercase tracking-wide flex items-center gap-1">
+                                            ${albumYear ? `<span class="bg-sky-500/15 text-sky-400 px-1.5 py-0.5 rounded font-black mr-1">${albumYear}</span>` : ''}
                                             ${albumTracks.length} ${albumTracks.length === 1 ? 'música' : 'músicas'} &bull; ÁLBUM
                                         </p>
                                     </div>
@@ -3331,9 +6714,17 @@ if (!file_exists('config.php')) {
                                         </div>
                                         
                                         <div class="${currentUser.role === 'admin' ? 'space-y-1.5' : 'hidden'}">
-                                            <button onclick="document.getElementById('album-cover-input-${albumIdSafe}').click()" class="w-full py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap">
-                                                <i data-lucide="image" class="w-3 h-3"></i> Alterar Capa
+                                            <button onclick="downloadAlbum(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="w-full py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-emerald-500/30 cursor-pointer">
+                                                <i data-lucide="download" class="w-3 h-3"></i> Baixar Álbum (ZIP)
                                             </button>
+                                            <div class="flex gap-2">
+                                                <button onclick="document.getElementById('album-cover-input-${albumIdSafe}').click()" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap">
+                                                    <i data-lucide="image" class="w-3.5 h-3.5 text-sky-400"></i> Capa
+                                                </button>
+                                                <button onclick="window.openAlbumBulkEditByElement(this, event)" data-track-ids="${albumTrackIds}" data-album-name="${albumName.replace(/"/g, '&quot;')}" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap" title="Editar ID3 de todo este álbum">
+                                                    <i data-lucide="edit-3" class="w-3.5 h-3.5 text-indigo-400"></i> Editar ID3
+                                                </button>
+                                            </div>
                                             <input id="album-cover-input-${albumIdSafe}" type="file" accept="image/*" class="hidden" data-artist="${selectedArtist.replace(/"/g, '&quot;')}" data-album="${albumName.replace(/"/g, '&quot;')}" onchange="uploadAlbumCover(this)">
                                         </div>
                                     </div>
@@ -3376,10 +6767,20 @@ if (!file_exists('config.php')) {
                                 <td class="py-2 px-3 text-center text-slate-400 font-mono text-[11px]">
                                     ${formatSecs(track.duration || 180)}
                                 </td>
-                                <td class="py-2 px-3 text-right w-12">
-                                    <button onclick="toggleFav(event, '${track.id}')" class="p-1 rounded-lg border border-transparent hover:bg-slate-900 transition ${isFav ? 'text-[#f43f5e]' : 'text-slate-500 hover:text-white'} cursor-pointer" title="${isFav ? 'Remover dos Favoritos' : 'Marcar como Favorito'}">
-                                        <i data-lucide="heart" class="w-3 h-3 ${isFav ? 'fill-current' : ''}"></i>
-                                    </button>
+                                <td class="py-2 px-3 text-right w-20">
+                                    <div class="flex items-center justify-end gap-1">
+                                        ${currentUser.role === 'admin' ? `
+                                            <button onclick="downloadTrack(event, '${track.id}')" class="p-1 text-slate-500 hover:text-sky-400 hover:bg-slate-900 rounded-lg transition cursor-pointer" title="Fazer Download da Faixa">
+                                                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                                            </button>
+                                        ` : ''}
+                                        <button onclick="toggleFav(event, '${track.id}')" class="p-1 rounded-lg border border-transparent hover:bg-slate-900 transition ${isFav ? 'text-[#f43f5e]' : 'text-slate-500 hover:text-white'} cursor-pointer" title="${isFav ? 'Remover dos Favoritos' : 'Marcar como Favorito'}">
+                                            <i data-lucide="heart" class="w-3 h-3 ${isFav ? 'fill-current' : ''}"></i>
+                                        </button>
+                                        <button onclick="addToPlaylistDropdown(event, '${track.id}')" class="p-1 text-slate-500 hover:text-sky-400 hover:bg-slate-900 rounded-lg transition cursor-pointer" title="Adicionar à Playlist">
+                                            <i data-lucide="list-plus" class="w-3.5 h-3.5"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         `;
@@ -3404,10 +6805,79 @@ if (!file_exists('config.php')) {
                 lucide.createIcons();
                 return;
             } else {
+                if (gridLayout) gridLayout.classList.remove('hidden');
                 tableWrapper.classList.remove('hidden');
                 headerBlock.classList.remove('hidden');
                 artistView.classList.add('hidden');
                 artistView.innerHTML = '';
+            }
+
+            // Extract unique artists and albums for left sidebar
+            const artistsMapSidebar = {};
+            const albumsMapSidebar = {};
+
+            sourceList.forEach(t => {
+                const art = t.artist || "Artista Desconhecido";
+                const alb = t.album || "Álbum Desconhecido";
+                artistsMapSidebar[art] = (artistsMapSidebar[art] || 0) + 1;
+                albumsMapSidebar[alb] = (albumsMapSidebar[alb] || 0) + 1;
+            });
+
+            const uniqueArs = Object.keys(artistsMapSidebar).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+            const uniqueAlbs = Object.keys(albumsMapSidebar).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+            // Render Artists in sidebar
+            const sidebarArtistsList = document.getElementById('sidebar-artists-list');
+            if (sidebarArtistsList) {
+                let artistsHtml = `
+                    <button onclick="filterTracksBySidebarArtist('')" class="px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold cursor-pointer w-full transition ${!phpSelectedArtist ? 'bg-sky-500/10 text-sky-400 font-extrabold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'}">
+                        Todos Artistas
+                    </button>
+                `;
+                uniqueArs.forEach(art => {
+                    const count = artistsMapSidebar[art];
+                    const active = phpSelectedArtist === art;
+                    const escapedArt = art.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    artistsHtml += `
+                        <div onclick="filterTracksBySidebarArtist('${escapedArt}')" class="group px-2.5 py-1.5 rounded-lg text-left text-xs flex justify-between items-center font-semibold cursor-pointer w-full transition ${active ? 'bg-sky-500/10 text-sky-400 font-extrabold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'}">
+                            <span class="truncate pr-1 select-none pointer-events-none">${art}</span>
+                            <div class="flex items-center gap-1.5 shrink-0 select-none">
+                                <span class="text-[9px] text-slate-600 font-mono">(${count})</span>
+                                <button onclick="event.stopPropagation(); playSidebarArtist('${escapedArt}')" class="opacity-0 group-hover:opacity-100 p-0.5 text-sky-450 hover:text-sky-300 hover:bg-sky-950/40 rounded transition-all cursor-pointer flex items-center justify-center" title="Tocar Músicas">
+                                    <i data-lucide="play" class="w-3 h-3 fill-current text-sky-400"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                sidebarArtistsList.innerHTML = artistsHtml;
+            }
+
+            // Render Albums in sidebar
+            const sidebarAlbumsList = document.getElementById('sidebar-albums-list');
+            if (sidebarAlbumsList) {
+                let albumsHtml = `
+                    <button onclick="filterTracksBySidebarAlbum('')" class="px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold cursor-pointer w-full transition ${!phpSelectedAlbum ? 'bg-violet-500/10 text-violet-400 font-extrabold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'}">
+                        Todos Álbuns
+                    </button>
+                `;
+                uniqueAlbs.forEach(alb => {
+                    const count = albumsMapSidebar[alb];
+                    const active = phpSelectedAlbum === alb;
+                    const escapedAlb = alb.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    albumsHtml += `
+                        <div onclick="filterTracksBySidebarAlbum('${escapedAlb}')" class="group px-2.5 py-1.5 rounded-lg text-left text-xs flex justify-between items-center font-semibold cursor-pointer w-full transition ${active ? 'bg-violet-500/10 text-violet-400 font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'}">
+                            <span class="truncate pr-1 select-none pointer-events-none">${alb}</span>
+                            <div class="flex items-center gap-1.5 shrink-0 select-none">
+                                <span class="text-[9px] text-slate-600 font-mono">(${count})</span>
+                                <button onclick="event.stopPropagation(); playSidebarAlbum('${escapedAlb}')" class="opacity-0 group-hover:opacity-100 p-0.5 text-violet-400 hover:text-violet-300 hover:bg-violet-950/40 rounded transition-all cursor-pointer flex items-center justify-center" title="Tocar Álbum">
+                                    <i data-lucide="play" class="w-3 h-3 fill-current text-violet-400"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                sidebarAlbumsList.innerHTML = albumsHtml;
             }
 
             if (searchVal !== lastSearchQuery) {
@@ -3416,9 +6886,15 @@ if (!file_exists('config.php')) {
             }
 
             filteredTracks = sourceList.filter(track => {
-                return track.title.toLowerCase().includes(searchVal) ||
-                       track.artist.toLowerCase().includes(searchVal) ||
-                       (track.album && track.album.toLowerCase().includes(searchVal));
+                const matchesSearch = track.title.toLowerCase().includes(searchVal) ||
+                                       track.artist.toLowerCase().includes(searchVal) ||
+                                       (track.album && track.album.toLowerCase().includes(searchVal)) ||
+                                       (track.genre && track.genre.toLowerCase().includes(searchVal));
+
+                const matchesArtist = phpSelectedArtist ? (track.artist === phpSelectedArtist) : true;
+                const matchesAlbum = phpSelectedAlbum ? (track.album === phpSelectedAlbum) : true;
+
+                return matchesSearch && matchesArtist && matchesAlbum;
             });
 
             if (phpSortField) {
@@ -3436,7 +6912,7 @@ if (!file_exists('config.php')) {
             }
 
             // Update DOM header icons for PHP sort indicators
-            const fields = ['title', 'artist', 'album', 'genre'];
+            const fields = ['title', 'artist', 'album', 'genre', 'duration'];
             fields.forEach(f => {
                 const iconEl = document.getElementById('sort-icon-' + f);
                 if (iconEl) {
@@ -3486,7 +6962,7 @@ if (!file_exists('config.php')) {
             }
 
             if (paginated.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="py-12 text-center text-slate-500 italic">Essa coleção está vazia.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="py-12 text-center text-slate-500 italic">Essa coleção está vazia.</td></tr>`;
                 return;
             }
 
@@ -3511,11 +6987,20 @@ if (!file_exists('config.php')) {
                     </td>
                     <td class="py-2.5 px-4 text-slate-400 truncate max-w-[120px]">${track.artist}</td>
                     <td class="py-2.5 px-4 text-slate-400 truncate max-w-[120px]">${track.album || 'Single'}</td>
+                    <td class="py-2.5 px-4 text-slate-550 hidden sm:table-cell truncate max-w-[110px]">${track.genre || 'Nenhum Gênero'}</td>
+                    <td class="py-2.5 px-4 text-center text-slate-450 font-mono hidden sm:table-cell">${formatSecs(track.duration || 180)}</td>
                     <td class="py-2.5 px-4 text-right">
-                        <div class="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
-                            <button onclick="toggleFav(event, '\${track.id}')" class="p-1 text-slate-500 hover:text-rose-500 transition cursor-pointer" title="Favoritar"><i data-lucide="heart" class="w-4 h-4 ${isFav ? 'fill-rose-500 text-rose-500' : ''}"></i></button>
-                            <button onclick="deleteSong(event, '\${track.id}')" class="p-1 text-slate-500 hover:text-red-500 transition cursor-pointer ${currentUser.role === 'admin' ? '' : 'hidden'}" title="Excluir"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                            <button onclick="addToPlaylistDropdown(event, '\${track.id}')" class="p-1 text-slate-500 hover:text-indigo-400 transition cursor-pointer" title="Adicionar à Playlist"><i data-lucide="list-plus" class="w-4 h-4"></i></button>
+                        <div class="flex items-center justify-end gap-1 select-none">
+                            <button onclick="toggleFav(event, '\${track.id}')" class="p-1.5 rounded-lg border border-transparent hover:bg-slate-900/60 transition ${isFav ? 'text-[#f43f5e]' : 'text-slate-500 hover:text-white'} cursor-pointer" title="${isFav ? 'Remover dos Favoritos' : 'Marcar como Favorito'}">
+                                <i data-lucide="heart" class="w-3.5 h-3.5 ${isFav ? 'fill-current' : ''}"></i>
+                            </button>
+                            <button onclick="addToPlaylistDropdown(event, '\${track.id}')" class="p-1.5 text-slate-500 hover:text-sky-400 hover:bg-slate-900/60 rounded-lg transition cursor-pointer" title="Adicionar à Playlist">
+                                <i data-lucide="list-plus" class="w-3.5 h-3.5"></i>
+                            </button>
+                            ${currentUser.role === 'admin' ? `
+                                <button onclick="downloadTrack(event, '\${track.id}')" class="p-1.5 text-slate-500 hover:text-emerald-500 hover:bg-slate-900/60 rounded-lg transition cursor-pointer" title="Baixar MP3"><i data-lucide="download" class="w-3.5 h-3.5"></i></button>
+                                <button onclick="deleteSong(event, '\${track.id}')" class="p-1.5 text-slate-500 hover:text-red-500 hover:bg-slate-900/60 rounded-lg transition cursor-pointer" title="Excluir"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                            ` : ''}
                         </div>
                     </td>
                 `;
@@ -3533,6 +7018,71 @@ if (!file_exists('config.php')) {
             }
             phpCurrentPage = 1;
             renderTracksTable();
+        };
+
+        window.filterTracksBySidebarArtist = function(artistName) {
+            phpSelectedArtist = artistName;
+            phpSelectedAlbum = '';
+            phpCurrentPage = 1;
+            const resetBtn = document.getElementById('reset-filter-pills');
+            if (resetBtn) {
+                if (phpSelectedArtist || phpSelectedAlbum) {
+                    resetBtn.classList.remove('hidden');
+                } else {
+                    resetBtn.classList.add('hidden');
+                }
+            }
+            renderTracksTable();
+        };
+
+        window.filterTracksBySidebarAlbum = function(albumName) {
+            phpSelectedAlbum = albumName;
+            phpSelectedArtist = '';
+            phpCurrentPage = 1;
+            const resetBtn = document.getElementById('reset-filter-pills');
+            if (resetBtn) {
+                if (phpSelectedArtist || phpSelectedAlbum) {
+                    resetBtn.classList.remove('hidden');
+                } else {
+                    resetBtn.classList.add('hidden');
+                }
+            }
+            renderTracksTable();
+        };
+
+        window.clearSidebarFilters = function() {
+            phpSelectedArtist = '';
+            phpSelectedAlbum = '';
+            phpCurrentPage = 1;
+            const resetBtn = document.getElementById('reset-filter-pills');
+            if (resetBtn) resetBtn.classList.add('hidden');
+            renderTracksTable();
+        };
+
+        window.playSidebarArtist = function(artistName) {
+            if (!allTracks || allTracks.length === 0) return;
+            const artistTracks = allTracks.filter(t => {
+                const art = t.artist || "Artista Desconhecido";
+                return art === artistName;
+            });
+            if (artistTracks.length > 0) {
+                activeQueue = artistTracks;
+                activeQueueIdx = 0;
+                loadTrack(activeQueue[0]);
+            }
+        };
+
+        window.playSidebarAlbum = function(albumName) {
+            if (!allTracks || allTracks.length === 0) return;
+            const albumTracks = allTracks.filter(t => {
+                const alb = t.album || "Álbum Desconhecido";
+                return alb === albumName;
+            });
+            if (albumTracks.length > 0) {
+                activeQueue = albumTracks;
+                activeQueueIdx = 0;
+                loadTrack(activeQueue[0]);
+            }
         };
 
         window.changePhpPage = function(page) {
@@ -3746,7 +7296,7 @@ if (!file_exists('config.php')) {
             imageSearchTargetType = 'artist';
             imageSearchAlbumTitle = '';
             
-            const query = selectedArtist + " artist music headshot";
+            const query = selectedArtist + " logo";
             document.getElementById('image-search-query').value = query;
             document.getElementById('image-search-modal-sub').textContent = selectedArtist;
             
@@ -3767,11 +7317,7 @@ if (!file_exists('config.php')) {
         window.openImageSearchModal = function(query) {
             const tabs = document.getElementById('image-search-tabs-container');
             if (tabs) {
-                if (imageSearchTargetType === 'artist') {
-                    tabs.classList.remove('hidden');
-                } else {
-                    tabs.classList.add('hidden');
-                }
+                tabs.classList.add('hidden');
             }
             const modalTitle = document.querySelector('#image-search-modal h3');
             if (modalTitle) {
@@ -4032,12 +7578,16 @@ if (!file_exists('config.php')) {
         };
 
         window.viewPlaylistTracks = function(playlistId, playlistName) {
+            if (isPartyMode) {
+                alert("O Modo Festa está ativo! A navegação está bloqueada para manter a diversão focada no player.");
+                return;
+            }
             selectedPlaylistId = playlistId;
             selectedArtist = '';
             activePlaylistAlbum = '';
             document.getElementById('table-view-title').textContent = "Playlist: " + playlistName;
             
-            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'playlists'];
+            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'playlists', 'podcast', 'radios'];
             btns.forEach(b => {
                 const el = document.getElementById('tab-btn-' + b);
                 if (el) el.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition";
@@ -4170,8 +7720,56 @@ if (!file_exists('config.php')) {
             }
         }
 
+        function updatePlayerFavHeart() {
+            const btn = document.getElementById('player-favorite-heart-btn');
+            const repFavBtn = document.getElementById('reprodutor-fav-btn');
+            
+            const track = window.phpCurrentTrack;
+            if (!track) {
+                if (btn) btn.classList.add('hidden');
+                if (repFavBtn) repFavBtn.classList.add('hidden');
+                return;
+            }
+            
+            if (btn) btn.classList.remove('hidden');
+            if (repFavBtn) repFavBtn.classList.remove('hidden');
+            
+            const isFav = allFavorites.includes(String(track.id));
+            if (isFav) {
+                if (btn) {
+                    btn.className = "text-[#f43f5e] hover:text-rose-600 transition cursor-pointer p-1.5 rounded-lg hover:bg-slate-900 shrink-0";
+                    btn.innerHTML = `<i data-lucide="heart" class="w-4 h-4 fill-current"></i>`;
+                    btn.title = "Remover dos Favoritos";
+                }
+                if (repFavBtn) {
+                    repFavBtn.className = "p-2 bg-rose-500/10 hover:bg-rose-550/20 rounded-xl transition cursor-pointer border border-rose-500/20 text-[#f43f5e]";
+                    repFavBtn.innerHTML = `<i data-lucide="heart" class="w-4 h-4 fill-current"></i>`;
+                    repFavBtn.title = "Remover dos Favoritos";
+                }
+            } else {
+                if (btn) {
+                    btn.className = "text-slate-500 hover:text-white transition cursor-pointer p-1.5 rounded-lg hover:bg-slate-900 shrink-0";
+                    btn.innerHTML = `<i data-lucide="heart" class="w-4 h-4"></i>`;
+                    btn.title = "Adicionar aos Favoritos";
+                }
+                if (repFavBtn) {
+                    repFavBtn.className = "p-2 bg-slate-900 hover:bg-slate-850 rounded-xl transition cursor-pointer border border-slate-850 text-slate-400 hover:text-white";
+                    repFavBtn.innerHTML = `<i data-lucide="heart" class="w-4 h-4"></i>`;
+                    repFavBtn.title = "Adicionar aos Favoritos";
+                }
+            }
+            lucide.createIcons();
+        }
+
+        async function togglePlayerCurrentFav(e) {
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            const track = window.phpCurrentTrack;
+            if (!track) return;
+            await toggleFav(e, track.id);
+        }
+
         async function toggleFav(e, trackId) {
-            e.stopPropagation();
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
             try {
                 const res = await fetch(API + '?route=favorites_toggle', {
                     method: 'POST',
@@ -4180,6 +7778,7 @@ if (!file_exists('config.php')) {
                 });
                 allFavorites = await res.json();
                 renderTracksTable();
+                updatePlayerFavHeart();
             } catch (err) {
                 console.error(err);
             }
@@ -4196,6 +7795,44 @@ if (!file_exists('config.php')) {
                 console.error(err);
             }
         }
+
+        window.downloadTrack = function(e, trackId) {
+            if (e) e.stopPropagation();
+            if (!currentUser || currentUser.role !== 'admin') {
+                alert("Acesso restrito a administradores.");
+                return;
+            }
+            const url = API + '?route=download_track&id=' + trackId + '&admin_username=' + encodeURIComponent(currentUser.username);
+            const a = document.createElement('a');
+            a.href = url;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        };
+
+        window.downloadAlbum = function(e, albumName, isMobile = false) {
+            if (e) e.stopPropagation();
+            if (!currentUser || currentUser.role !== 'admin') {
+                alert("Acesso restrito a administradores.");
+                return;
+            }
+            let decodedAlbumName = albumName;
+            try {
+                if (isMobile) {
+                    decodedAlbumName = decodeURIComponent(albumName);
+                }
+            } catch(err) {
+                console.error(err);
+            }
+            const url = API + '?route=download_album&album=' + encodeURIComponent(decodedAlbumName) + '&admin_username=' + encodeURIComponent(currentUser.username);
+            const a = document.createElement('a');
+            a.href = url;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        };
 
         async function createPlay() {
             const name = prompt("Nome da nova playlist:");
@@ -4420,7 +8057,14 @@ if (!file_exists('config.php')) {
                 }
                 
                 if (response.ok && !data.error) {
-                    currentUser = { username: data.username, role: data.role, theme: data.theme || 'default' };
+                    currentUser = {
+                        username: data.username,
+                        role: data.role,
+                        theme: data.theme || 'default',
+                        sidebarBg: data.sidebarBg || '',
+                        footerBg: data.footerBg || '',
+                        topBg: data.topBg || ''
+                    };
                     localStorage.setItem('phplayer_user', JSON.stringify(currentUser));
                     bootPlayer();
                 } else {
@@ -4612,6 +8256,492 @@ if (!file_exists('config.php')) {
                 lucide.createIcons();
             }
         }
+
+        // ================= PODCASTS & RADIOS =================
+        const PODCAST_PRESETS_POOL = [
+            { name: 'NerdCast', url: 'https://jnfilter.gabrielgio.me/' },
+            { name: 'Inteligência Ltda', url: 'https://anchor.fm/s/6cf4d5a0/podcast/rss' },
+            { name: 'Flow', url: 'https://anchor.fm/s/a5637400/podcast/rss' }
+        ];
+
+        const RADIO_PRESETS_POOL = [
+            { name: 'Kiss FM', url: 'https://www.radios.com.br/play/playlist/26885/listen-radio.m3u' },
+            { name: 'Elite Rock', url: 'https://www.radios.com.br/play/playlist/93525/listen-radio.m3u' },
+            { name: 'Jovem Pan News', url: 'https://www.radios.com.br/play/playlist/8800/listen-radio.m3u' },
+            { name: 'Antena 1', url: 'https://www.radios.com.br/play/playlist/11927/listen-radio.m3u' }
+        ];
+
+        function renderPodcastSuggestions() {
+            const container = document.getElementById('desktop-podcast-suggestions');
+            if (!container) return;
+            
+            const selected = PODCAST_PRESETS_POOL;
+            
+            let html = '<span class="text-slate-550 font-bold text-[11px] text-slate-400">Sugestões:</span>';
+            selected.forEach(item => {
+                html += '<button onclick="setPodcastFeedPreset(\'' + item.url + '\')" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800/85 px-3 py-1.5 rounded-lg transition text-[11px] cursor-pointer inline-flex items-center gap-1 font-semibold"><i data-lucide="plus" class="w-3 h-3 text-orange-400"></i> ' + item.name + '</button>';
+            });
+            container.innerHTML = html;
+            if (window.lucide) window.lucide.createIcons();
+        }
+
+        function renderRadioSuggestions() {
+            const container = document.getElementById('desktop-radio-suggestions');
+            if (!container) return;
+            
+            const selected = RADIO_PRESETS_POOL;
+            
+            let html = '<span class="font-bold text-[11px] text-slate-400">Sugestões:</span>';
+            selected.forEach(item => {
+                html += '<button type="button" onclick="setRadioPreset(\'' + item.name + '\', \'' + item.url + '\')" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800/80 px-2 rounded-lg py-1 transition text-[10px] cursor-pointer inline-flex items-center gap-1 font-semibold"><i data-lucide="plus" class="w-2.5 h-2.5 text-emerald-400"></i> ' + item.name + '</button>';
+            });
+            container.innerHTML = html;
+            if (window.lucide) window.lucide.createIcons();
+        }
+
+        let allPodcasts = [];
+
+        async function loadPodcastsPhp() {
+            renderPodcastSuggestions();
+            const loadingEl = document.getElementById('podcasts-loading');
+            const emptyEl = document.getElementById('podcasts-empty');
+            const gridEl = document.getElementById('podcasts-grid');
+            const detailsEl = document.getElementById('podcast-details');
+
+            if (loadingEl) loadingEl.classList.remove('hidden');
+            if (emptyEl) emptyEl.classList.add('hidden');
+            if (gridEl) gridEl.innerHTML = '';
+            if (detailsEl) detailsEl.classList.add('hidden');
+
+            try {
+                const res = await fetch(API + '?route=podcasts');
+                allPodcasts = await res.json();
+                if (loadingEl) loadingEl.classList.add('hidden');
+
+                if (allPodcasts.length === 0) {
+                    if (emptyEl) emptyEl.classList.remove('hidden');
+                    return;
+                }
+
+                allPodcasts.forEach(pod => {
+                    const card = document.createElement('div');
+                    card.className = "group bg-slate-950/40 border border-slate-900 hover:border-slate-800 rounded-2xl p-4 transition duration-300 transform hover:-translate-y-1 cursor-pointer";
+                    card.onclick = () => showPodcastDetailsPhp(pod.name);
+
+                    const imgUrl = pod.coverUrl || 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=150';
+                    card.innerHTML = `
+                        <div class="aspect-square relative w-full rounded-xl overflow-hidden bg-slate-900 mb-3 shadow">
+                            <img src="${imgUrl}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerpolicy="no-referrer">
+                            <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                                <div class="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white shadow-md transform scale-90 group-hover:scale-100 transition">
+                                    <i data-lucide="play" class="w-4 h-4 fill-white text-white ml-0.5"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <h4 class="text-xs font-bold text-white truncate leading-tight">${pod.name}</h4>
+                        <p class="text-[10px] text-slate-500 mt-1 truncate">${pod.episodes.length} episódios no disco</p>
+                    `;
+                    if (gridEl) gridEl.appendChild(card);
+                });
+                lucide.createIcons();
+            } catch (err) {
+                console.error(err);
+                if (loadingEl) loadingEl.classList.add('hidden');
+                if (gridEl) gridEl.innerHTML = '<div class="col-span-1 text-center text-xs text-red-500 py-12">Falha ao ler os podcasts sincronizados.</div>';
+            }
+        }
+        window.loadPodcastsPhp = loadPodcastsPhp;
+
+        function showPodcastDetailsPhp(podName) {
+            const pod = allPodcasts.find(p => p.name === podName);
+            if (!pod) return;
+
+            const detailsEl = document.getElementById('podcast-details');
+            const detailNameEl = document.getElementById('pod-detail-name');
+            const detailImgEl = document.getElementById('pod-detail-img');
+            const listEl = document.getElementById('pod-episodes-list');
+
+            if (detailNameEl) detailNameEl.textContent = pod.name;
+            if (detailImgEl) detailImgEl.src = pod.coverUrl || 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=150';
+            if (listEl) listEl.innerHTML = '';
+
+            // Configurar limite e botão de atualização
+            const limitSelect = document.getElementById('pod-detail-limit');
+            if (limitSelect) {
+                limitSelect.value = String(pod.limit || 5);
+            }
+            const updateBtn = document.getElementById('pod-detail-update-btn');
+            if (updateBtn) {
+                updateBtn.onclick = async () => {
+                    const currentLimit = limitSelect ? parseInt(limitSelect.value) : 5;
+                    await window.runPodcastSync(pod.feedUrl, currentLimit, updateBtn);
+                };
+            }
+
+            pod.episodes.forEach((ep, idx) => {
+                const epEl = document.createElement('div');
+                epEl.className = "group flex items-center justify-between p-3.5 bg-[#0a0f18]/45 hover:bg-orange-500/5 border border-slate-900/60 hover:border-orange-500/10 rounded-xl transition cursor-pointer";
+                
+                const mb = (ep.fileSize / (1024 * 1024)).toFixed(1);
+                
+                const minutes = Math.floor(ep.duration / 60);
+                const secs = ep.duration % 60;
+                const durStr = minutes + ":" + (secs < 10 ? "0" : "") + secs;
+
+                epEl.innerHTML = `
+                    <div class="flex items-center gap-3.5 min-w-0" onclick="playPodcastEpisodePhp('${pod.name}', '${ep.id}')">
+                        <div class="w-8 h-8 rounded-lg bg-slate-950 flex items-center justify-center text-slate-500 shrink-0 group-hover:bg-orange-500 group-hover:text-white transition">
+                            <span class="text-xs group-hover:hidden font-mono font-bold">${idx + 1}</span>
+                            <i data-lucide="play" class="w-3.5 h-3.5 fill-current hidden group-hover:block ml-0.5"></i>
+                        </div>
+                        <div class="truncate">
+                            <h5 class="text-xs font-bold text-white group-hover:text-orange-400 transition truncate">${ep.title}</h5>
+                            <p class="text-[10px] text-slate-500 mt-1 flex items-center gap-2">
+                                <span class="bg-slate-900 text-slate-500 px-1.5 py-0.2 rounded uppercase font-bold text-[8px]">${mb} MB</span>
+                                <span>•</span>
+                                <span>Pasta: <span class="font-mono text-slate-600">${ep.fileName}</span></span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4 text-[11px] text-slate-500 pr-2">
+                        <span class="font-mono">${durStr}</span>
+                    </div>
+                `;
+                if (listEl) listEl.appendChild(epEl);
+            });
+
+            const playAllBtn = document.getElementById('pod-play-all-btn');
+            if (playAllBtn) {
+                playAllBtn.onclick = () => {
+                    const tracksToPlay = pod.episodes.map(convertPodcastEpisodeToPlayerTrack);
+                    playQueuePhp(tracksToPlay, 0);
+                };
+            }
+
+            if (detailsEl) {
+                detailsEl.classList.remove('hidden');
+                detailsEl.scrollIntoView({ behavior: 'smooth' });
+            }
+            lucide.createIcons();
+        }
+        window.showPodcastDetailsPhp = showPodcastDetailsPhp;
+
+        function convertPodcastEpisodeToPlayerTrack(ep) {
+            return {
+                id: ep.id,
+                title: ep.title,
+                artist: ep.artist,
+                album: ep.album,
+                duration: ep.duration,
+                coverUrl: ep.coverUrl,
+                cover_url: ep.coverUrl,
+                fileName: ep.fileName,
+                file_name: ep.fileName,
+                fileSize: ep.fileSize,
+                file_size: ep.fileSize
+            };
+        }
+
+        window.playPodcastEpisodePhp = function(podName, epId) {
+            const pod = allPodcasts.find(p => p.name === podName);
+            if (!pod) return;
+            const targetIdx = pod.episodes.findIndex(e => String(e.id) === String(epId));
+            const tracksToPlay = pod.episodes.map(convertPodcastEpisodeToPlayerTrack);
+            playQueuePhp(tracksToPlay, targetIdx !== -1 ? targetIdx : 0);
+        };
+
+        function playQueuePhp(queue, startIndex) {
+            if (!queue || queue.length === 0) return;
+            activeQueue = queue;
+            activeQueueIdx = startIndex;
+            loadTrack(activeQueue[activeQueueIdx]);
+            if (audio.paused) {
+                audio.play();
+                isPlaying = true;
+                const playBtn = document.getElementById('player-play-btn');
+                if (playBtn) playBtn.innerHTML = '<i data-lucide="pause" class="w-4 h-4 fill-current"></i>';
+            }
+            renderPlayerMiniQueue();
+        }
+
+        window.setPodcastFeedPreset = function(url) {
+            const inputs = document.querySelectorAll('#podcast-feed-input');
+            inputs.forEach(input => {
+                input.value = url;
+            });
+            window.runPodcastSync();
+        };
+
+        window.runPodcastSync = async function(feedUrlOverride = null, maxEpisodesOverride = null, customBtn = null) {
+            if (currentUser.role !== 'admin') {
+                alert("Apenas administradores podem gerenciar sincronização de Podcast.");
+                return;
+            }
+
+            const input = document.getElementById('podcast-feed-input');
+            const limitSelect = document.getElementById('podcast-max-episodes');
+            const btn = customBtn || document.getElementById('btn-sync-podcast');
+            if (!btn) return;
+
+            const val = feedUrlOverride || (input ? input.value.trim() : '');
+            if (!val) {
+                alert("Insira a URL do feed RSS.");
+                return;
+            }
+
+            const maxEpisodesVal = maxEpisodesOverride !== null ? maxEpisodesOverride : (limitSelect ? parseInt(limitSelect.value) : 5);
+
+            btn.disabled = true;
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="refresh-cw" class="w-4 h-4 animate-spin"></i> Processando...';
+            if (window.lucide) lucide.createIcons();
+
+            const statusEl = document.getElementById('podcast-status-msg');
+            if (statusEl) {
+                statusEl.classList.remove('hidden');
+                statusEl.className = "mt-4 p-4 rounded-xl text-xs flex items-center gap-2.5 bg-slate-900 border border-slate-800 text-slate-300";
+                statusEl.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin text-orange-500"></i> Baixando e processando áudios no PHP...';
+            }
+            if (window.lucide) lucide.createIcons();
+
+            try {
+                const res = await fetch(API + '?route=podcasts_sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ feedUrl: val, maxEpisodes: maxEpisodesVal })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (statusEl) {
+                        statusEl.className = "mt-4 p-4 rounded-xl text-xs flex items-center gap-2.5 bg-emerald-950/20 border border-emerald-900/30 text-emerald-350";
+                        statusEl.innerHTML = '<i data-lucide="check" class="w-4 h-4 shrink-0"></i> Sincronizado com sucesso! Podcast "' + data.podcastName + '" atualizado com sucesso.';
+                    }
+                    if (input && !feedUrlOverride) input.value = '';
+                    
+                    if (window.loadData) {
+                        await window.loadData();
+                    }
+                    await loadPodcastsPhp();
+
+                    if (data.podcastName && window.showPodcastDetailsPhp) {
+                        window.showPodcastDetailsPhp(data.podcastName);
+                    }
+                } else {
+                    const data = await res.json();
+                    if (statusEl) {
+                        statusEl.className = "mt-4 p-4 rounded-xl text-xs flex items-center gap-2.5 bg-red-950/20 border border-red-900/30 text-red-200";
+                        statusEl.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> Erro: ' + (data.error || 'Falha desconhecida.');
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                if (statusEl) {
+                    statusEl.className = "mt-4 p-4 rounded-xl text-xs flex items-center gap-2.5 bg-red-950/20 border border-red-900/30 text-red-200";
+                    statusEl.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> Erro de rede ao sincronizar.';
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                if (window.lucide) lucide.createIcons();
+            }
+        };
+
+        let allRadios = [];
+
+        async function loadRadiosPhp() {
+            renderRadioSuggestions();
+            const loadingEl = document.getElementById('radios-loading');
+            const emptyEl = document.getElementById('radios-empty');
+            const gridEl = document.getElementById('radios-grid');
+
+            if (loadingEl) loadingEl.classList.remove('hidden');
+            if (emptyEl) emptyEl.classList.add('hidden');
+            if (gridEl) gridEl.innerHTML = '';
+
+            try {
+                const res = await fetch(API + '?route=radios');
+                allRadios = await res.json();
+                if (loadingEl) loadingEl.classList.add('hidden');
+
+                if (!allRadios || allRadios.length === 0) {
+                    if (emptyEl) emptyEl.classList.remove('hidden');
+                    return;
+                }
+
+                allRadios.forEach(radio => {
+                    const card = document.createElement('div');
+                    const cleanLink = radio.url.toLowerCase();
+                    let formatLabel = "STREAM";
+                    if (cleanLink.includes('.m3u')) formatLabel = "M3U";
+                    else if (cleanLink.includes('.pls')) formatLabel = "PLS";
+                    else if (cleanLink.includes('.asx')) formatLabel = "ASX";
+
+                    const currentTrack = (activeQueueIdx >= 0 && activeQueueIdx < activeQueue.length) ? activeQueue[activeQueueIdx] : null;
+                    const isCurrentRadio = currentTrack && currentTrack.id === radio.id && (currentTrack.artist === 'Rádio On-line' || currentTrack.album === 'Sintonizada') && isPlaying;
+
+                    card.id = "radio-card-" + radio.id;
+                    card.className = "group relative bg-slate-950/45 hover:bg-slate-900/50 border rounded-2xl p-4 transition-all duration-300 transform hover:-translate-y-0.5 cursor-pointer flex flex-col justify-between h-36 " +
+                        (isCurrentRadio ? "border-emerald-500 shadow-lg shadow-emerald-500/5" : "border-slate-900/90 hover:border-slate-800");
+
+                    card.onclick = () => playRadioPhp(radio.id, radio.name, radio.resolved_url || radio.url);
+
+                    const deleteBtnHtml = (currentUser.role === 'admin') ? `<button onclick="handleDeleteRadioPhp('${radio.id}', event)" class="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition" title="Remover Rádio"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>` : '';
+
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start w-full">
+                            <span class="text-[8px] font-black uppercase px-2 py-0.5 rounded-full select-none ${isCurrentRadio ? 'bg-emerald-500/20 text-emerald-400 animate-pulse' : 'bg-slate-900 text-slate-500'}">
+                                ${isCurrentRadio ? 'SINTONIZADA' : formatLabel}
+                            </span>
+                            ${deleteBtnHtml}
+                        </div>
+                        <div class="my-2 min-w-0 pr-6">
+                            <h4 class="text-xs font-extrabold text-white truncate leading-tight group-hover:text-emerald-400 transition-colors">${radio.name}</h4>
+                            <p class="text-[9px] text-slate-600 truncate mt-1 select-all font-mono" title="${radio.url}">${radio.url}</p>
+                        </div>
+                        <div class="flex items-center justify-between mt-1 pt-1.5 border-t border-slate-900/50">
+                            <div class="flex items-center gap-1.5">
+                                <div class="w-1.5 h-1.5 rounded-full ${isCurrentRadio ? 'bg-emerald-400 animate-ping' : 'bg-slate-700'}"></div>
+                                <span class="text-[9px] font-mono text-slate-500 font-bold uppercase select-none">
+                                    ${isCurrentRadio ? 'CONECTADA' : 'PRONTA'}
+                                </span>
+                            </div>
+                            <div class="w-7.5 h-7.5 rounded-full flex items-center justify-center transition-all ${isCurrentRadio ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-slate-400 group-hover:bg-emerald-500 group-hover:text-white'}">
+                                ${isCurrentRadio 
+                                    ? '<div class="flex gap-0.5 items-end justify-center h-2.5"><span class="w-0.5 bg-white rounded-full animate-bounce" style="animation-delay: 0ms"></span><span class="w-0.5 bg-white rounded-full animate-bounce" style="animation-delay: 150ms; height: 6px"></span><span class="w-0.5 bg-white rounded-full animate-bounce" style="animation-delay: 300ms"></span></div>'
+                                    : '<i class="w-3" style="font-size: 8px; display: flex; align-items: center; justify-content: center;"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-play"><polygon points="6 3 20 12 6 21 6 3"/></svg></i>'
+                                }
+                            </div>
+                        </div>
+                    `;
+
+                    if (gridEl) gridEl.appendChild(card);
+                });
+                lucide.createIcons();
+            } catch (err) {
+                console.error(err);
+                if (loadingEl) loadingEl.classList.add('hidden');
+                if (gridEl) gridEl.innerHTML = '<div class="col-span-1 text-center text-xs text-red-500 py-12">Falha ao ler rádios sintonizadas.</div>';
+            }
+        }
+        window.loadRadiosPhp = loadRadiosPhp;
+
+        window.handleAddRadioPhp = async function(e) {
+            if (e) e.preventDefault();
+            
+            if (currentUser.role !== 'admin') {
+                alert("Apenas administradores podem cadastrar rádios.");
+                return;
+            }
+
+            const nameInput = document.getElementById('radio-name-input');
+            const urlInput = document.getElementById('radio-url-input');
+            const btn = document.getElementById('btn-add-radio');
+
+            if (!nameInput || !urlInput || !btn) return;
+
+            const name = nameInput.value.trim();
+            const url = urlInput.value.trim();
+
+            if (!name || !url) {
+                alert("Por favor, preencha todos os campos.");
+                return;
+            }
+
+            btn.disabled = true;
+            const origText = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Cadastrando...';
+            lucide.createIcons();
+
+            try {
+                const res = await fetch(API + '?route=radios', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name, url: url })
+                });
+
+                if (res.ok) {
+                    nameInput.value = '';
+                    urlInput.value = '';
+                    loadRadiosPhp();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Erro ao cadastrar rádio.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de comunicação.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+                lucide.createIcons();
+            }
+        };
+
+        window.setRadioPreset = function(name, url) {
+            const nameInput = document.getElementById('radio-name-input');
+            const urlInput = document.getElementById('radio-url-input');
+            if (nameInput && urlInput) {
+                nameInput.value = name;
+                urlInput.value = url;
+                window.handleAddRadioPhp();
+            }
+        };
+
+        window.handleDeleteRadioPhp = async function(id, e) {
+            if (e) e.stopPropagation();
+            
+            if (currentUser.role !== 'admin') {
+                alert("Apenas administradores podem remover rádios.");
+                return;
+            }
+
+            if (!confirm('Deseja realmente remover esta rádio?')) return;
+
+            try {
+                const res = await fetch(API + '?route=radios_delete&id=' + encodeURIComponent(id), {
+                    method: 'POST'
+                });
+
+                if (res.ok) {
+                    loadRadiosPhp();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Falha ao remover rádio.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de comunicação.');
+            }
+        };
+
+        window.playRadioPhp = function(id, name, url) {
+            const radioTrack = {
+                id: id,
+                title: name,
+                artist: 'Rádio On-line',
+                album: 'Sintonizada',
+                duration: 0,
+                cover_url: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=150',
+                file_name: url,
+                file_size: 0
+            };
+            
+            activeQueue = [radioTrack];
+            activeQueueIdx = 0;
+            
+            loadTrack(radioTrack);
+            if (audio.paused) {
+                audio.play();
+                isPlaying = true;
+                const playBtn = document.getElementById('player-play-btn');
+                if (playBtn) playBtn.innerHTML = '<i data-lucide="pause" class="w-4 h-4 fill-current"></i>';
+            }
+            renderPlayerMiniQueue();
+            
+            loadRadiosPhp();
+        };
+        // =====================================================
     </script>
 </body>
 </html>
