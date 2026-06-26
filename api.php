@@ -785,16 +785,17 @@ try {
             
             @unlink($temp_zip);
             if (!function_exists('delete_dir_update')) {
-                function delete_dir_update($target) {
-                    if(is_dir($target)){
-                        $files = glob($target . '*', GLOB_MARK);
-                        foreach($files as $file){
-                            delete_dir_update($file);
-                        }
-                        rmdir($target);
-                    } elseif(is_file($target)) {
-                        unlink($target);
+                function delete_dir_update($dir) {
+                    if (!is_dir($dir)) {
+                        if (is_file($dir)) { @unlink($dir); }
+                        return;
                     }
+                    $files = array_diff(scandir($dir), array('.', '..'));
+                    foreach ($files as $file) {
+                        $path = $dir . '/' . $file;
+                        (is_dir($path)) ? delete_dir_update($path) : @unlink($path);
+                    }
+                    @rmdir($dir);
                 }
             }
             delete_dir_update($temp_extract_dir);
