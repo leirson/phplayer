@@ -1,5 +1,9 @@
 <?php
 $changelog = <<<EOT
+v1.0.2
+- Melhorias no layout de detalhes do artista (Banner de Destaque na view)
+- Layout da lista de músicas do álbum aprimorado
+
 v1.0.1
 - Correção na exportação das atualizações (version.php e changelog.php)
 - O arquivo config.php nunca será substituído durante as atualizações
