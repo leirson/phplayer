@@ -726,6 +726,86 @@ try {
         ]);
         exit;
 
+    
+    case 'do_update':
+        if (!is_admin_user($pdo)) {
+            http_response_code(403);
+            exit(json_encode(['error' => 'Acesso negado: Recursos de administrador são restritos.', 'success' => false]));
+        }
+        if (!class_exists('ZipArchive')) {
+            exit(json_encode(['success' => false, 'error' => 'A extensão ZipArchive não está habilitada no PHP.']));
+        }
+
+        $zip_url = 'https://github.com/leirson/phplayer/archive/refs/heads/main.zip';
+        $temp_zip = sys_get_temp_dir() . '/phplayer_update_' . time() . '.zip';
+        
+        $ctx = stream_context_create(['http' => ['timeout' => 15]]);
+        $zip_content = @file_get_contents($zip_url, false, $ctx);
+        
+        if (!$zip_content) {
+            exit(json_encode(['success' => false, 'error' => 'Não foi possível baixar a atualização do GitHub.']));
+        }
+        
+        file_put_contents($temp_zip, $zip_content);
+        
+        $zip = new ZipArchive;
+        if ($zip->open($temp_zip) === TRUE) {
+            $temp_extract_dir = sys_get_temp_dir() . '/phplayer_extract_' . time();
+            mkdir($temp_extract_dir);
+            $zip->extractTo($temp_extract_dir);
+            $zip->close();
+            
+            $extracted_folders = glob($temp_extract_dir . '/*', GLOB_ONLYDIR);
+            $source_dir = $temp_extract_dir;
+            if (count($extracted_folders) == 1) {
+                $source_dir = $extracted_folders[0];
+            }
+            
+            if (!function_exists('copy_dir_update')) {
+                function copy_dir_update($src, $dst) {
+                    $dir = opendir($src);
+                    @mkdir($dst);
+                    while (false !== ($file = readdir($dir))) {
+                        if (($file != '.') && ($file != '..')) {
+                            if (is_dir($src . '/' . $file)) {
+                                copy_dir_update($src . '/' . $file, $dst . '/' . $file);
+                            } else {
+                                if ($file === 'config.php' && file_exists($dst . '/config.php')) {
+                                    continue;
+                                }
+                                copy($src . '/' . $file, $dst . '/' . $file);
+                            }
+                        }
+                    }
+                    closedir($dir);
+                }
+            }
+            
+            copy_dir_update($source_dir, __DIR__);
+            
+            @unlink($temp_zip);
+            if (!function_exists('delete_dir_update')) {
+                function delete_dir_update($target) {
+                    if(is_dir($target)){
+                        $files = glob($target . '*', GLOB_MARK);
+                        foreach($files as $file){
+                            delete_dir_update($file);
+                        }
+                        rmdir($target);
+                    } elseif(is_file($target)) {
+                        unlink($target);
+                    }
+                }
+            }
+            delete_dir_update($temp_extract_dir);
+            
+            echo json_encode(['success' => true]);
+        } else {
+            @unlink($temp_zip);
+            echo json_encode(['success' => false, 'error' => 'Falha ao extrair o arquivo de atualização.']);
+        }
+        exit;
+
     case 'proxy_radio':
         $url = $_GET['url'] ?? '';
         if (empty($url) || !filter_var($url, FILTER_VALIDATE_URL)) {

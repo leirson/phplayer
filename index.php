@@ -9272,7 +9272,7 @@ async function deleteUser(username) {
             if(window.lucide) lucide.createIcons();
 
             try {
-                const res = await fetch(API + '?route=do_update');
+                const res = await fetch(API + '?route=do_update&admin_username=' + encodeURIComponent(currentUser.username));
                 const data = await res.json();
                 if (data.success) {
                     btn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> Atualização Concluída!';
