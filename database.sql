@@ -1,5 +1,5 @@
--- SQL para criação do banco de dados do PHPlayer
--- Importe este arquivo no phpMyAdmin da Hostinger ou servidor Local
+-- SQL para criação do banco de dados do Player Subsonic PHP
+-- Importe este arquivo no phpMyAdmin da Hostinger
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;

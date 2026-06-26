@@ -1113,10 +1113,10 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                             </pre>
                             
                             <div id="download-update-wrapper" class="mt-4 hidden">
-                                <a href="https://github.com/leirson/phplayer" target="_blank" class="w-full flex items-center justify-center gap-2 px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-xl text-xs uppercase tracking-wider transition shadow-lg shadow-emerald-500/20">
-                                    <i data-lucide="download-cloud" class="w-4 h-4"></i> Baixar Nova Versão do GitHub
-                                </a>
-                                <p class="text-[10px] text-center text-slate-500 mt-2 font-bold uppercase tracking-wider">Lembre-se de fazer backup antes de atualizar.</p>
+                                <button onclick="doPhpUpdate()" id="btn-do-update" class="w-full flex items-center justify-center gap-2 px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-xl text-xs uppercase tracking-wider transition shadow-lg shadow-emerald-500/20 cursor-pointer">
+                                    <i data-lucide="download-cloud" class="w-4 h-4"></i> Baixar e Atualizar Automaticamente
+                                </button>
+                                <p class="text-[10px] text-center text-slate-500 mt-2 font-bold uppercase tracking-wider">O sistema fará o download e recarregará a página. O arquivo config.php será mantido.</p>
                             </div>
                         </div>
                     </div>
@@ -9261,6 +9261,40 @@ async function deleteUser(username) {
 
         
         let isCheckingUpdate = false;
+        async function doPhpUpdate() {
+            const btn = document.getElementById('btn-do-update');
+            if (btn.disabled) return;
+            if (!confirm('Deseja realmente baixar a atualização e aplicá-la? O sistema será recarregado em seguida.')) return;
+            
+            const origHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Baixando e Atualizando...';
+            if(window.lucide) lucide.createIcons();
+
+            try {
+                const res = await fetch(API + '?route=do_update');
+                const data = await res.json();
+                if (data.success) {
+                    btn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> Atualização Concluída!';
+                    if(window.lucide) lucide.createIcons();
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    alert('Erro na atualização: ' + (data.error || 'Erro desconhecido.'));
+                    btn.disabled = false;
+                    btn.innerHTML = origHtml;
+                    if(window.lucide) lucide.createIcons();
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro na requisição da atualização.');
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+                if(window.lucide) lucide.createIcons();
+            }
+        }
+
         async function checkPhpUpdates() {
             if (isCheckingUpdate) return;
             const btn = document.getElementById('btn-check-updates');
