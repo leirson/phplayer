@@ -6867,9 +6867,9 @@ document.addEventListener('fullscreenchange', (event) => {
                                             <i data-lucide="disc" class="w-8 h-8 text-white animate-spin"></i>
                                         </div>
                                     </div>
-                                    <div class="text-center">
-                                        <h3 class="font-extrabold text-[#ffffff] text-lg leading-tight line-clamp-2">${albumName}</h3>
-                                        <p class="text-[11px] text-slate-500 font-mono mt-1 uppercase tracking-wide flex items-center justify-center gap-1">
+                                    <div>
+                                        <h3 class="font-extrabold text-[#ffffff] text-sm leading-tight line-clamp-2">${albumName}</h3>
+                                        <p class="text-[11px] text-slate-500 font-mono mt-1 uppercase tracking-wide flex items-center gap-1">
                                             ${albumYear ? `<span class="bg-sky-500/15 text-sky-400 px-1.5 py-0.5 rounded font-black mr-1">${albumYear}</span>` : ''}
                                             ${albumTracks.length} ${albumTracks.length === 1 ? 'música' : 'músicas'} &bull; ÁLBUM
                                         </p>
@@ -6886,31 +6886,19 @@ document.addEventListener('fullscreenchange', (event) => {
                                             </button>
                                         </div>
                                         
-                                        ${(currentUser.role === 'admin' || currentUser.can_download !== false || currentUser.can_share !== false) ? `
-    <div class="flex flex-col gap-1.5">
-        <div class="flex gap-2">
-            ${(currentUser.role === 'admin' || currentUser.can_download !== false) ? `
-            <button onclick="downloadAlbum(event, '${albumName.replace(/'/g, "\\\\\\\\'")}')" class="flex-1 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-emerald-500/30 cursor-pointer">
-                <i data-lucide="download" class="w-3 h-3"></i> Baixar Álbum
-            </button>` : ''}
-            ${(currentUser.role === 'admin' || currentUser.can_share !== false) ? `
-            <button onclick="shareAlbum('${albumName.replace(/'/g, "\\\\\\\\'")}', '${selectedArtist.replace(/'/g, "\\\\\\\\'")}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-indigo-500/30 cursor-pointer">
-                <i data-lucide="share-2" class="w-3 h-3"></i> Compartilhar
-            </button>` : ''}
-        </div>
-` : ''}
-        ${currentUser.role === 'admin' ? `
-        <div class="flex gap-2">
-            <button onclick="document.getElementById('album-cover-input-${albumIdSafe}').click()" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap">
-                <i data-lucide="image" class="w-3.5 h-3.5 text-sky-400"></i> Capa
-            </button>
-            <button onclick="window.openAlbumBulkEditByElement(this, event)" data-track-ids="${albumTrackIds}" data-album-name="${albumName.replace(/\"/g, '&quot;')}" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap" title="Editar ID3 de todo este álbum">
-                <i data-lucide="edit-3" class="w-3.5 h-3.5 text-indigo-400"></i> Editar ID3
-            </button>
-        </div>
-        <input id="album-cover-input-${albumIdSafe}" type="file" accept="image/*" class="hidden" data-artist="${selectedArtist.replace(/\"/g, '&quot;')}" data-album="${albumName.replace(/\"/g, '&quot;')}" onchange="uploadAlbumCover(this)">
-        ` : ''}
-    ${(currentUser.role === 'admin' || currentUser.can_download !== false || currentUser.can_share !== false) ? '</div>' : ''}
+                                        <div class="${currentUser.role === 'admin' ? 'space-y-1.5' : 'hidden'}">
+                                            <button onclick="downloadAlbum(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="w-full py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-emerald-500/30 cursor-pointer">
+                                                <i data-lucide="download" class="w-3 h-3"></i> Baixar Álbum (ZIP)
+                                            </button>
+                                            <div class="flex gap-2">
+                                                <button onclick="document.getElementById('album-cover-input-${albumIdSafe}').click()" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap">
+                                                    <i data-lucide="image" class="w-3.5 h-3.5 text-sky-400"></i> Capa
+                                                </button>
+                                                <button onclick="window.openAlbumBulkEditByElement(this, event)" data-track-ids="${albumTrackIds}" data-album-name="${albumName.replace(/"/g, '&quot;')}" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap" title="Editar ID3 de todo este álbum">
+                                                    <i data-lucide="edit-3" class="w-3.5 h-3.5 text-indigo-400"></i> Editar ID3
+                                                </button>
+                                            </div>
+                                            <input id="album-cover-input-${albumIdSafe}" type="file" accept="image/*" class="hidden" data-artist="${selectedArtist.replace(/"/g, '&quot;')}" data-album="${albumName.replace(/"/g, '&quot;')}" onchange="uploadAlbumCover(this)">
                                         </div>
                                     </div>
                                 </div>
