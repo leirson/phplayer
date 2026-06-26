@@ -148,6 +148,13 @@ if (!file_exists('config.php')) {
         .paused-vinyl {
             animation-play-state: paused;
         }
+        @keyframes rotate-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+            animation: rotate-slow 10s linear infinite;
+        }
 
         /* Input Range styling override to fit Spotify/modern sliders */
         input[type="range"] {
@@ -268,6 +275,10 @@ if (!file_exists('config.php')) {
         </div>
 
         <div class="flex items-center gap-1.5">
+            <!-- Search Button -->
+            <button onclick="switchTab('buscar')" class="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white rounded-xl transition cursor-pointer" title="Buscar">
+                <i data-lucide="search" class="w-3.5 h-3.5 text-sky-450"></i>
+            </button>
             <!-- Settings Button -->
             <button onclick="openConfigSheet()" class="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white rounded-xl transition cursor-pointer" title="Configurações">
                 <i data-lucide="settings" class="w-3.5 h-3.5 text-sky-400"></i>
@@ -284,34 +295,40 @@ if (!file_exists('config.php')) {
     </header>
 
     <!-- TOP TAB NAVIGATION BAR -->
-    <nav class="bg-slate-950/80 border-b border-slate-900/80 p-2 shrink-0 flex items-center justify-around z-15 select-none">
+    <nav class="bg-slate-950/80 border-b border-slate-900/80 p-2 shrink-0 flex items-center justify-around z-15 select-none overflow-x-auto gap-1 no-scrollbar scroll-smooth">
         
         <!-- Tab Início -->
-        <button id="navbtn-inicio" onclick="switchTab('inicio')" class="flex flex-col items-center justify-center p-1.5 px-3 text-sky-450 cursor-pointer">
+        <button id="navbtn-inicio" onclick="switchTab('inicio')" class="flex flex-col items-center justify-center p-1.5 px-2.5 text-sky-450 cursor-pointer shrink-0">
             <i data-lucide="home" class="w-4 h-4"></i>
             <span class="text-[9px] font-bold mt-1" data-i18n="m-nav-start">Início</span>
         </button>
 
         <!-- Tab Álbuns -->
-        <button id="navbtn-albuns" onclick="switchTab('albuns')" class="flex flex-col items-center justify-center p-1.5 px-3 text-slate-500 hover:text-white cursor-pointer">
+        <button id="navbtn-albuns" onclick="switchTab('albuns')" class="flex flex-col items-center justify-center p-1.5 px-2.5 text-slate-500 hover:text-white cursor-pointer shrink-0">
             <i data-lucide="disc" class="w-4 h-4"></i>
             <span class="text-[9px] font-bold mt-1" data-i18n="m-nav-albums">Álbuns</span>
         </button>
 
         <!-- Tab Artistas -->
-        <button id="navbtn-artistas" onclick="switchTab('artistas')" class="flex flex-col items-center justify-center p-1.5 px-3 text-slate-500 hover:text-white cursor-pointer select-none">
+        <button id="navbtn-artistas" onclick="switchTab('artistas')" class="flex flex-col items-center justify-center p-1.5 px-2.5 text-slate-500 hover:text-white cursor-pointer select-none shrink-0">
             <i data-lucide="users" class="w-4 h-4"></i>
             <span class="text-[9px] font-bold mt-1" data-i18n="m-nav-artists">Artistas</span>
         </button>
 
-        <!-- Tab Buscar -->
-        <button id="navbtn-buscar" onclick="switchTab('buscar')" class="flex flex-col items-center justify-center p-1.5 px-3 text-slate-500 hover:text-white cursor-pointer">
-            <i data-lucide="search" class="w-4 h-4"></i>
-            <span class="text-[9px] font-bold mt-1" data-i18n="m-nav-search">Buscar</span>
+        <!-- Tab Podcasts -->
+        <button id="navbtn-podcast" onclick="switchTab('podcast')" class="flex flex-col items-center justify-center p-1.5 px-2.5 text-slate-500 hover:text-white cursor-pointer shrink-0">
+            <i data-lucide="mic" class="w-4 h-4"></i>
+            <span class="text-[9px] font-bold mt-1" data-i18n="m-nav-podcasts">Podcasts</span>
+        </button>
+
+        <!-- Tab Rádios -->
+        <button id="navbtn-radios" onclick="switchTab('radios')" class="flex flex-col items-center justify-center p-1.5 px-2.5 text-slate-500 hover:text-white cursor-pointer shrink-0">
+            <i data-lucide="radio" class="w-4 h-4"></i>
+            <span class="text-[9px] font-bold mt-1" data-i18n="m-nav-radios">Rádios</span>
         </button>
 
         <!-- Tab Favoritos -->
-        <button id="navbtn-favoritos" onclick="switchTab('favoritos')" class="flex flex-col items-center justify-center p-1.5 px-3 text-slate-500 hover:text-white cursor-pointer">
+        <button id="navbtn-favoritos" onclick="switchTab('favoritos')" class="flex flex-col items-center justify-center p-1.5 px-2.5 text-slate-500 hover:text-white cursor-pointer shrink-0">
             <i data-lucide="heart" class="w-4 h-4"></i>
             <span class="text-[9px] font-bold mt-1" data-i18n="m-nav-favorites">Favoritos</span>
         </button>
@@ -369,6 +386,168 @@ if (!file_exists('config.php')) {
                 </div>
                 <div id="mobile-queue-container" class="max-h-64 overflow-y-auto divide-y divide-slate-900/30 custom-scroll space-y-1 pr-1">
                     <!-- Dynamic Queue list via js -->
+                </div>
+            </div>
+
+            <!-- Sleep Timer & Equalizer Controls for Mobile -->
+            <div id="mobile-addons-section" class="pt-2 space-y-2">
+                <button onclick="toggleMobileAddons()" class="w-full flex items-center justify-between p-3.5 bg-[#0a111e]/90 border border-slate-900/80 rounded-2xl text-[10px] font-black uppercase tracking-wider text-sky-400 hover:text-white transition cursor-pointer select-none">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="sliders" class="w-4 h-4 text-sky-400 animate-pulse"></i>
+                        <span>Sleep & Equalizador</span>
+                    </div>
+                    <i id="mobile-addons-chevron" data-lucide="chevron-down" class="w-4 h-4 text-slate-400 transition-transform duration-300"></i>
+                </button>
+
+                <div id="mobile-addons-content" class="hidden space-y-4 pt-1">
+                    <!-- Sleep Timer Container -->
+                    <div class="bg-[#0a111e]/80 border border-slate-900/80 p-3.5 rounded-2xl space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-900 pb-2 shadow-sm">
+                            <div class="flex items-center gap-1.5">
+                                <i id="mobile-sleep-icon" data-lucide="moon" class="w-4 h-4 text-slate-500 transition-all duration-300"></i>
+                                <h4 class="text-[10px] font-black uppercase text-sky-450 tracking-wider">Temporizador para Dormir (Sleep)</h4>
+                            </div>
+                            <div id="mobile-sleep-status" class="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Desativado</div>
+                        </div>
+                        
+                        <div class="grid grid-cols-5 gap-1.5 pt-0.5">
+                            <button onclick="setMobileSleepTimer(5)" class="py-1.5 px-0.5 bg-slate-950/60 border border-slate-900 hover:border-sky-500/50 hover:bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition cursor-pointer text-center">
+                                5 min
+                            </button>
+                            <button onclick="setMobileSleepTimer(15)" class="py-1.5 px-0.5 bg-slate-950/60 border border-slate-900 hover:border-sky-500/50 hover:bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition cursor-pointer text-center">
+                                15 min
+                            </button>
+                            <button onclick="setMobileSleepTimer(30)" class="py-1.5 px-0.5 bg-slate-950/60 border border-slate-900 hover:border-sky-500/50 hover:bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition cursor-pointer text-center">
+                                30 min
+                            </button>
+                            <button onclick="setMobileSleepTimer(60)" class="py-1.5 px-0.5 bg-slate-950/60 border border-slate-900 hover:border-sky-500/50 hover:bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition cursor-pointer text-center">
+                                1h
+                            </button>
+                            <button onclick="setMobileSleepTimer(null)" class="py-1.5 px-0.5 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 text-rose-450 rounded-xl text-[9px] font-black uppercase tracking-wider transition cursor-pointer text-center font-extrabold pb-1">
+                                Parar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Mobile Crossfade Container -->
+                    <div class="bg-[#0a111e]/80 border border-slate-900/80 p-3.5 rounded-2xl space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-900 pb-2 shadow-sm">
+                            <div class="flex items-center gap-1.5">
+                                <i id="mobile-crossfade-icon" data-lucide="layers" class="w-4 h-4 text-slate-500 transition-all duration-300"></i>
+                                <h4 class="text-[10px] font-black uppercase text-sky-450 tracking-wider">Efeito de Crossfade (Transição)</h4>
+                            </div>
+                            <div id="mobile-crossfade-status" class="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Desativado</div>
+                        </div>
+                        
+                        <div class="grid grid-cols-5 gap-1.5 pt-0.5">
+                            <button onclick="setMobileCrossfade(2)" class="py-1.5 px-0.5 bg-slate-950/60 border border-slate-900 hover:border-sky-500/50 hover:bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition cursor-pointer text-center">
+                                2s
+                            </button>
+                            <button onclick="setMobileCrossfade(4)" class="py-1.5 px-0.5 bg-slate-950/60 border border-slate-900 hover:border-sky-500/50 hover:bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition cursor-pointer text-center">
+                                4s
+                            </button>
+                            <button onclick="setMobileCrossfade(7)" class="py-1.5 px-0.5 bg-slate-950/60 border border-slate-900 hover:border-sky-500/50 hover:bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition cursor-pointer text-center">
+                                7s
+                            </button>
+                            <button onclick="setMobileCrossfade(10)" class="py-1.5 px-0.5 bg-slate-950/60 border border-slate-900 hover:border-sky-500/50 hover:bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition cursor-pointer text-center">
+                                10s
+                            </button>
+                            <button onclick="setMobileCrossfade(0)" class="py-1.5 px-0.5 bg-[#ef4444]/15 border border-[#ef4444]/35 hover:bg-rose-500/20 text-[#f87171] rounded-xl text-[9px] font-black uppercase tracking-wider transition cursor-pointer text-center">
+                                Parar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Mobile Audio Visualizer Container (WMP Style) -->
+                    <div class="bg-[#0a111e]/80 border border-slate-900/80 p-3.5 rounded-2xl space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-900 pb-2">
+                            <div class="flex items-center gap-1.5 animate-pulse">
+                                <i data-lucide="activity" class="w-4 h-4 text-sky-400"></i>
+                                <h4 class="text-[10px] font-black uppercase text-sky-455 tracking-wider">Visualizador de Música</h4>
+                            </div>
+                            <!-- Style Switcher -->
+                            <div class="flex items-center gap-1 bg-slate-950/80 border border-slate-900/50 p-0.5 rounded-lg shrink-0">
+                                <button onclick="setMobileStyle('bars')" id="m-v-bars" class="px-1.5 py-0.5 bg-sky-500/10 text-sky-400 text-[8px] font-black uppercase rounded tracking-wider cursor-pointer">Barras</button>
+                                <button onclick="setMobileStyle('scope')" id="m-v-scope" class="px-1.5 py-0.5 text-slate-400 hover:text-white text-[8px] font-black uppercase rounded tracking-wider cursor-pointer">Onda</button>
+                                <button onclick="setMobileStyle('beat')" id="m-v-beat" class="px-1.5 py-0.5 text-slate-400 hover:text-white text-[8px] font-black uppercase rounded tracking-wider cursor-pointer">Batida</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Mobile Canvas -->
+                        <div class="h-40 w-full relative bg-slate-950/95 border border-slate-900/40 rounded-xl overflow-hidden shadow-inner flex items-center justify-center p-0.5">
+                            <canvas id="mobile-visualizer-canvas" class="w-full h-full block rounded-lg"></canvas>
+                        </div>
+
+                        <!-- Palette Selector -->
+                        <div class="flex justify-between items-center gap-2 pt-0.5">
+                            <span class="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">Paleta:</span>
+                            <div class="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-900/40 shrink-0">
+                                <button onclick="setMobileColor('wmp')" id="m-c-wmp" class="px-1.5 py-0.5 text-[8px] font-black uppercase rounded bg-cyan-500/10 text-cyan-405 border border-cyan-500/10 cursor-pointer">WMP</button>
+                                <button onclick="setMobileColor('neon')" id="m-c-neon" class="px-1.5 py-0.5 text-[8px] font-black uppercase rounded text-slate-400 hover:text-white cursor-pointer">Neon</button>
+                                <button onclick="setMobileColor('fire')" id="m-c-fire" class="px-1.5 py-0.5 text-[8px] font-black uppercase rounded text-slate-400 hover:text-white cursor-pointer">Fogo</button>
+                                <button onclick="setMobileColor('cyber')" id="m-c-cyber" class="px-1.5 py-0.5 text-[8px] font-black uppercase rounded text-slate-400 hover:text-white cursor-pointer">Cyber</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Equalizer Container (Horizontal Rows) -->
+                    <div class="bg-[#0a111e]/80 border border-slate-900/80 p-3.5 rounded-2xl space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-900 pb-2">
+                            <div class="flex items-center gap-1.5">
+                                <i data-lucide="sliders" class="w-4 h-4 text-sky-400"></i>
+                                <h4 class="text-[10px] font-black uppercase text-sky-450 tracking-wider">Equalizador de Áudio</h4>
+                            </div>
+                            <div class="relative inline-block text-left">
+                                <select id="mobile-eq-preset-select" onchange="applyMobilePreset(this.value)" class="bg-slate-950 border border-slate-900 text-slate-300 text-[9px] font-extrabold uppercase tracking-wider rounded-lg px-2 py-1 outline-none focus:border-sky-500 transition pr-4 appearance-none cursor-pointer">
+                                    <option value="flat">PRESET: FLAT</option>
+                                    <option value="bass">BASS BOOST</option>
+                                    <option value="pop">POP</option>
+                                    <option value="rock">ROCK</option>
+                                    <option value="vocal">VOCAL</option>
+                                    <option value="electronic">ELECTRONIC</option>
+                                    <option value="suave">SUAVE</option>
+                                    <option value="classical">CLASSICAL</option>
+                                </select>
+                                <span class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none text-slate-500">
+                                    <i data-lucide="chevron-down" class="w-2.5 h-2.5"></i>
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <!-- 5 Band Sliders -->
+                        <div class="space-y-2 pt-1">
+                            <!-- Band 0 -->
+                            <div class="flex items-center gap-3">
+                                <span class="w-12 text-[9px] font-bold text-slate-400 uppercase tracking-wider">60 Hz</span>
+                                <input type="range" min="-12" max="12" step="1" value="0" id="mobile-eq-band-0" oninput="onMobileEqChange(0, this.value)" class="flex-grow accent-sky-400 h-1.5 bg-slate-950 border border-slate-900 rounded-lg outline-none cursor-pointer">
+                                <span id="mobile-eq-gain-val-0" class="w-8 text-[9px] font-mono font-bold text-right text-sky-400">0dB</span>
+                            </div>
+                            <!-- Band 1 -->
+                            <div class="flex items-center gap-3">
+                                <span class="w-12 text-[9px] font-bold text-slate-400 uppercase tracking-wider">230 Hz</span>
+                                <input type="range" min="-12" max="12" step="1" value="0" id="mobile-eq-band-1" oninput="onMobileEqChange(1, this.value)" class="flex-grow accent-sky-400 h-1.5 bg-slate-950 border border-slate-900 rounded-lg outline-none cursor-pointer">
+                                <span id="mobile-eq-gain-val-1" class="w-8 text-[9px] font-mono font-bold text-right text-sky-400">0dB</span>
+                            </div>
+                            <!-- Band 2 -->
+                            <div class="flex items-center gap-3">
+                                <span class="w-12 text-[9px] font-bold text-slate-400 uppercase tracking-wider">910 Hz</span>
+                                <input type="range" min="-12" max="12" step="1" value="0" id="mobile-eq-band-2" oninput="onMobileEqChange(2, this.value)" class="flex-grow accent-sky-400 h-1.5 bg-slate-950 border border-slate-900 rounded-lg outline-none cursor-pointer">
+                                <span id="mobile-eq-gain-val-2" class="w-8 text-[9px] font-mono font-bold text-right text-sky-400">0dB</span>
+                            </div>
+                            <!-- Band 3 -->
+                            <div class="flex items-center gap-3">
+                                <span class="w-12 text-[9px] font-bold text-slate-400 uppercase tracking-wider">4 kHz</span>
+                                <input type="range" min="-12" max="12" step="1" value="0" id="mobile-eq-band-3" oninput="onMobileEqChange(3, this.value)" class="flex-grow accent-sky-400 h-1.5 bg-slate-950 border border-slate-900 rounded-lg outline-none cursor-pointer">
+                                <span id="mobile-eq-gain-val-3" class="w-8 text-[9px] font-mono font-bold text-right text-sky-400">0dB</span>
+                            </div>
+                            <!-- Band 4 -->
+                            <div class="flex items-center gap-3">
+                                <span class="w-12 text-[9px] font-bold text-slate-400 uppercase tracking-wider">14 kHz</span>
+                                <input type="range" min="-12" max="12" step="1" value="0" id="mobile-eq-band-4" oninput="onMobileEqChange(4, this.value)" class="flex-grow accent-sky-400 h-1.5 bg-slate-950 border border-slate-900 rounded-lg outline-none cursor-pointer">
+                                <span id="mobile-eq-gain-val-4" class="w-8 text-[9px] font-mono font-bold text-right text-sky-400">0dB</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -466,6 +645,178 @@ if (!file_exists('config.php')) {
             </div>
         </section>
 
+        <!-- SECTION 6: PODCASTS -->
+        <section id="pane-podcast" class="pane space-y-4 hidden">
+            <div class="border-b border-slate-900 pb-1.5 flex items-center justify-between">
+                <div>
+                    <h4 class="text-[10px] font-black uppercase text-orange-400 tracking-wider">Podcasts</h4>
+                    <p class="text-[9px] text-slate-500">Canais sincronizados via feed RSS</p>
+                </div>
+                <div class="p-1 px-2.5 bg-orange-500/10 border border-orange-500/20 text-orange-400 rounded-lg text-[9px] font-bold font-mono">
+                    RSS FEED
+                </div>
+            </div>
+
+            <!-- Admin Podcast Synchronizer Card -->
+            <div class="admin-only bg-slate-950/40 p-4 border border-slate-900/60 rounded-2xl space-y-3 shadow-md">
+                <h5 class="text-[10px] font-bold text-orange-400 tracking-widest uppercase flex items-center gap-1.5">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Sincronizar Novo Feed
+                </h5>
+                <div class="space-y-2">
+                    <div class="flex flex-col gap-2">
+                        <input
+                            id="podcast-feed-input"
+                            type="text"
+                            placeholder="Endereço RSS..."
+                            class="w-full bg-slate-900 border border-slate-800/80 focus:border-orange-500 rounded-xl px-3 py-2.5 text-xs outline-none transition font-semibold text-white placeholder-slate-500"
+                        />
+                        <div class="flex gap-2">
+                            <div class="flex-1 flex items-center justify-between gap-2 bg-slate-900 border border-slate-800/80 rounded-xl px-3 py-2 text-xs">
+                                <span class="text-[9px] text-slate-500 uppercase font-black tracking-wider whitespace-nowrap">Máx:</span>
+                                <select id="podcast-max-episodes" class="bg-transparent text-xs font-bold text-white outline-none">
+                                    <option value="3" class="bg-slate-950 text-white">3</option>
+                                    <option value="5" selected class="bg-slate-950 text-white">5</option>
+                                    <option value="10" class="bg-slate-950 text-white">10</option>
+                                    <option value="20" class="bg-slate-950 text-white">20</option>
+                                    <option value="50" class="bg-slate-950 text-white">50</option>
+                                </select>
+                            </div>
+                            <button
+                                id="btn-sync-podcast"
+                                onclick="runPodcastSync()"
+                                class="bg-gradient-to-r from-orange-500 to-amber-600 px-4 font-extrabold text-white rounded-xl text-xs transition flex items-center justify-center cursor-pointer shadow-md"
+                            >
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 mr-1"></i> Sincronizar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Suggestions -->
+                <div class="space-y-1.5 pt-1">
+                    <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest block pl-0.5">Sugestões (Podcast Addict):</span>
+                    <div class="flex flex-wrap gap-1.5" id="mobile-podcast-suggestions">
+                    </div>
+                </div>
+                <div id="podcast-status-msg" class="p-3 rounded-xl text-[10px] flex items-start gap-2 transition border border-yellow-500/20 bg-yellow-500/5 text-yellow-400 hidden"></div>
+            </div>
+
+            <!-- Library of Podcasts -->
+            <div class="space-y-3">
+                <h5 class="text-[10px] font-black tracking-widest uppercase text-slate-500 pl-1">Biblioteca</h5>
+                <div id="podcasts-loading" class="py-10 text-center text-xs text-slate-500 flex flex-col items-center gap-1.5 font-mono">
+                    <i data-lucide="loader" class="w-5 h-5 animate-spin text-orange-500"></i>
+                    Carregando biblioteca...
+                </div>
+                <div id="podcasts-empty" class="text-center py-10 bg-slate-950/20 border border-slate-900 border-dashed rounded-2xl space-y-2.5 hidden">
+                    <i data-lucide="headphones" class="w-10 h-10 text-slate-700 mx-auto"></i>
+                    <p class="text-[11px] text-slate-500">Nenhum canal de Podcast sincronizado ainda.</p>
+                </div>
+                <div id="podcasts-grid" class="grid grid-cols-2 gap-3 pb-4"></div>
+            </div>
+
+            <!-- Detalhes do Canal -->
+            <div id="podcast-details" class="bg-slate-950/65 p-4 rounded-2xl border border-slate-900/80 shadow-md space-y-4 hidden animate-fade-in">
+                <div class="flex flex-col gap-3 pb-3 border-b border-slate-900/60">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-12 h-12 rounded-lg bg-slate-950 overflow-hidden shrink-0 border border-slate-900">
+                            <img id="pod-detail-img" src="" class="w-full h-full object-cover">
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <span class="text-[8px] bg-orange-500/15 text-orange-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Episódios</span>
+                            <h5 id="pod-detail-name" class="text-xs font-black text-white mt-0.5 truncate">Podcast</h5>
+                        </div>
+                        <button id="pod-play-all-btn" class="p-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition cursor-pointer flex items-center justify-center shrink-0">
+                            <i data-lucide="play" class="w-3.5 h-3.5 fill-white text-white"></i>
+                        </button>
+                    </div>
+                    <div class="admin-only flex items-center gap-2">
+                        <div class="flex-1 flex items-center justify-between gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-[10px]">
+                            <span class="text-[9px] text-slate-500 uppercase font-black tracking-wider whitespace-nowrap">Máx:</span>
+                            <select id="pod-detail-limit" class="bg-transparent font-bold text-white outline-none">
+                                <option value="3" class="bg-slate-950 text-white">3</option>
+                                <option value="5" class="bg-slate-950 text-white">5</option>
+                                <option value="10" class="bg-slate-950 text-white">10</option>
+                                <option value="20" class="bg-slate-950 text-white">20</option>
+                                <option value="50" class="bg-slate-950 text-white">50</option>
+                            </select>
+                        </div>
+                        <button id="pod-detail-update-btn" class="py-2 px-3 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-orange-400 font-bold rounded-xl text-[10px] flex items-center justify-center gap-1 cursor-pointer transition select-none">
+                            <i data-lucide="refresh-cw" class="w-3 h-3"></i> Atualizar
+                        </button>
+                    </div>
+                </div>
+                <div id="pod-episodes-list" class="space-y-2 max-h-96 overflow-y-auto no-scrollbar"></div>
+            </div>
+        </section>
+
+        <!-- SECTION 7: RADIOS -->
+        <section id="pane-radios" class="pane space-y-4 hidden">
+            <div class="border-b border-slate-900 pb-1.5 flex items-center justify-between">
+                <div>
+                    <h4 class="text-[10px] font-black uppercase text-emerald-400 tracking-wider">Rádios</h4>
+                    <p class="text-[9px] text-slate-500">Estações de rádio on-line compiladas</p>
+                </div>
+                <div class="p-1 px-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-[9px] font-bold font-mono">
+                    LIVE STREAM
+                </div>
+            </div>
+
+            <!-- Admin Emissora Creator Card -->
+            <div class="admin-only bg-slate-950/40 p-4 border border-slate-900/60 rounded-2xl space-y-3 shadow-md">
+                <h5 class="text-[10px] font-bold text-emerald-400 tracking-widest uppercase flex items-center gap-1.5">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i> Cadastrar Nova Emissora
+                </h5>
+                <form onsubmit="handleAddRadioPhp(event)" class="space-y-2.5">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input
+                            id="radio-name-input"
+                            type="text"
+                            required
+                            placeholder="Nome..."
+                            class="w-full bg-slate-900 border border-slate-800/80 focus:border-emerald-500 rounded-xl px-2.5 py-2 text-xs outline-none transition font-semibold text-white placeholder-slate-500"
+                        />
+                        <input
+                            id="radio-url-input"
+                            type="text"
+                            required
+                            placeholder="Stream M3U..."
+                            class="w-full bg-slate-900 border border-slate-800/80 focus:border-emerald-500 rounded-xl px-2.5 py-2 text-xs outline-none transition font-semibold text-white placeholder-slate-500"
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        id="btn-add-radio"
+                        class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 font-extrabold text-white rounded-xl py-2 text-xs tracking-wide transition flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                    >
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Adicionar Rádio
+                    </button>
+                </form>
+                
+                <!-- Suggestions -->
+                <div class="space-y-1.5 pt-1">
+                    <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest block pl-0.5">Sugestões (M3U - radios.com.br):</span>
+                    <div class="flex flex-wrap gap-1.5" id="mobile-radio-suggestions">
+                    </div>
+                </div>
+                
+                <div id="radio-status-msg" class="p-3 rounded-xl text-[10px] flex items-start gap-2.5 transition border border-yellow-500/20 bg-yellow-500/5 text-yellow-400 hidden"></div>
+            </div>
+
+            <!-- Radios Grid -->
+            <div class="space-y-3">
+                <h5 class="text-[10px] font-black tracking-widest uppercase text-slate-500 pl-1">Emissoras Cadastradas</h5>
+                <div id="radios-loading" class="py-10 text-center text-xs text-slate-500 flex flex-col items-center gap-1.5 font-mono">
+                    <i data-lucide="loader" class="w-5 h-5 animate-spin text-emerald-500"></i>
+                    Carregando emissoras...
+                </div>
+                <div id="radios-empty" class="text-center py-10 bg-slate-950/20 border border-slate-900 border-dashed rounded-2xl space-y-2.5 hidden">
+                    <i data-lucide="radio" class="w-10 h-10 text-slate-700 mx-auto animate-pulse"></i>
+                    <p class="text-[11px] text-slate-500">Nenhuma emissora cadastrada ainda.</p>
+                </div>
+                <div id="radios-grid" class="grid grid-cols-1 gap-3 pb-6"></div>
+            </div>
+        </section>
+
         <!-- Hidden Videos container to prevent JS errors -->
         <div id="mobile-videos-container" class="hidden"></div>
 
@@ -493,12 +844,12 @@ if (!file_exists('config.php')) {
             </div>
 
             <!-- Buttons toolbar inside Album Sheet -->
-            <div class="p-4 grid grid-cols-2 gap-3 border-b border-slate-900/40 shrink-0">
-                <button id="sheet-play-all" class="py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer">
-                    <i data-lucide="play" class="w-3.5 h-3.5 fill-white text-white"></i> Tocar Tudo
+            <div class="p-4 grid grid-cols-2 gap-2 border-b border-slate-900/40 shrink-0">
+                <button id="sheet-play-all" class="py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-[10px] font-black transition flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap">
+                    <i data-lucide="play" class="w-3 h-3 fill-white text-white"></i> Tocar
                 </button>
-                <button id="sheet-shuffle" class="py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
-                    <i data-lucide="shuffle" class="w-3.5 h-3.5"></i> Aleatório
+                <button id="sheet-shuffle" class="py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 rounded-xl text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap">
+                    <i data-lucide="shuffle" class="w-3 h-3"></i> Aleatório
                 </button>
             </div>
 
@@ -605,6 +956,71 @@ if (!file_exists('config.php')) {
                         <i data-lucide="check" class="w-4 h-4"></i> Aplicar Tema
                     </button>
                 </div>
+
+                <!-- CUSTOM LAYOUT COLOR FOR MOBILE -->
+                <div class="space-y-3 pt-4 border-t border-slate-900 text-left">
+                    <h5 class="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="sliders" class="w-3.5 h-3.5 text-sky-400"></i> Personalizar Cor do Layout
+                    </h5>
+                    <p class="text-[10px] text-slate-400 leading-normal">
+                        Mude a cor de fundo do sidebar, de reprodução e top simultaneamente para sintonizar o seu layout.
+                    </p>
+                    
+                    <!-- Quick Presets -->
+                    <div class="flex flex-wrap gap-2 pt-1">
+                        <button
+                            type="button"
+                            onclick="applyMobileLayoutColor('#020617')"
+                            class="px-2.5 py-1.5 text-[9px] uppercase tracking-wider font-bold rounded-xl border border-slate-900 bg-slate-100/5 text-slate-300 active:scale-95 transition cursor-pointer"
+                        >
+                            Slate
+                        </button>
+                        <button
+                            type="button"
+                            onclick="applyMobileLayoutColor('#000000')"
+                            class="px-2.5 py-1.5 text-[9px] uppercase tracking-wider font-bold rounded-xl border border-slate-900 bg-black text-slate-300 active:scale-95 transition cursor-pointer"
+                        >
+                            Preto
+                        </button>
+                        <button
+                            type="button"
+                            onclick="applyMobileLayoutColor('#09101d')"
+                            class="px-2.5 py-1.5 text-[9px] uppercase tracking-wider font-bold rounded-xl border border-slate-900 bg-[#09101d] text-slate-300 active:scale-95 transition cursor-pointer"
+                        >
+                            Naval
+                        </button>
+                        <button
+                            type="button"
+                            onclick="applyMobileLayoutColor('#0c0517')"
+                            class="px-2.5 py-1.5 text-[9px] uppercase tracking-wider font-bold rounded-xl border border-slate-900 bg-[#0c0517] text-slate-300 active:scale-95 transition cursor-pointer"
+                        >
+                            Roxo
+                        </button>
+                    </div>
+
+                    <!-- Picker Controls -->
+                    <div class="flex items-center gap-2 pt-2 bg-slate-950/40 border border-slate-900/60 p-3 rounded-2xl">
+                        <input
+                            type="color"
+                            id="m-layout-bg-picker"
+                            oninput="onMobileLayoutBgLiveChange(this.value)"
+                            class="w-10 h-7 rounded bg-transparent border-0 cursor-pointer shrink-0"
+                        />
+                        <input
+                            type="text"
+                            id="m-layout-bg-text"
+                            value="#020617"
+                            oninput="onMobileLayoutBgLiveChange(this.value)"
+                            class="flex-grow bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-center text-[10px] font-mono text-white"
+                        />
+                        <button
+                            onclick="saveMobileLayoutColor()"
+                            class="py-1.5 px-3 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer"
+                        >
+                            Salvar
+                        </button>
+                    </div>
+                </div>
  
                 <!-- Language Selector Subsection -->
                 <div class="space-y-3 pt-4 border-t border-slate-900">
@@ -665,6 +1081,20 @@ if (!file_exists('config.php')) {
                             </label>
                         </div>
 
+                        <!-- Fila Cache Selector (Queue Prefetch Auto-download) -->
+                        <div class="space-y-1.5">
+                            <label class="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Fila Cache (Pré-download automático)</label>
+                            <select id="mobile-queue-prefetch-select" class="w-full bg-slate-950 border border-slate-900 rounded-2xl py-2.5 px-3 text-xs text-white outline-none focus:border-sky-500 transition" onchange="changeMobileQueuePrefetch(this.value)">
+                                <option value="0">Desativado (Não pré-baixar)</option>
+                                <option value="1">1 próxima música</option>
+                                <option value="2">2 próximas músicas</option>
+                                <option value="3">3 próximas músicas</option>
+                                <option value="5">5 próximas músicas</option>
+                                <option value="10">10 próximas músicas</option>
+                            </select>
+                            <span class="text-[8px] text-slate-500 block leading-tight">Quantas músicas da fila o sistema pré-carregará em segundo plano</span>
+                        </div>
+
                         <!-- Selector -->
                         <div class="space-y-1.5">
                             <label class="text-[9px] font-bold text-slate-500 uppercase tracking-widest block" data-i18n="m-cache-limit">Limite de Armazenamento</label>
@@ -693,6 +1123,92 @@ if (!file_exists('config.php')) {
                         <button onclick="clearMobileCacheStorage()" class="w-full py-2.5 bg-red-550/10 hover:bg-red-500/15 border border-red-500/20 active:scale-95 text-red-400 hover:text-red-300 font-bold rounded-2xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer" data-i18n="m-cache-clear-btn">
                             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Limpar Cache Local
                         </button>
+                    </div>
+                </div>
+
+                <!-- Servidor DLNA / UPnP Subsection -->
+                <div class="space-y-3 pt-4 border-t border-slate-900">
+                    <h5 class="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="cast" class="w-3.5 h-3.5 text-sky-400"></i> Servidor DLNA (UPnP)
+                    </h5>
+                    <p class="text-[9px] text-slate-500 leading-tight">
+                        Ative o suporte a DLNA no seu servidor PHPlayer para parear e reproduzir músicas e vídeos em Smart TVs, consoles de videogame ou receptores de áudio compatíveis na sua rede doméstica.
+                    </p>
+                    
+                    <div class="space-y-3">
+                        <!-- Toggle -->
+                        <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-950/40 border border-slate-900">
+                            <div>
+                                <span class="text-[10px] text-white font-bold block">Status do Servidor</span>
+                                <span class="text-[8px] tracking-wider uppercase font-mono" id="m-dlna-status-indicator">OFFLINE</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="mobile-dlna-enabled" class="sr-only peer" onchange="toggleMobileDlna(this.checked)">
+                                <div class="w-9 h-5 bg-slate-900 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 peer-checked:after:bg-sky-400 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500/10 peer-checked:border peer-checked:border-sky-500/30 border border-slate-800"></div>
+                            </label>
+                        </div>
+
+                        <!-- Debian/Ubuntu Requirements & Script Download -->
+                        <div class="mt-3 p-3 rounded-2xl bg-slate-950/25 border border-slate-900/60 space-y-2">
+                            <span class="text-[9px] uppercase tracking-wider font-extrabold text-sky-400 block flex items-center gap-1">
+                                <i data-lucide="terminal" class="w-3 h-3 text-sky-400"></i> Instalação no Debian / Ubuntu
+                            </span>
+                            <p class="text-[8.5px] text-slate-500 leading-tight">
+                                O suporte a DLNA no Debian com PHP & MySQL exige a extensão <code class="text-white font-bold font-mono text-[8px]">sockets</code> ativa no PHP e a liberação de tráfego multicast UDP (porta 1900) e HTTP (porta 3000) no firewall.
+                            </p>
+                            <div class="bg-slate-950/80 rounded-xl p-2 border border-slate-900 font-mono text-[8px] text-slate-400 space-y-0.5">
+                                <p class="text-[7px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Comandos rápidos SSH:</p>
+                                <p class="text-sky-300 break-all select-all">wget -O setup_dlna.sh http://endereço-do-servidor/setup_dlna.sh</p>
+                                <p class="text-slate-400">chmod +x setup_dlna.sh</p>
+                                <p class="text-slate-400">sudo ./setup_dlna.sh</p>
+                            </div>
+                            <div class="flex flex-col gap-1.5 pt-1">
+                                <a href="setup_dlna.sh" download="setup_dlna.sh" class="w-full text-center py-2 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-[9px] text-white font-bold rounded-xl transition flex items-center justify-center gap-1 select-none active:scale-95 cursor-pointer">
+                                    <i data-lucide="download" class="w-3.5 h-3.5 text-sky-400"></i> Baixar setup_dlna.sh
+                                </a>
+                                <p class="text-[7.5px] text-yellow-500 font-semibold leading-tight flex items-start gap-0.5">
+                                    <i data-lucide="alert-triangle" class="w-2.5 h-2.5 shrink-0 text-yellow-500"></i>
+                                    <span>Docker: Caso use contêineres, execute com <code class="text-white font-mono bg-slate-950/40 px-0.5 rounded">--network host</code>.</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PLAYLIST SELECT / CREATE DIALOG SHEET FOR MOBILE -->
+    <div id="playlist-sheet" class="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm hidden flex items-end">
+        <div class="bg-[#0c1424] border-t border-slate-800/60 rounded-t-[2.5rem] w-full max-h-[80vh] flex flex-col bottom-sheet bottom-sheet-hidden shadow-2xl overflow-hidden">
+            <!-- Sheet Header -->
+            <div class="p-4 border-b border-slate-900/60 shrink-0 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="list-plus" class="w-4 h-4 text-sky-450"></i>
+                    <span class="text-xs font-black text-white uppercase tracking-wider">Adicionar à Playlist</span>
+                </div>
+                <button onclick="closePlaylistSheet()" class="p-1 px-2 text-slate-500 hover:text-white transition cursor-pointer text-[10px] font-bold">
+                    Fechar
+                </button>
+            </div>
+            
+            <div class="p-4 space-y-4 flex flex-col overflow-y-auto custom-scroll">
+                <!-- Create new playlist component -->
+                <div class="space-y-2">
+                    <label class="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Nova Playlist</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="mobile-new-playlist-input" placeholder="Nome da Playlist..." class="bg-slate-950 border border-slate-900 text-xs px-3 py-2 rounded-xl text-white flex-1 focus:outline-none focus:border-sky-500">
+                        <button onclick="createPlaylistFromMobilePlayer()" class="bg-sky-500 text-white px-4 py-2 rounded-xl text-xs font-black hover:bg-sky-600 transition cursor-pointer">
+                            Criar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Playlists lists -->
+                <div class="space-y-2 flex-grow">
+                    <label class="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Suas Playlists</label>
+                    <div id="mobile-playlists-picker-container" class="space-y-1.5 max-h-60 overflow-y-auto custom-scroll">
+                        <p class="text-[10px] text-slate-650 italic">Buscando playlists...</p>
                     </div>
                 </div>
             </div>
@@ -739,96 +1255,116 @@ if (!file_exists('config.php')) {
     </div>
 
     <!-- FULL SCREEN EXPANDED GLASSMORPHIC PLAYER OVERLAY -->
-    <div id="expanded-player" class="fixed inset-0 z-50 overflow-hidden hidden flex-col justify-between p-6" style="background-color: var(--theme-bg, #070b13);">
+    <div id="expanded-player" class="fixed inset-0 z-50 overflow-y-auto hidden flex-col p-6 custom-scroll" style="background-color: var(--theme-bg, #070b13); background-image: radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.08) 0%, rgba(0,0,0,0) 70%);">
         <!-- Top header of full-screen player -->
-        <div class="flex items-center justify-between border-b border-slate-900/65 pb-3">
-            <button onclick="collapseFullPlayer()" class="p-2 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl transition">
-                <i data-lucide="chevron-down" class="w-5 h-5"></i>
+        <div class="flex items-center justify-between border-b border-slate-900/65 pb-3 shrink-0">
+            <button onclick="collapseFullPlayer()" class="p-2.5 bg-slate-950/60 border border-slate-900 text-slate-400 hover:text-white rounded-2xl transition cursor-pointer">
+                <i data-lucide="chevron-down" class="w-4 h-4"></i>
             </button>
-            <div class="text-center select-none">
-                <p class="text-[9px] text-slate-500 uppercase tracking-widest font-bold">REPRODUTOR SUBSONIC</p>
-                <p id="full-player-playlist-name" class="text-[10px] text-sky-450 font-bold truncate max-w-[200px] mt-0.5">Sintonizado no Servidor</p>
+            <div class="text-center select-none flex-1 mx-4">
+                <p class="text-[8px] text-slate-500 uppercase tracking-widest font-black">REPRODUTOR SUBSONIC</p>
+                <p id="full-player-playlist-name" class="text-[10px] text-sky-400 font-bold truncate mt-0.5 max-w-[140px]">Sintonizado</p>
             </div>
-            <button id="full-player-fav-btn" onclick="toggleFavoriteActiveSong()" class="p-2.5 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl transition">
-                <i data-lucide="heart" class="w-4 h-4"></i>
-            </button>
+            <div class="flex items-center gap-1.5">
+                <!-- Add Active Song to favorites -->
+                <button id="full-player-fav-btn" onclick="toggleFavoriteActiveSong()" class="p-2.5 bg-slate-950/60 border border-slate-900 text-slate-400 hover:text-white rounded-2xl transition cursor-pointer" title="Favoritar música">
+                    <i data-lucide="heart" class="w-4 h-4"></i>
+                </button>
+                <!-- Add Active Song to playlist -->
+                <button onclick="openAddActiveSongToPlaylistSheet()" class="p-2.5 bg-slate-950/60 border border-slate-900 text-sky-400 hover:text-white rounded-2xl transition cursor-pointer" title="Adicionar à Playlist">
+                    <i data-lucide="list-plus" class="w-4 h-4"></i>
+                </button>
+            </div>
         </div>
 
         <!-- Big Rotating Vinyl Cover Area -->
-        <div class="flex-grow flex flex-col items-center justify-center py-6">
-            <div class="relative w-64 h-64 sm:w-72 sm:h-72 aspect-square rounded-full bg-slate-950 flex items-center justify-center shadow-2xl border-4 border-slate-900 overflow-hidden group">
+        <div class="flex-grow flex flex-col items-center justify-center py-6 shrink-0">
+            <div class="relative w-56 h-56 sm:w-64 sm:h-64 aspect-square rounded-full bg-slate-950 flex items-center justify-center shadow-2xl border-4 border-slate-900/80 overflow-hidden group">
                 <!-- Vinyl center grooves pattern -->
                 <div class="absolute inset-1 rounded-full border border-slate-800 opacity-20"></div>
                 <div class="absolute inset-4 rounded-full border border-slate-800 opacity-30"></div>
-                <div class="absolute inset-8 rounded-full border border-slate-800 opacity-40"></div>
-                <div class="absolute inset-12 rounded-full border border-slate-800 opacity-50"></div>
-                <div class="absolute inset-16 rounded-full border border-slate-800 opacity-60"></div>
+                <div class="absolute inset-8 rounded-full border border-slate-800 opacity-45"></div>
+                <div class="absolute inset-12 rounded-full border border-slate-800 opacity-55"></div>
+                <div class="absolute inset-16 rounded-full border border-slate-800 opacity-65"></div>
                 
                 <!-- Album cover art block -->
-                <div class="w-[50%] h-[50%] rounded-full overflow-hidden z-10 border-2 border-slate-950 shadow-lg">
+                <div class="w-[52%] h-[52%] rounded-full overflow-hidden z-10 border-2 border-slate-950 shadow-lg">
                     <img id="full-cover-art" src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400" class="w-full h-full object-cover animate-vinyl paused-vinyl" referrerpolicy="no-referrer">
                 </div>
 
                 <!-- Vinyl center pinhole -->
-                <div class="absolute w-4 h-4 bg-slate-900 border-2 border-[#070b13] rounded-full z-20"></div>
+                <div class="absolute w-3 h-3 bg-slate-900 border border-[#070b13] rounded-full z-20"></div>
             </div>
 
             <!-- Track Meta Info Block -->
-            <div class="text-center mt-6 w-full max-w-xs space-y-1 select-none">
-                <h3 id="full-title" class="text-base font-extrabold text-white truncate">Título da Música</h3>
-                <p id="full-artist" class="text-xs text-sky-400 font-semibold truncate">Artista Desconhecido</p>
-                <div class="flex items-center justify-center gap-1 pt-1.5">
-                    <span id="full-genre-pill" class="text-[8px] font-bold bg-[#0c1424]/85 border border-slate-800 text-slate-400 rounded-full px-2.5 py-0.5 uppercase tracking-wide">Pop</span>
+            <div class="text-center mt-5 w-full max-w-xs space-y-1 select-none">
+                <h3 id="full-title" class="text-sm font-black text-white truncate">Título da Música</h3>
+                <p id="full-artist" class="text-[11px] text-sky-400 font-bold truncate">Artista Desconhecido</p>
+                <div class="flex items-center justify-center gap-1 pt-1">
+                    <span id="full-genre-pill" class="text-[7.5px] font-black bg-[#0c1424]/90 border border-slate-900 text-slate-400 rounded-full px-2 py-0.5 uppercase tracking-widest">Audio</span>
                 </div>
             </div>
         </div>
 
         <!-- Progression and Controls Bottom Block -->
-        <div class="space-y-6 pb-4">
+        <div class="space-y-4 shrink-0">
             <!-- Timeline seeking controls -->
-            <div class="space-y-1 px-2">
-                <input type="range" id="seek-slider" min="0" value="0" step="1" oninput="handleSeekChange(event)">
-                <div class="flex items-center justify-between text-[10px] text-slate-500 font-mono">
+            <div class="space-y-1 px-1">
+                <input type="range" id="seek-slider" min="0" value="0" step="1" oninput="handleSeekChange(event)" class="w-full h-1 bg-slate-900 rounded-lg appearance-none cursor-pointer accent-sky-500">
+                <div class="flex items-center justify-between text-[9px] text-slate-500 font-mono">
                     <span id="time-current">0:00</span>
                     <span id="time-total">3:00</span>
                 </div>
             </div>
 
             <!-- Micro control panel (Shuffle, Skip, Play, Next, Repeat) -->
-            <div class="flex items-center justify-between px-4">
+            <div class="flex items-center justify-between px-2">
                 <!-- Shuffle -->
-                <button id="full-shuffle-btn" onclick="toggleShuffle()" class="p-2 bg-slate-950/40 border border-transparent rounded-xl text-slate-500 hover:text-white transition">
+                <button id="full-shuffle-btn" onclick="toggleShuffle()" class="p-2.5 bg-slate-950/40 border border-transparent rounded-2xl text-slate-500 hover:text-white transition cursor-pointer">
                     <i data-lucide="shuffle" class="w-4 h-4"></i>
                 </button>
 
                 <!-- Previous -->
-                <button onclick="playPrevious()" class="p-3 bg-slate-900 border border-slate-800 text-slate-200 hover:text-white rounded-2xl shadow transition">
-                    <i data-lucide="skip-back" class="w-5 h-5 fill-current"></i>
+                <button onclick="playPrevious()" class="p-3 bg-slate-950 border border-slate-900 text-slate-200 hover:text-white rounded-2xl shadow transition cursor-pointer">
+                    <i data-lucide="skip-back" class="w-4 h-4 fill-current"></i>
                 </button>
 
                 <!-- Playing toggle circle -->
-                <button onclick="togglePlayPause()" id="full-play-btn" class="p-5 bg-sky-500 text-white rounded-full shadow-xl shadow-sky-500/15 transform scale-110 active:scale-95 transition">
-                    <i data-lucide="play" class="w-6 h-6 fill-current text-white"></i>
+                <button onclick="togglePlayPause()" id="full-play-btn" class="p-4 bg-sky-500 text-white rounded-full shadow-lg shadow-sky-500/15 transform scale-110 active:scale-95 transition cursor-pointer">
+                    <i data-lucide="play" class="w-5 h-5 fill-current text-white" id="full-play-icon"></i>
                 </button>
 
                 <!-- Next -->
-                <button onclick="playNext()" class="p-3 bg-slate-900 border border-slate-800 text-slate-200 hover:text-white rounded-2xl shadow transition">
-                    <i data-lucide="skip-forward" class="w-5 h-5 fill-current"></i>
+                <button onclick="playNext()" class="p-3 bg-slate-950 border border-slate-900 text-slate-200 hover:text-white rounded-2xl shadow transition cursor-pointer">
+                    <i data-lucide="skip-forward" class="w-4 h-4 fill-current"></i>
                 </button>
 
                 <!-- Loop -->
-                <button id="full-loop-btn" onclick="toggleLoop()" class="p-2 bg-slate-950/40 border border-transparent rounded-xl text-slate-500 hover:text-white transition">
+                <button id="full-loop-btn" onclick="toggleLoop()" class="p-2.5 bg-slate-950/40 border border-transparent rounded-2xl text-slate-500 hover:text-white transition cursor-pointer">
                     <i data-lucide="repeat" class="w-4 h-4"></i>
                 </button>
             </div>
 
             <!-- Volume Slider Line Row -->
-            <div class="flex items-center gap-3 px-4 bg-slate-950/40 border border-slate-900/60 rounded-2xl p-2.5">
-                <span class="text-slate-550"><i data-lucide="volume-1" class="w-3.5 h-3.5 text-slate-400"></i></span>
-                <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.8" oninput="handleVolumeChange(event)" class="flex-grow">
-                <span class="text-slate-550"><i data-lucide="volume-2" class="w-3.5 h-3.5 text-slate-400"></i></span>
+            <div class="flex items-center gap-3 px-3 bg-slate-950/50 border border-slate-900 rounded-2xl py-2 shrink-0">
+                <span><i data-lucide="volume-1" class="w-3.5 h-3.5 text-slate-500"></i></span>
+                <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.8" oninput="handleVolumeChange(event)" class="flex-grow h-1 bg-slate-900 rounded-lg appearance-none cursor-pointer accent-sky-500">
+                <span><i data-lucide="volume-2" class="w-3.5 h-3.5 text-slate-500"></i></span>
+            </div>
+
+            <!-- INTERACTIVE PLAYBACK QUEUE PANEL BELOW CONTROLS -->
+            <div class="pt-3 border-t border-slate-900/60 font-sans select-none pb-4">
+                <div class="flex items-center justify-between mb-2 text-[10px] font-bold text-slate-400">
+                    <span class="flex items-center gap-1 uppercase tracking-wider"><i data-lucide="list-music" class="w-3.5 h-3.5 text-sky-400"></i> Fila de reprodução</span>
+                    <span id="player-queue-count" class="text-[8px] bg-slate-950 text-sky-400 px-2 py-0.5 rounded-full font-mono">0 músicas</span>
+                </div>
+                <div id="player-queue-list-container" class="space-y-1.5 max-h-40 overflow-y-auto custom-scroll pr-1">
+                    <!-- Populated dynamically via renderPlayerQueueList() -->
+                    <div class="text-center py-4 text-[10px] text-slate-650">A fila de reprodução está vazia.</div>
+                </div>
             </div>
         </div>
+    </div>
     </div>
 
     <!-- VIDEO PLAYER MODAL FOR MOBILE -->
@@ -862,13 +1398,26 @@ if (!file_exists('config.php')) {
         // Core Web Player State variables
         const API = 'api.php';
 
-        // Interceptador global do fetch no index.php para propagar o cabeçalho X-Username
+        window.getAbsoluteUrl = function(urlString) {
+            if (!urlString) return urlString;
+            if (urlString.startsWith('http://') || urlString.startsWith('https://') || urlString.startsWith('data:') || urlString.startsWith('blob:')) {
+                return urlString;
+            }
+            const serverUrl = localStorage.getItem('mobile_server_url');
+            if (!serverUrl) return urlString;
+            const cleanServer = serverUrl.replace(/\/+$/, '');
+            const delimiter = urlString.startsWith('/') ? '' : '/';
+            return cleanServer + delimiter + urlString;
+        };
+
+        // Interceptador global do fetch no index.php para propagar o cabeçalho X-Username e resolver a URL absoluta do servidor
         const origFetch = window.fetch;
         try {
             Object.defineProperty(window, 'fetch', {
                 value: async function(...args) {
                     let [resource, config] = args;
                     if (typeof resource === 'string' && (resource.includes('api.php') || resource.startsWith('api.php'))) {
+                        resource = window.getAbsoluteUrl(resource);
                         config = config || {};
                         config.headers = config.headers || {};
                         if (currentUser && currentUser.username) {
@@ -886,6 +1435,7 @@ if (!file_exists('config.php')) {
         }
 
         let allTracks = [];
+        window.allTracksOriginal = [];
         let allFavorites = [];
         let albumsMap = {};
         let mobileAlbumsPage = 1;
@@ -1002,7 +1552,14 @@ if (!file_exists('config.php')) {
                         return;
                     }
                     if (data.username) {
-                        currentUser = { username: data.username, role: data.role, theme: data.theme || 'default' };
+                        currentUser = {
+                            username: data.username,
+                            role: data.role,
+                            theme: data.theme || 'default',
+                            sidebarBg: data.sidebarBg || '',
+                            footerBg: data.footerBg || '',
+                            topBg: data.topBg || ''
+                        };
                         localStorage.setItem('music_user_profile', JSON.stringify(currentUser));
                         bootstrapPlayer();
                     } else {
@@ -1028,6 +1585,9 @@ if (!file_exists('config.php')) {
             } else if (window.applyUserTheme) {
                 window.applyUserTheme(userTheme);
             }
+            if (window.applyUserLayoutBg) {
+                window.applyUserLayoutBg();
+            }
             
             const activeLang = localStorage.getItem('phplayer_lang') || 'pt';
             if (window.applyMobileLanguage) {
@@ -1048,13 +1608,111 @@ if (!file_exists('config.php')) {
             switchTab('inicio');
         }
 
+        window.applyOfflineFilter = function() {
+            const isOffline = localStorage.getItem('mobile_offline_mode') === 'true';
+            
+            // Get offline indicator elements
+            let offlineBanner = document.getElementById('mobile-offline-banner');
+            if (isOffline) {
+                if (!offlineBanner) {
+                    offlineBanner = document.createElement('div');
+                    offlineBanner.id = 'mobile-offline-banner';
+                    offlineBanner.className = 'bg-amber-500/20 text-amber-300 px-4 py-2 text-[10px] font-bold text-center border-b border-amber-500/30 tracking-wider font-mono flex items-center justify-center gap-1.5 animate-pulse shrink-0';
+                    offlineBanner.innerHTML = '⚡ MODO OFFLINE ATIVO — APENAS MÚSICAS DISPONÍVEIS OFFLINE';
+                    document.body.insertBefore(offlineBanner, document.body.firstChild);
+                }
+            } else {
+                if (offlineBanner) offlineBanner.remove();
+            }
+
+            if (isOffline) {
+                try {
+                    const meta = JSON.parse(localStorage.getItem('mobile_cached_tracks_meta') || '[]');
+                    const cachedSet = new Set(meta.map(item => String(item.trackId)));
+                    allTracks = window.allTracksOriginal.filter(track => cachedSet.has(String(track.id)));
+                } catch (e) {
+                    allTracks = [];
+                }
+            } else {
+                allTracks = [...window.allTracksOriginal];
+            }
+
+            // Group tracks into Albums Map
+            albumsMap = {};
+            allTracks.forEach(track => {
+                const albumTitle = track.album || 'Álbum Desconhecido';
+                if (!albumsMap[albumTitle]) {
+                    albumsMap[albumTitle] = {
+                        title: albumTitle,
+                        artist: track.artist || 'Artista Desconhecido',
+                        coverUrl: track.cover_url || track.coverUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300',
+                        tracks: []
+                    };
+                }
+                albumsMap[albumTitle].tracks.push(track);
+            });
+
+            // Update compilation albums to say "Vários Artistas"
+            Object.values(albumsMap).forEach(alb => {
+                const uniqueArtList = new Set(alb.tracks.map(t => t.artist).filter(Boolean));
+                if (uniqueArtList.size > 1) {
+                    alb.artist = "Vários Artistas";
+                }
+            });
+
+            // Update stats
+            const statTracks = document.getElementById('stat-tracks-count');
+            const statAlbums = document.getElementById('stat-albums-count');
+            const statArtists = document.getElementById('stat-artists-count');
+
+            if (statTracks) statTracks.textContent = allTracks.length;
+            if (statAlbums) statAlbums.textContent = Object.keys(albumsMap).length;
+
+            if (statArtists) {
+                const uniqueArtists = new Set();
+                allTracks.forEach(t => {
+                    if (t.artist) {
+                        uniqueArtists.add(t.artist);
+                    }
+                });
+                statArtists.textContent = uniqueArtists.size;
+            }
+
+            // Render lists across panes
+            renderInicioCatalog();
+            renderAlbumsCatalog();
+            renderFavoritesCatalog();
+            if (typeof renderArtistsCatalog === 'function') {
+                renderArtistsCatalog();
+            }
+            
+            lucide.createIcons();
+        };
+
         // Fetch tracks and favorites catalog
         // Fetch tracks and favorites catalog
         async function loadCatalogData() {
             try {
                 // Fetch tracks catalog
-                const tRes = await fetch('api.php?route=tracks');
-                const tData = await tRes.json();
+                let tData;
+                try {
+                    const tRes = await fetch('api.php?route=tracks');
+                    tData = await tRes.json();
+                } catch (netErr) {
+                    console.warn("API offline - tentando carregar do cache offline:", netErr);
+                    try {
+                        const meta = JSON.parse(localStorage.getItem('mobile_cached_tracks_meta') || '[]');
+                        // Filter the metadata items that have trackData
+                        const localTracks = meta.map(m => m.trackData).filter(Boolean);
+                        if (localTracks.length > 0) {
+                            tData = localTracks;
+                        } else {
+                            throw netErr;
+                        }
+                    } catch (e) {
+                        throw netErr;
+                    }
+                }
                 
                 if (tData && tData.error) {
                     allTracks = [];
@@ -1062,13 +1720,26 @@ if (!file_exists('config.php')) {
                     return;
                 }
                 
+                let rawTracks = [];
                 if (Array.isArray(tData)) {
-                    allTracks = tData;
+                    rawTracks = tData;
                 } else if (tData && Array.isArray(tData.tracks)) {
-                    allTracks = tData.tracks;
+                    rawTracks = tData.tracks;
                 } else {
-                    allTracks = [];
+                    rawTracks = [];
                 }
+                
+                // Normalizar capas relativas para urls absolutas
+                rawTracks.forEach(track => {
+                    if (track.cover_url) {
+                        track.cover_url = window.getAbsoluteUrl(track.cover_url);
+                    }
+                    if (track.coverUrl) {
+                        track.coverUrl = window.getAbsoluteUrl(track.coverUrl);
+                    }
+                });
+                
+                window.allTracksOriginal = [...rawTracks];
 
                 // Fetch favorites catalog with protective sub-try block
                 if (currentUser) {
@@ -1087,41 +1758,9 @@ if (!file_exists('config.php')) {
                     }
                 }
 
-                // Compile stats counts
-                document.getElementById('stat-tracks-count').textContent = allTracks.length;
-                
-                // Group tracks into Albums Map
-                albumsMap = {};
-                allTracks.forEach(track => {
-                    const albumTitle = track.album || 'Álbum Desconhecido';
-                    if (!albumsMap[albumTitle]) {
-                        albumsMap[albumTitle] = {
-                            title: albumTitle,
-                            artist: track.artist || 'Artista Desconhecido',
-                            coverUrl: track.cover_url || track.coverUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300',
-                            tracks: []
-                        };
-                    }
-                    albumsMap[albumTitle].tracks.push(track);
-                });
+                // Apply offline filter to populate and render the catalogs
+                window.applyOfflineFilter();
 
-                // Update compilation albums to say "Vários Artistas"
-                Object.values(albumsMap).forEach(alb => {
-                    const uniqueArtList = new Set(alb.tracks.map(t => t.artist).filter(Boolean));
-                    if (uniqueArtList.size > 1) {
-                        alb.artist = "Vários Artistas";
-                    }
-                });
-
-                const totalAlbums = Object.keys(albumsMap).length;
-                document.getElementById('stat-albums-count').textContent = totalAlbums;
-
-                // Render lists across panes
-                renderInicioCatalog();
-                renderAlbumsCatalog();
-                renderFavoritesCatalog();
-                
-                lucide.createIcons();
             } catch (err) {
                 console.error('Falha ao processar dados PHP:', err);
                 showCatalogLoadError('Erro de requisição / JSON inválido da API. Detalhes: ' + err.message);
@@ -1216,6 +1855,53 @@ if (!file_exists('config.php')) {
             });
 
             queueContainer.innerHTML = html;
+            renderPlayerQueueList();
+        }
+
+        function renderPlayerQueueList() {
+            const container = document.getElementById('player-queue-list-container');
+            const countLbl = document.getElementById('player-queue-count');
+            if (!container) return;
+            
+            if (!activeQueue || activeQueue.length === 0) {
+                container.innerHTML = '<div class="text-center py-4 text-[9px] text-slate-550">A fila de reprodução está vazia.</div>';
+                if (countLbl) countLbl.innerText = '0 músicas';
+                return;
+            }
+            
+            if (countLbl) countLbl.innerText = activeQueue.length + (activeQueue.length === 1 ? ' música' : ' músicas');
+            
+            let html = '';
+            activeQueue.forEach((track, index) => {
+                const isActive = activeQueueIdx === index;
+                const isFavorite = allFavorites.includes(String(track.id));
+                const activeCardStyle = isActive 
+                    ? 'bg-sky-500/15 border-sky-500/30 text-white shadow-sm' 
+                    : 'bg-slate-950/40 border-slate-900 text-slate-400 hover:text-white';
+                
+                html += `
+                    <div class="flex items-center justify-between p-2 rounded-2xl border ${activeCardStyle} transition text-xs">
+                        <div class="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer" onclick="playFromQueue(${index})">
+                            <img src="${track.cover_url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=80'}" class="w-8 h-8 rounded-lg object-cover shrink-0" referrerpolicy="no-referrer">
+                            <div class="min-w-0 flex-1 select-none">
+                                <span class="block truncate font-bold text-[11px] leading-tight ${isActive ? 'text-sky-400' : 'text-slate-200'}">${track.title}</span>
+                                <span class="block truncate text-[9px] text-slate-500 leading-none mt-1">${track.artist || 'Artista Desconhecido'}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                            ${isActive ? '<span class="text-[7.5px] bg-sky-500 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-widest mr-1.5 shadow-sm animate-pulse">TOCANDO</span>' : ''}
+                            <button onclick="toggleFavEvent(event, '${track.id}')" class="p-1 px-1.5 text-slate-500 hover:text-white transition cursor-pointer">
+                                <i data-lucide="heart" class="w-3.5 h-3.5 ${isFavorite ? 'text-rose-500 fill-current' : ''}"></i>
+                            </button>
+                            <button onclick="removeTrackFromQueue(event, ${index})" class="p-1.5 text-slate-550 hover:text-rose-500 transition cursor-pointer" title="Remover da Fila">
+                                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
         }
 
         window.playFromQueue = function(index) {
@@ -1471,7 +2157,7 @@ if (!file_exists('config.php')) {
             activeTab = tabId;
             
             // Toggle panes visibility
-            const panes = ['inicio', 'albuns', 'buscar', 'favoritos', 'artistas'];
+            const panes = ['inicio', 'albuns', 'buscar', 'favoritos', 'artistas', 'podcast', 'radios'];
             panes.forEach(p => {
                 const element = document.getElementById('pane-' + p);
                 if (element) {
@@ -1488,9 +2174,9 @@ if (!file_exists('config.php')) {
                 const navBtn = document.getElementById('navbtn-' + p);
                 if (navBtn) {
                     if (p === tabId) {
-                        navBtn.className = "flex flex-col items-center justify-center p-1.5 px-3 text-sky-450 cursor-pointer";
+                        navBtn.className = "flex flex-col items-center justify-center p-1.5 px-2.5 text-sky-450 cursor-pointer shrink-0";
                     } else {
-                        navBtn.className = "flex flex-col items-center justify-center p-1.5 px-3 text-slate-500 hover:text-white cursor-pointer";
+                        navBtn.className = "flex flex-col items-center justify-center p-1.5 px-2.5 text-slate-500 hover:text-white cursor-pointer shrink-0";
                     }
                 }
             });
@@ -1504,6 +2190,12 @@ if (!file_exists('config.php')) {
                 lucide.createIcons();
             } else if (tabId === 'artistas') {
                 renderArtistsCatalog();
+                lucide.createIcons();
+            } else if (tabId === 'podcast') {
+                loadPodcastsPhp();
+                lucide.createIcons();
+            } else if (tabId === 'radios') {
+                loadRadiosPhp();
                 lucide.createIcons();
             }
         }
@@ -1589,7 +2281,9 @@ if (!file_exists('config.php')) {
                                 <p class="text-[9px] text-slate-500 truncate mt-0.5">${track.artist || 'Artista Desconhecido'}</p>
                             </div>
                         </div>
-                        <span class="text-[9px] text-slate-600 font-mono pl-2 shrink-0">${formatSecs(track.duration || 180)}</span>
+                        <div class="flex items-center gap-2 pl-2">
+                            <span class="text-[9px] text-slate-600 font-mono shrink-0">${formatSecs(track.duration || 180)}</span>
+                        </div>
                     </div>
                 `;
             });
@@ -1676,17 +2370,24 @@ if (!file_exists('config.php')) {
 
             const track = activeQueue[activeQueueIdx];
             
-            // Build streaming URL from api with Cache Support
-            const rawUrl = API + '?route=stream&id=' + track.id;
-            try {
-                if (window.getAudioSourceCachedAndFetch) {
-                    audio.src = await window.getAudioSourceCachedAndFetch(track.id, rawUrl);
-                } else {
+            const isRadio = track.artist === 'Rádio On-line' || track.album === 'Sintonizada' || String(track.file_name || track.fileName || "").includes('://');
+
+            if (isRadio) {
+                const streamUrl = track.fileName || track.file_name || track.url;
+                audio.src = window.getAbsoluteUrl(API + '?route=proxy_radio&url=' + encodeURIComponent(streamUrl));
+            } else {
+                // Build streaming URL from api with Cache Support
+                const rawUrl = window.getAbsoluteUrl(API + '?route=stream&id=' + track.id);
+                try {
+                    if (window.getAudioSourceCachedAndFetch) {
+                        audio.src = await window.getAudioSourceCachedAndFetch(track.id, rawUrl, track);
+                    } else {
+                        audio.src = rawUrl;
+                    }
+                } catch (cacErr) {
+                    console.error('Erro de Cache, tocando do link direto:', cacErr);
                     audio.src = rawUrl;
                 }
-            } catch (cacErr) {
-                console.error('Erro de Cache, tocando do link direto:', cacErr);
-                audio.src = rawUrl;
             }
             
             // Show bottom mini player bar
@@ -1729,6 +2430,9 @@ if (!file_exists('config.php')) {
                 renderFavoritesCatalog();
             }
             lucide.createIcons();
+
+            // Fire queue prefetching (Fila Cache) automatically in background
+            triggerMobileQueuePrefetch().catch(err => console.warn('[Prefetch Trigger Failed]', err));
         }
 
         // Toggle music session play/pause state
@@ -1832,12 +2536,13 @@ if (!file_exists('config.php')) {
         function updateFavPillIconStatus(idStr) {
             const isFav = allFavorites.includes(String(idStr));
             const favBtn = document.getElementById('full-player-fav-btn');
+            if (!favBtn) return;
 
             if (isFav) {
-                favBtn.className = "p-2.5 bg-slate-900 border border-slate-800 text-rose-500 rounded-xl transition";
+                favBtn.className = "p-2.5 bg-slate-950/60 border border-slate-900 text-rose-500 rounded-2xl transition cursor-pointer";
                 favBtn.innerHTML = '<i data-lucide="heart" class="w-4 h-4 fill-current"></i>';
             } else {
-                favBtn.className = "p-2.5 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl transition";
+                favBtn.className = "p-2.5 bg-slate-950/60 border border-slate-900 text-slate-400 hover:text-white rounded-2xl transition cursor-pointer";
                 favBtn.innerHTML = '<i data-lucide="heart" class="w-4 h-4"></i>';
             }
             lucide.createIcons();
@@ -1861,6 +2566,28 @@ if (!file_exists('config.php')) {
 
             // Update timestamps labels text
             document.getElementById('time-current').textContent = formatSecs(current);
+
+            // Auto-scroll lyrics smoothly in PHP mode if lyrics container text exceeds its height
+            const lyricsModal = document.getElementById('lyrics-modal');
+            const lyricsContent = document.getElementById('lyrics-content');
+            if (lyricsModal && !lyricsModal.classList.contains('hidden') && lyricsContent && !audio.paused) {
+                const lastScroll = window.phpLyricsLastScroll || 0;
+                if (Date.now() - lastScroll > 5000) {
+                    const scrollHeight = lyricsContent.scrollHeight;
+                    const clientHeight = lyricsContent.clientHeight;
+                    if (scrollHeight > clientHeight) {
+                        const progress = current / total;
+                        const targetScroll = Math.max(0, (scrollHeight - clientHeight) * progress);
+                        if (Math.abs(lyricsContent.scrollTop - targetScroll) >= 1.5) {
+                            window.phpLyricsIsProgrammaticScroll = true;
+                            lyricsContent.scrollTo({
+                                top: targetScroll,
+                                behavior: 'smooth'
+                            });
+                        }
+                    }
+                }
+            }
         }
 
         function updateAudioDuration() {
@@ -1946,13 +2673,18 @@ if (!file_exists('config.php')) {
         }
 
         // Clear persistence details & logout
-        function handleLogout() {
-            if (!confirm('Deseja mesmo desconectar-se do player?')) return;
+        window.nativeLogoutUser = function() {
             localStorage.removeItem('music_user_profile');
             currentUser = null;
-            document.getElementById('mini-player').classList.add('hidden');
+            const mPlayer = document.getElementById('mini-player');
+            if (mPlayer) mPlayer.classList.add('hidden');
             audio.pause();
             showLogin();
+        };
+
+        function handleLogout() {
+            if (!confirm('Deseja mesmo desconectar-se do player?')) return;
+            window.nativeLogoutUser();
         }
 
         // Formatter utilities helper
@@ -2124,9 +2856,9 @@ if (!file_exists('config.php')) {
 
             const player = document.getElementById('modal-video-player');
             if (player) {
-                player.src = 'api.php?route=stream_video&id=' + encodeURIComponent(vid.id);
+                player.src = window.getAbsoluteUrl('api.php?route=stream_video&id=' + encodeURIComponent(vid.id));
                 if (vid.coverUrl) {
-                    player.poster = vid.coverUrl;
+                    player.poster = window.getAbsoluteUrl(vid.coverUrl);
                 } else {
                     player.removeAttribute('poster');
                 }
@@ -2156,6 +2888,464 @@ if (!file_exists('config.php')) {
             if (window.lucide) {
                 window.lucide.createIcons();
             }
+        };
+
+        const PODCAST_PRESETS_POOL = [
+            { name: 'NerdCast', url: 'https://jnfilter.gabrielgio.me/' },
+            { name: 'Inteligência Ltda', url: 'https://anchor.fm/s/6cf4d5a0/podcast/rss' },
+            { name: 'Flow', url: 'https://anchor.fm/s/a5637400/podcast/rss' }
+        ];
+
+        const RADIO_PRESETS_POOL = [
+            { name: 'Kiss FM', url: 'https://www.radios.com.br/play/playlist/26885/listen-radio.m3u' },
+            { name: 'Elite Rock', url: 'https://www.radios.com.br/play/playlist/93525/listen-radio.m3u' },
+            { name: 'Jovem Pan News', url: 'https://www.radios.com.br/play/playlist/8800/listen-radio.m3u' },
+            { name: 'Antena 1', url: 'https://www.radios.com.br/play/playlist/11927/listen-radio.m3u' }
+        ];
+
+        function renderPodcastSuggestionsMobile() {
+            const container = document.getElementById('mobile-podcast-suggestions');
+            if (!container) return;
+            const selected = PODCAST_PRESETS_POOL;
+            let html = '';
+            selected.forEach(item => {
+                html += '<button onclick="setPodcastFeedPreset(\'' + item.url + '\')" class="bg-slate-900 border border-slate-800/40 hover:bg-slate-800 text-slate-300 px-2 py-1 rounded-lg transition text-[9px] cursor-pointer inline-flex items-center gap-0.5"><i data-lucide="plus" class="w-2.5 h-2.5 text-orange-400"></i> ' + item.name + '</button>';
+            });
+            container.innerHTML = html;
+            if (window.lucide) window.lucide.createIcons();
+        }
+
+        function renderRadioSuggestionsMobile() {
+            const container = document.getElementById('mobile-radio-suggestions');
+            if (!container) return;
+            const selected = RADIO_PRESETS_POOL;
+            let html = '';
+            selected.forEach(item => {
+                html += '<button onclick="setRadioPreset(\'' + item.name + '\', \'' + item.url + '\')" class="bg-slate-900 border border-slate-800/40 hover:bg-slate-800 text-slate-300 px-2 py-1 rounded-lg transition text-[9px] cursor-pointer inline-flex items-center gap-0.5"><i data-lucide="plus" class="w-2.5 h-2.5 text-emerald-400"></i> ' + item.name + '</button>';
+            });
+            container.innerHTML = html;
+            if (window.lucide) window.lucide.createIcons();
+        }
+
+        let allPodcasts = [];
+
+        async function loadPodcastsPhp() {
+            renderPodcastSuggestionsMobile();
+            const loadingEl = document.getElementById('podcasts-loading');
+            const emptyEl = document.getElementById('podcasts-empty');
+            const gridEl = document.getElementById('podcasts-grid');
+            const detailsEl = document.getElementById('podcast-details');
+
+            loadingEl.classList.remove('hidden');
+            emptyEl.classList.add('hidden');
+            gridEl.innerHTML = '';
+            detailsEl.classList.add('hidden');
+
+            try {
+                const res = await fetch(API + '?route=podcasts');
+                allPodcasts = await res.json();
+                loadingEl.classList.add('hidden');
+
+                if (allPodcasts.length === 0) {
+                    emptyEl.classList.remove('hidden');
+                    return;
+                }
+
+                allPodcasts.forEach(pod => {
+                    const card = document.createElement('div');
+                    card.className = "group bg-slate-950/40 border border-slate-900 hover:border-slate-800 rounded-2xl p-4 transition duration-300 transform hover:-translate-y-1 cursor-pointer";
+                    card.onclick = () => showPodcastDetailsPhp(pod.name);
+
+                    const imgUrl = pod.coverUrl || 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=150';
+                    card.innerHTML = `
+                        <div class="aspect-square relative w-full rounded-xl overflow-hidden bg-slate-900 mb-3 shadow">
+                            <img src="${imgUrl}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerpolicy="no-referrer">
+                            <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                                <div class="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white shadow-md transform scale-90 group-hover:scale-100 transition">
+                                    <i data-lucide="play" class="w-4 h-4 fill-white text-white ml-0.5"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <h4 class="text-xs font-bold text-white truncate leading-tight">${pod.name}</h4>
+                        <p class="text-[10px] text-slate-500 mt-1 truncate">${pod.episodes.length} episódios no disco</p>
+                    `;
+                    gridEl.appendChild(card);
+                });
+                lucide.createIcons();
+            } catch (err) {
+                console.error(err);
+                loadingEl.classList.add('hidden');
+                gridEl.innerHTML = '<div class="col-span-1 text-center text-xs text-red-500 py-12">Falha ao ler os podcasts sincronizados.</div>';
+            }
+        }
+        window.loadPodcastsPhp = loadPodcastsPhp;
+
+        function showPodcastDetailsPhp(podName) {
+            const pod = allPodcasts.find(p => p.name === podName);
+            if (!pod) return;
+
+            const detailsEl = document.getElementById('podcast-details');
+            document.getElementById('pod-detail-name').textContent = pod.name;
+            document.getElementById('pod-detail-img').src = pod.coverUrl || 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=150';
+
+            // Configurar limite e botão de atualização
+            const limitSelect = document.getElementById('pod-detail-limit');
+            if (limitSelect) {
+                limitSelect.value = String(pod.limit || 5);
+            }
+            const updateBtn = document.getElementById('pod-detail-update-btn');
+            if (updateBtn) {
+                updateBtn.onclick = async () => {
+                    const currentLimit = limitSelect ? parseInt(limitSelect.value) : 5;
+                    await window.runPodcastSync(pod.feedUrl, currentLimit, updateBtn);
+                };
+            }
+
+            const listEl = document.getElementById('pod-episodes-list');
+            listEl.innerHTML = '';
+
+            pod.episodes.forEach((ep, idx) => {
+                const epEl = document.createElement('div');
+                epEl.className = "group flex items-center justify-between p-3.5 bg-[#0a0f18]/45 hover:bg-orange-500/5 border border-slate-900/60 hover:border-orange-500/10 rounded-xl transition cursor-pointer";
+                
+                const mb = (ep.fileSize / (1024 * 1024)).toFixed(1);
+                
+                const minutes = Math.floor(ep.duration / 60);
+                const secs = ep.duration % 60;
+                const durStr = minutes + ":" + (secs < 10 ? "0" : "") + secs;
+
+                epEl.innerHTML = `
+                    <div class="flex items-center gap-3.5 min-w-0" onclick="playPodcastEpisodePhp('${pod.name}', '${ep.id}')">
+                        <div class="w-8 h-8 rounded-lg bg-slate-950 flex items-center justify-center text-slate-500 shrink-0 group-hover:bg-orange-500 group-hover:text-white transition">
+                            <span class="text-xs group-hover:hidden font-mono font-bold">${idx + 1}</span>
+                            <i data-lucide="play" class="w-3.5 h-3.5 fill-current hidden group-hover:block ml-0.5"></i>
+                        </div>
+                        <div class="truncate">
+                            <h5 class="text-xs font-bold text-white group-hover:text-orange-400 transition truncate">${ep.title}</h5>
+                            <p class="text-[10px] text-slate-500 mt-1 flex items-center gap-2">
+                                <span class="bg-slate-900 text-slate-500 px-1.5 py-0.2 rounded uppercase font-bold text-[8px]">${mb} MB</span>
+                                <span>•</span>
+                                <span>Pasta: <span class="font-mono text-slate-600">${ep.fileName}</span></span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4 text-[11px] text-slate-500 pr-2">
+                        <span class="font-mono">${durStr}</span>
+                    </div>
+                `;
+                listEl.appendChild(epEl);
+            });
+
+            const playAllBtn = document.getElementById('pod-play-all-btn');
+            playAllBtn.onclick = () => {
+                const tracksToPlay = pod.episodes.map(convertPodcastEpisodeToPlayerTrack);
+                playQueuePhp(tracksToPlay, 0);
+            };
+
+            detailsEl.classList.remove('hidden');
+            detailsEl.scrollIntoView({ behavior: 'smooth' });
+            lucide.createIcons();
+        }
+        window.showPodcastDetailsPhp = showPodcastDetailsPhp;
+
+        function convertPodcastEpisodeToPlayerTrack(ep) {
+            return {
+                id: ep.id,
+                title: ep.title,
+                artist: ep.artist,
+                album: ep.album,
+                duration: ep.duration,
+                cover_url: ep.coverUrl,
+                file_name: ep.fileName,
+                file_size: ep.fileSize
+            };
+        }
+
+        window.playPodcastEpisodePhp = function(podName, epId) {
+            const pod = allPodcasts.find(p => p.name === podName);
+            if (!pod) return;
+            const targetIdx = pod.episodes.findIndex(e => e.id === epId);
+            const tracksToPlay = pod.episodes.map(convertPodcastEpisodeToPlayerTrack);
+            playQueuePhp(tracksToPlay, targetIdx !== -1 ? targetIdx : 0);
+        };
+
+        function playQueuePhp(queue, startIndex) {
+            if (!queue || queue.length === 0) return;
+            activeQueue = queue;
+            activeQueueIdx = startIndex;
+            loadAndPlayTrack();
+        }
+
+        window.setPodcastFeedPreset = function(url) {
+            const inputs = document.querySelectorAll('#podcast-feed-input');
+            inputs.forEach(input => {
+                input.value = url;
+            });
+            window.runPodcastSync();
+        };
+
+        window.runPodcastSync = async function(feedUrlOverride = null, maxEpisodesOverride = null, customBtn = null) {
+            if (currentUser.role !== 'admin') {
+                alert("Apenas administradores podem gerenciar sincronização de Podcast.");
+                return;
+            }
+
+            const input = document.getElementById('podcast-feed-input');
+            const limitSelect = document.getElementById('podcast-max-episodes');
+            const btn = customBtn || document.getElementById('btn-sync-podcast');
+            if (!btn) return;
+
+            const feedUrl = feedUrlOverride || (input ? input.value.trim() : '');
+            if (!feedUrl) return;
+
+            const maxEpisodesVal = maxEpisodesOverride !== null ? maxEpisodesOverride : (limitSelect ? parseInt(limitSelect.value) : 5);
+
+            const statusEl = document.getElementById('podcast-status-msg');
+            if (statusEl) {
+                statusEl.classList.remove('hidden');
+                statusEl.className = "mt-4 p-4 rounded-xl text-xs flex items-center gap-2.5 bg-slate-900 border border-slate-800 text-slate-300";
+                statusEl.innerHTML = '<span class="flex items-center gap-2"><i data-lucide="loader" class="w-4 h-4 animate-spin text-orange-500"></i> Sincronizando e baixando os episódios no PHP... Aguarde.</span>';
+            }
+            if (window.lucide) lucide.createIcons();
+
+            btn.disabled = true;
+            if (input) input.disabled = true;
+
+            try {
+                const res = await fetch(API + '?route=podcasts_sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Username': currentUser.username
+                    },
+                    body: JSON.stringify({ feedUrl, maxEpisodes: maxEpisodesVal })
+                });
+
+                const data = await res.json();
+                btn.disabled = false;
+                if (input) input.disabled = false;
+
+                if (res.ok && data.success) {
+                    if (statusEl) {
+                        statusEl.className = "mt-4 p-4 rounded-xl text-xs flex items-center gap-2.5 bg-emerald-950/20 border border-emerald-900/30 text-emerald-400";
+                        statusEl.innerHTML = '<i data-lucide="check" class="w-4 h-4 shrink-0"></i> Sincronizado com sucesso! Podcast "' + data.podcastName + '" atualizado.';
+                    }
+                    if (input && !feedUrlOverride) input.value = '';
+                    
+                    await loadPodcastsPhp();
+
+                    if (data.podcastName && window.showPodcastDetailsPhp) {
+                        window.showPodcastDetailsPhp(data.podcastName);
+                    }
+                } else {
+                    if (statusEl) {
+                        statusEl.className = "mt-4 p-4 rounded-xl text-xs flex items-center gap-2.5 bg-red-950/20 border border-red-900/30 text-red-100";
+                        statusEl.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> Falha: ' + (data.error || 'Erro na sincronização.');
+                    }
+                }
+            } catch (err) {
+                btn.disabled = false;
+                if (input) input.disabled = false;
+                if (statusEl) {
+                    statusEl.className = "mt-4 p-4 rounded-xl text-xs flex items-center gap-2.5 bg-red-950/20 border border-red-900/30 text-red-100";
+                    statusEl.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> Erro de rede ao sincronizar.';
+                }
+            }
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+        };
+
+        let allRadios = [];
+
+        async function loadRadiosPhp() {
+            renderRadioSuggestionsMobile();
+            const loadingEl = document.getElementById('radios-loading');
+            const emptyEl = document.getElementById('radios-empty');
+            const gridEl = document.getElementById('radios-grid');
+
+            if (loadingEl) loadingEl.classList.remove('hidden');
+            if (emptyEl) emptyEl.classList.add('hidden');
+            if (gridEl) gridEl.innerHTML = '';
+
+            try {
+                const res = await fetch(API + '?route=radios');
+                allRadios = await res.json();
+                if (loadingEl) loadingEl.classList.add('hidden');
+
+                if (!allRadios || allRadios.length === 0) {
+                    if (emptyEl) emptyEl.classList.remove('hidden');
+                    return;
+                }
+
+                const currentTrack = (activeQueueIdx >= 0 && activeQueueIdx < activeQueue.length) ? activeQueue[activeQueueIdx] : null;
+
+                allRadios.forEach(radio => {
+                    const card = document.createElement('div');
+                    const cleanLink = radio.url.toLowerCase();
+                    let formatLabel = "STREAM";
+                    if (cleanLink.includes('.m3u')) formatLabel = "M3U";
+                    else if (cleanLink.includes('.pls')) formatLabel = "PLS";
+                    else if (cleanLink.includes('.asx')) formatLabel = "ASX";
+
+                    const isCurrentRadio = currentTrack && currentTrack.id === radio.id && (currentTrack.artist === 'Rádio On-line' || currentTrack.album === 'Sintonizada') && !audio.paused;
+
+                    card.id = "radio-card-" + radio.id;
+                    card.className = "group relative bg-slate-950/45 hover:bg-slate-900/50 border rounded-2xl p-4 transition-all duration-300 transform hover:-translate-y-0.5 cursor-pointer flex flex-col justify-between h-36 " +
+                        (isCurrentRadio ? "border-emerald-500 shadow-lg shadow-emerald-500/5" : "border-slate-900/90 hover:border-slate-800");
+
+                    card.onclick = () => playRadioPhp(radio.id, radio.name, radio.resolved_url || radio.url);
+
+                    const deleteBtnHtml = (currentUser && currentUser.role === 'admin') ? `<button onclick="handleDeleteRadioPhp('${radio.id}', event)" class="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition" title="Remover Rádio"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>` : '';
+
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start w-full">
+                            <span class="text-[8px] font-black uppercase px-2 py-0.5 rounded-full select-none ${isCurrentRadio ? 'bg-emerald-500/20 text-emerald-400 animate-pulse' : 'bg-slate-900 text-slate-500'}">
+                                ${isCurrentRadio ? 'SINTONIZADA' : formatLabel}
+                            </span>
+                            ${deleteBtnHtml}
+                        </div>
+                        <div class="my-2 min-w-0 pr-6">
+                            <h4 class="text-xs font-extrabold text-white truncate leading-tight group-hover:text-emerald-400 transition-colors">${radio.name}</h4>
+                            <p class="text-[9px] text-slate-600 truncate mt-1 select-all font-mono" title="${radio.url}">${radio.url}</p>
+                        </div>
+                        <div class="flex items-center justify-between mt-1 pt-1.5 border-t border-slate-900/50">
+                            <div class="flex items-center gap-1.5">
+                                <div class="w-1.5 h-1.5 rounded-full ${isCurrentRadio ? 'bg-emerald-400 animate-ping' : 'bg-slate-700'}"></div>
+                                <span class="text-[9px] font-mono text-slate-500 font-bold uppercase select-none">
+                                    ${isCurrentRadio ? 'CONECTADA' : 'PRONTA'}
+                                </span>
+                            </div>
+                            <div class="w-7.5 h-7.5 rounded-full flex items-center justify-center transition-all ${isCurrentRadio ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-slate-400 group-hover:bg-emerald-500 group-hover:text-white'}">
+                                ${isCurrentRadio 
+                                    ? '<div class="flex gap-0.5 items-end justify-center h-2.5"><span class="w-0.5 bg-white rounded-full animate-bounce" style="animation-delay: 0ms"></span><span class="w-0.5 bg-white rounded-full animate-bounce" style="animation-delay: 150ms; height: 6px"></span><span class="w-0.5 bg-white rounded-full animate-bounce" style="animation-delay: 300ms"></span></div>'
+                                    : '<i class="w-3" style="font-size: 8px; display: flex; align-items: center; justify-content: center;"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-play"><polygon points="6 3 20 12 6 21 6 3"/></svg></i>'
+                                }
+                            </div>
+                        </div>
+                    `;
+
+                    gridEl.appendChild(card);
+                });
+                lucide.createIcons();
+            } catch (err) {
+                console.error(err);
+                if (loadingEl) loadingEl.classList.add('hidden');
+                if (gridEl) gridEl.innerHTML = '<div class="col-span-1 text-center text-xs text-red-500 py-12">Falha ao ler rádios sintonizadas.</div>';
+            }
+        }
+
+        window.loadRadiosPhp = loadRadiosPhp;
+
+        window.handleAddRadioPhp = async function(e) {
+            if (e) e.preventDefault();
+            if (currentUser.role !== 'admin') {
+                alert("Apenas administradores podem gerenciar canais de rádio.");
+                return;
+            }
+
+            const nameInput = document.getElementById('radio-name-input');
+            const urlInput = document.getElementById('radio-url-input');
+            const btn = document.getElementById('btn-add-radio');
+            const statusEl = document.getElementById('radio-status-msg');
+
+            const name = nameInput.value.trim();
+            const url = urlInput.value.trim();
+
+            if (!name || !url) return;
+
+            if (statusEl) {
+                statusEl.classList.remove('hidden');
+                statusEl.className = "mt-4 p-4 rounded-xl text-xs flex items-center gap-2.5 bg-slate-900 border border-slate-800 text-slate-300";
+                statusEl.innerHTML = '<span class="flex items-center gap-2"><i data-lucide="loader" class="w-4 h-4 animate-spin text-emerald-500"></i> Resolvendo playlist e salvando rádio no PHP...</span>';
+                lucide.createIcons();
+            }
+
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(API + '?route=radios', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Username': currentUser.username
+                    },
+                    body: JSON.stringify({ name, url })
+                });
+
+                const data = await res.json();
+                btn.disabled = false;
+
+                if (res.ok && data.success) {
+                    nameInput.value = '';
+                    urlInput.value = '';
+                    if (statusEl) {
+                        statusEl.className = "mt-4 p-4 rounded-xl text-xs flex items-center gap-2.5 bg-emerald-950/20 border border-emerald-900/30 text-emerald-400";
+                        statusEl.innerHTML = '<i data-lucide="check" class="w-4 h-4 shrink-0"></i> Rádio "' + data.radio.name + '" adicionada com sucesso!';
+                    }
+                    loadRadiosPhp();
+                } else {
+                    if (statusEl) {
+                        statusEl.className = "mt-4 p-4 rounded-xl text-xs flex items-center gap-2.5 bg-red-950/20 border border-red-900/30 text-red-100";
+                        statusEl.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> Erro: ' + (data.error || 'Erro ao sincronizar rádio.');
+                    }
+                }
+            } catch (err) {
+                btn.disabled = false;
+                if (statusEl) {
+                    statusEl.className = "mt-4 p-4 rounded-xl text-xs flex items-center gap-2.5 bg-red-950/20 border border-red-900/30 text-red-100";
+                    statusEl.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> Erro de rede ao sincronizar.';
+                }
+            }
+            lucide.createIcons();
+        };
+
+        window.handleDeleteRadioPhp = async function(id, e) {
+            if (e) e.stopPropagation();
+            if (currentUser.role !== 'admin') return;
+
+            if (!confirm("Deseja realmente remover esta sintonização de rádio?")) return;
+
+            try {
+                const res = await fetch(API + '?route=radios_delete&id=' + encodeURIComponent(id), {
+                    method: 'DELETE',
+                    headers: {
+                        'X-Username': currentUser.username
+                    }
+                });
+
+                if (res.ok) {
+                    loadRadiosPhp();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Falha ao remover rádio.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de comunicação.');
+            }
+        };
+
+        window.playRadioPhp = function(id, name, url) {
+            const radioTrack = {
+                id: id,
+                title: name,
+                artist: 'Rádio On-line',
+                album: 'Sintonizada',
+                duration: 0,
+                cover_url: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=150',
+                file_name: url,
+                file_size: 0
+            };
+            
+            // Set queue & indices
+            activeQueue = [radioTrack];
+            activeQueueIdx = 0;
+            
+            loadAndPlayTrack();
+            
+            // Quick UI update to highlight the clicked card
+            loadRadiosPhp();
         };
 
         window.toggleVideoMaximize = function() {
@@ -2283,7 +3473,7 @@ if (!file_exists('config.php')) {
             }
         }
 
-        async function fetchAndSaveToCache(trackId, rawUrl) {
+        async function fetchAndSaveToCache(trackId, rawUrl, fullTrackObj = null) {
             try {
                 const cache = await caches.open('audio-tracks-cache');
                 let meta = getCacheMeta();
@@ -2302,7 +3492,8 @@ if (!file_exists('config.php')) {
                     url: rawUrl,
                     sizeInBytes: blob.size,
                     addedAt: Date.now(),
-                    lastUsedAt: Date.now()
+                    lastUsedAt: Date.now(),
+                    trackData: fullTrackObj
                 };
                 meta.push(newItem);
                 saveCacheMeta(meta);
@@ -2344,6 +3535,35 @@ if (!file_exists('config.php')) {
             saveCacheMeta(meta);
         }
 
+        async function triggerMobileQueuePrefetch() {
+            try {
+                const prefetchCount = parseInt(localStorage.getItem('mobile_queue_prefetch_count') || '0', 10);
+                if (prefetchCount <= 0 || activeQueue.length === 0) return;
+                
+                const startIndex = activeQueueIdx + 1;
+                const tracksToPrefetch = [];
+                
+                for (let i = 0; i < prefetchCount; i++) {
+                    const nextIndex = (startIndex + i) % activeQueue.length;
+                    if (nextIndex === activeQueueIdx) break;
+                    const track = activeQueue[nextIndex];
+                    if (track && track.id && track.artist !== 'Rádio On-line') {
+                        tracksToPrefetch.push(track);
+                    }
+                }
+                
+                for (let i = 0; i < tracksToPrefetch.length; i++) {
+                    const track = tracksToPrefetch[i];
+                    const rawUrl = window.getAbsoluteUrl(API + '?route=stream&id=' + track.id);
+                    if (window.fetchAndSaveToCache) {
+                        await window.fetchAndSaveToCache(String(track.id), rawUrl);
+                    }
+                }
+            } catch (prefErr) {
+                console.warn('[Auto Fila Prefetch] Erro ao pré-reproduzir:', prefErr);
+            }
+        }
+
         window.toggleMobileCacheState = function(enabled) {
             localStorage.setItem('mobile_cache_enabled', enabled ? 'true' : 'false');
             window.updateCacheSettingsUI();
@@ -2353,6 +3573,11 @@ if (!file_exists('config.php')) {
             localStorage.setItem('mobile_max_cache_size', limit);
             window.updateCacheSettingsUI();
             pruneCacheIfNeeded().catch(err => console.error(err));
+        };
+
+        window.changeMobileQueuePrefetch = function(count) {
+            localStorage.setItem('mobile_queue_prefetch_count', count);
+            window.updateCacheSettingsUI();
         };
 
         window.clearMobileCacheStorage = async function() {
@@ -2374,12 +3599,16 @@ if (!file_exists('config.php')) {
         window.updateCacheSettingsUI = function() {
             const cacheEnabled = localStorage.getItem('mobile_cache_enabled') !== 'false';
             const maxMB = parseInt(localStorage.getItem('mobile_max_cache_size') || '250', 10);
+            const prefetchCount = localStorage.getItem('mobile_queue_prefetch_count') || '0';
             
             const checkbox = document.getElementById('mobile-cache-enabled');
             if (checkbox) checkbox.checked = cacheEnabled;
 
             const select = document.getElementById('mobile-cache-limit-select');
             if (select) select.value = String(maxMB);
+
+            const pfSelect = document.getElementById('mobile-queue-prefetch-select');
+            if (pfSelect) pfSelect.value = String(prefetchCount);
 
             const meta = getCacheMeta();
             const totalBytes = meta.reduce((acc, item) => acc + item.sizeInBytes, 0);
@@ -2404,7 +3633,47 @@ if (!file_exists('config.php')) {
             }
         };
 
-        window.getAudioSourceCachedAndFetch = async function(trackId, rawUrl) {
+        window.loadMobileDlnaSetting = async function() {
+            try {
+                const res = await fetch('api.php?route=dlna_status');
+                if (res.ok) {
+                    const data = await res.json();
+                    const toggle = document.getElementById('mobile-dlna-enabled');
+                    if (toggle) toggle.checked = !!data.enabled;
+                    
+                    const indicator = document.getElementById('m-dlna-status-indicator');
+                    if (indicator) {
+                        if (data.enabled) {
+                            indicator.innerHTML = '<span class="text-emerald-400 font-bold">ATIVO</span>';
+                        } else {
+                            indicator.innerHTML = '<span class="text-slate-500">OFFLINE</span>';
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Erro ao obter status DLNA no mobile:", err);
+            }
+        };
+
+        window.toggleMobileDlna = async function(checked) {
+            try {
+                const res = await fetch('api.php?route=toggle_dlna', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: checked ? '1' : '0' })
+                });
+                if (res.ok) {
+                    await window.loadMobileDlnaSetting();
+                } else {
+                    alert("Erro ao alterar configuração DLNA.");
+                }
+            } catch (err) {
+                console.error("Erro operacional ao atualizar DLNA:", err);
+                alert("Erro operacional ao atualizar DLNA.");
+            }
+        };
+
+        window.getAudioSourceCachedAndFetch = async function(trackId, rawUrl, fullTrackObj = null) {
             const cacheEnabled = localStorage.getItem('mobile_cache_enabled') !== 'false';
             if (!cacheEnabled) {
                 return rawUrl;
@@ -2420,7 +3689,7 @@ if (!file_exists('config.php')) {
                     return URL.createObjectURL(blob);
                 }
 
-                fetchAndSaveToCache(trackId, rawUrl).catch(err => console.error('[Cache] Falha background download:', err));
+                fetchAndSaveToCache(trackId, rawUrl, fullTrackObj).catch(err => console.error('[Cache] Falha background download:', err));
                 return rawUrl;
             } catch (err) {
                 console.error('[Cache] Erro de cache:', err);
@@ -2460,8 +3729,20 @@ if (!file_exists('config.php')) {
                 window.applyMobileLanguage(activeLang);
             }
 
+            if (currentUser) {
+                const currentBg = currentUser.sidebarBg || '#020617';
+                const picker = document.getElementById('m-layout-bg-picker');
+                const text = document.getElementById('m-layout-bg-text');
+                if (picker) picker.value = currentBg;
+                if (text) text.value = currentBg;
+            }
+
             if (window.updateCacheSettingsUI) {
                 window.updateCacheSettingsUI();
+            }
+
+            if (window.loadMobileDlnaSetting) {
+                window.loadMobileDlnaSetting();
             }
  
             setTimeout(() => {
@@ -2470,6 +3751,196 @@ if (!file_exists('config.php')) {
                     sheetInner.classList.remove('bottom-sheet-hidden');
                 }
             }, 50);
+        };
+
+        window.onMobileLayoutBgLiveChange = function(val) {
+            const hexPattern = /^#[0-9a-f]{6}$/i;
+            if (hexPattern.test(val)) {
+                const picker = document.getElementById('m-layout-bg-picker');
+                const text = document.getElementById('m-layout-bg-text');
+                if (picker && picker.value !== val) picker.value = val;
+                if (text && text.value !== val) text.value = val;
+
+                if (currentUser) {
+                    currentUser.sidebarBg = val;
+                    currentUser.footerBg = val;
+                    currentUser.topBg = val;
+                    if (window.applyUserLayoutBg) {
+                        window.applyUserLayoutBg();
+                    }
+                }
+            }
+        };
+
+        window.applyMobileLayoutColor = async function(val) {
+            window.onMobileLayoutBgLiveChange(val);
+            await window.saveMobileLayoutColor();
+        };
+
+        window.saveMobileLayoutColor = async function() {
+            if (!currentUser) return;
+            const chosenBg = currentUser.sidebarBg || '#020617';
+            try {
+                const response = await fetch('api.php?route=users&username=' + encodeURIComponent(currentUser.username), {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sidebarBg: chosenBg })
+                });
+                const res = await response.json();
+                if (res.success) {
+                    localStorage.setItem('music_user_profile', JSON.stringify(currentUser));
+                    alert('Cor do layout salva com sucesso!');
+                } else {
+                    alert('Erro ao salvar cor do layout.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de conexão ao salvar cor.');
+            }
+        };
+
+        window.closePlaylistSheet = function() {
+            const sheet = document.getElementById('playlist-sheet');
+            if (!sheet) return;
+            const sheetInner = sheet.querySelector('.bottom-sheet');
+            if (sheetInner) {
+                sheetInner.classList.add('bottom-sheet-hidden');
+            }
+            setTimeout(() => {
+                sheet.classList.add('hidden');
+            }, 300);
+        };
+
+        window.openAddActiveSongToPlaylistSheet = async function() {
+            if (activeQueue.length === 0 || activeQueueIdx < 0) {
+                alert('Nenhuma música sendo reproduzida no momento.');
+                return;
+            }
+            if (!currentUser) {
+                alert('Faça login para gerenciar suas playlists.');
+                return;
+            }
+            
+            const sheet = document.getElementById('playlist-sheet');
+            if (!sheet) return;
+            
+            // Show bottom sheet with animation
+            sheet.classList.remove('hidden');
+            setTimeout(() => {
+                const sheetInner = sheet.querySelector('.bottom-sheet');
+                if (sheetInner) {
+                    sheetInner.classList.remove('bottom-sheet-hidden');
+                }
+            }, 50);
+            
+            await loadAndRenderPlaylistPicker();
+        };
+
+        async function loadAndRenderPlaylistPicker() {
+            const container = document.getElementById('mobile-playlists-picker-container');
+            if (!container) return;
+            
+            container.innerHTML = '<div class="text-center py-4 text-[10px] text-slate-500 animate-pulse">Carregando playlists...</div>';
+            
+            try {
+                // Fetch user checklists
+                const res = await fetch('api.php?route=playlists&username=' + encodeURIComponent(currentUser.username));
+                if (!res.ok) {
+                    container.innerHTML = '<p class="text-[10px] text-rose-400 italic">Erro ao buscar playlists.</p>';
+                    return;
+                }
+                const playlists = await res.json();
+                
+                if (playlists.length === 0) {
+                    container.innerHTML = '<p class="text-[10px] text-slate-500 py-3 italic">Nenhuma playlist pessoal encontrada. Digite um nome acima para começar!</p>';
+                    return;
+                }
+                
+                const activeTrack = activeQueue[activeQueueIdx];
+                let html = '';
+                playlists.forEach(pl => {
+                    const hasTrack = pl.trackIds && pl.trackIds.map(String).includes(String(activeTrack.id));
+                    html += `
+                        <div onclick="toggleActiveTrackInPlaylist('${pl.id}', ${hasTrack})" class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/45 border border-slate-900 hover:border-slate-800 transition cursor-pointer text-xs">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="p-1 px-2.5 bg-sky-500/10 text-sky-400 rounded-lg text-[10px] font-mono shrink-0">PL</span>
+                                <span class="font-bold text-slate-200 truncate pr-2">${pl.name}</span>
+                            </div>
+                            <div class="shrink-0">
+                                <i data-lucide="${hasTrack ? 'check-circle-2' : 'plus'}" class="w-4 h-4 ${hasTrack ? 'text-sky-450 fill-sky-500/10' : 'text-slate-550'}"></i>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+                lucide.createIcons();
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = '<p class="text-[10px] text-rose-450 italic">Erro de conexão ao obter playlists.</p>';
+            }
+        }
+
+        window.createPlaylistFromMobilePlayer = async function() {
+            const input = document.getElementById('mobile-new-playlist-input');
+            if (!input || !input.value.trim()) {
+                alert('Digite o nome da playlist.');
+                return;
+            }
+            const name = input.value.trim();
+            
+            try {
+                const response = await fetch('api.php?route=playlists', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name, trackIds: [], username: currentUser.username })
+                });
+                
+                if (response.ok) {
+                    input.value = '';
+                    await loadAndRenderPlaylistPicker();
+                } else {
+                    alert('Erro ao criar playlist no servidor.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de rede ao criar playlist.');
+            }
+        };
+
+        window.toggleActiveTrackInPlaylist = async function(playlistId, isAlreadyAdded) {
+            if (activeQueue.length === 0 || activeQueueIdx < 0) return;
+            const activeTrack = activeQueue[activeQueueIdx];
+            
+            try {
+                // Fetch current playlist configuration
+                const plRes = await fetch('api.php?route=playlists&username=' + encodeURIComponent(currentUser.username));
+                if (!plRes.ok) return;
+                const playlists = await plRes.json();
+                const pl = playlists.find(p => String(p.id) === String(playlistId));
+                if (!pl) return;
+                
+                let trackIds = pl.trackIds ? pl.trackIds.map(String) : [];
+                if (isAlreadyAdded) {
+                    trackIds = trackIds.filter(id => String(id) !== String(activeTrack.id));
+                } else {
+                    trackIds.push(String(activeTrack.id));
+                }
+                
+                const response = await fetch('api.php?route=update_playlist&id=' + encodeURIComponent(playlistId), {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ trackIds: trackIds })
+                });
+                
+                if (response.ok) {
+                    await loadAndRenderPlaylistPicker();
+                } else {
+                    alert('Erro ao atualizar playlist no servidor.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de rede ao salvar faixa na playlist.');
+            }
         };
  
         window.closeConfigSheet = function() {
@@ -2507,9 +3978,122 @@ if (!file_exists('config.php')) {
         };
  
         window.applyUserTheme = function(theme) {
-            document.documentElement.setAttribute('data-theme', theme || 'default');
-            document.body.setAttribute('data-theme', theme || 'default');
+            const active = theme || 'default';
+            document.documentElement.setAttribute('data-theme', active);
+            document.body.setAttribute('data-theme', active);
+
+            let styleTag = document.getElementById('custom-theme-style');
+            if (active.indexOf('custom:') === 0) {
+                const hexColor = active.replace('custom:', '');
+                if (/^#[0-9a-f]{6}$/i.test(hexColor)) {
+                    const r = parseInt(hexColor.slice(1, 3), 16);
+                    const g = parseInt(hexColor.slice(3, 5), 16);
+                    const b = parseInt(hexColor.slice(5, 7), 16);
+                    
+                    const adjust = (r, g, b, pct) => {
+                        const nr = Math.min(255, Math.max(0, Math.round(r + (255 - r) * pct)));
+                        const ng = Math.min(255, Math.max(0, Math.round(g + (255 - g) * pct)));
+                        const nb = Math.min(255, Math.max(0, Math.round(b + (255 - b) * pct)));
+                        return "#" + nr.toString(16).padStart(2, '0') + ng.toString(16).padStart(2, '0') + nb.toString(16).padStart(2, '0');
+                    };
+                    const darken = (r, g, b, pct) => {
+                        const nr = Math.min(255, Math.max(0, Math.round(r * (1 - pct))));
+                        const ng = Math.min(255, Math.max(0, Math.round(g * (1 - pct))));
+                        const nb = Math.min(255, Math.max(0, Math.round(b * (1 - pct))));
+                        return "#" + nr.toString(16).padStart(2, '0') + ng.toString(16).padStart(2, '0') + nb.toString(16).padStart(2, '0');
+                    };
+                    
+                    const sky300 = adjust(r, g, b, 0.4);
+                    const sky400 = adjust(r, g, b, 0.2);
+                    const sky550 = adjust(r, g, b, 0.1);
+                    const sky500 = hexColor;
+                    const sky600 = darken(r, g, b, 0.2);
+                    const indigo500 = hexColor;
+                    const indigo600 = darken(r, g, b, 0.35);
+                    
+                    const css = ':root, :root[data-theme^="custom:"] { ' +
+                        '--theme-sky-300: ' + sky300 + ' !important; ' +
+                        '--theme-sky-400: ' + sky400 + ' !important; ' +
+                        '--theme-sky-450: ' + sky550 + ' !important; ' +
+                        '--theme-sky-500: ' + sky500 + ' !important; ' +
+                        '--theme-sky-600: ' + sky600 + ' !important; ' +
+                        '--theme-indigo-500: ' + indigo500 + ' !important; ' +
+                        '--theme-indigo-600: ' + indigo600 + ' !important; ' +
+                    '}';
+                    if (!styleTag) {
+                        styleTag = document.createElement('style');
+                        styleTag.id = 'custom-theme-style';
+                        document.head.appendChild(styleTag);
+                    }
+                    styleTag.textContent = css;
+                }
+            } else {
+                if (styleTag) styleTag.textContent = '';
+            }
         };
+
+        window.applyUserLayoutBg = function() {
+            if (!currentUser) return;
+            const sidebarBg = currentUser.sidebarBg || '';
+            const footerBg = currentUser.footerBg || '';
+            const topBg = currentUser.topBg || '';
+
+            const sidebarEl = document.querySelector('aside');
+            if (sidebarEl) {
+                if (sidebarBg) {
+                    sidebarEl.style.backgroundColor = sidebarBg;
+                    sidebarEl.style.backgroundImage = 'none';
+                } else {
+                    sidebarEl.style.backgroundColor = '';
+                    sidebarEl.style.backgroundImage = '';
+                }
+            }
+
+            const footerEl = document.getElementById('player-toolbar');
+            if (footerEl) {
+                if (footerBg) {
+                    footerEl.style.backgroundColor = footerBg;
+                    footerEl.style.backgroundImage = 'none';
+                } else {
+                    footerEl.style.backgroundColor = '';
+                    footerEl.style.backgroundImage = '';
+                }
+            }
+
+            const headerEl = document.querySelector('header');
+            if (headerEl) {
+                if (topBg) {
+                    headerEl.style.backgroundColor = topBg;
+                    headerEl.style.backgroundImage = 'none';
+                } else {
+                    headerEl.style.backgroundColor = '';
+                    headerEl.style.backgroundImage = '';
+                }
+            }
+
+            const miniPlayer = document.getElementById('mini-player');
+            if (miniPlayer) {
+                if (footerBg) {
+                    miniPlayer.style.backgroundColor = footerBg;
+                    miniPlayer.style.backgroundImage = 'none';
+                } else {
+                    miniPlayer.style.backgroundColor = '';
+                    miniPlayer.style.backgroundImage = '';
+                }
+            }
+
+            const expPlayer = document.getElementById('expanded-player');
+            if (expPlayer) {
+                if (sidebarBg) {
+                    expPlayer.style.backgroundColor = sidebarBg;
+                    expPlayer.style.backgroundImage = 'none';
+                } else {
+                    expPlayer.style.backgroundColor = '';
+                    expPlayer.style.backgroundImage = '';
+                }
+            }
+        };
+
         const applyUserTheme = window.applyUserTheme;
  
         window.handleMobilePasswordChange = async function(e) {
@@ -2567,6 +4151,8 @@ if (!file_exists('config.php')) {
                 "m-nav-start": "Início",
                 "m-nav-albums": "Álbuns",
                 "m-nav-artists": "Artistas",
+                "m-nav-podcasts": "Podcasts",
+                "m-nav-radios": "Rádios",
                 "m-nav-search": "Buscar",
                 "m-nav-favorites": "Favoritos",
                 "m-stat-tracks": "Músicas",
@@ -2613,6 +4199,8 @@ if (!file_exists('config.php')) {
                 "m-nav-start": "Home",
                 "m-nav-albums": "Albums",
                 "m-nav-artists": "Artists",
+                "m-nav-podcasts": "Podcasts",
+                "m-nav-radios": "Radios",
                 "m-nav-search": "Search",
                 "m-nav-favorites": "Favorites",
                 "m-stat-tracks": "Tracks",
@@ -2659,6 +4247,8 @@ if (!file_exists('config.php')) {
                 "m-nav-start": "Inicio",
                 "m-nav-albums": "Álbumes",
                 "m-nav-artists": "Artistas",
+                "m-nav-podcasts": "Podcasts",
+                "m-nav-radios": "Radios",
                 "m-nav-search": "Buscar",
                 "m-nav-favorites": "Favoritos",
                 "m-stat-tracks": "Canciones",
@@ -2754,6 +4344,450 @@ if (!file_exists('config.php')) {
                     topGreeting.textContent = greeting;
                 }
             }
+        };
+
+        window.toggleMobileAddons = function() {
+            const content = document.getElementById('mobile-addons-content');
+            const chevron = document.getElementById('mobile-addons-chevron');
+            if (content) {
+                if (content.classList.contains('hidden')) {
+                    content.classList.remove('hidden');
+                    if (chevron) {
+                        chevron.style.transform = 'rotate(180deg)';
+                    }
+                    initMobileEqualizer();
+                    if (mobileAudioContext && mobileAudioContext.state === 'suspended') {
+                        mobileAudioContext.resume();
+                    }
+                } else {
+                    content.classList.add('hidden');
+                    if (chevron) {
+                        chevron.style.transform = 'rotate(0deg)';
+                    }
+                }
+            }
+        };
+
+        // ====== MOBILE SLEEP TIMER LOGIC ======
+        let mobileSleepTimerSecs = null;
+        let mobileSleepTimerInterval = null;
+
+        window.setMobileSleepTimer = function(minutes) {
+            if (mobileSleepTimerInterval) clearInterval(mobileSleepTimerInterval);
+            const statusEl = document.getElementById('mobile-sleep-status');
+            const iconEl = document.getElementById('mobile-sleep-icon');
+            
+            if (minutes === null) {
+                mobileSleepTimerSecs = null;
+                if (statusEl) {
+                    statusEl.textContent = 'Desativado';
+                    statusEl.className = 'text-[9px] text-slate-500 font-bold uppercase tracking-wider';
+                }
+                if (iconEl) {
+                    iconEl.className = "w-4 h-4 text-slate-500 transition-all duration-300";
+                    if (window.lucide) window.lucide.createIcons();
+                }
+                return;
+            }
+            
+            mobileSleepTimerSecs = minutes * 60;
+            updateMobileSleepDisplay();
+            
+            mobileSleepTimerInterval = setInterval(() => {
+                if (mobileSleepTimerSecs === null) {
+                    clearInterval(mobileSleepTimerInterval);
+                    return;
+                }
+                if (mobileSleepTimerSecs <= 0) {
+                    if (audio) {
+                        audio.pause();
+                        updatePlayToggleUIState(false);
+                        const coverImg = document.getElementById('full-cover-art');
+                        if (coverImg) coverImg.classList.add('paused-vinyl');
+                        const pulseDot = document.getElementById('mini-pulse-dot');
+                        if (pulseDot) pulseDot.classList.add('hidden');
+                    }
+                    clearInterval(mobileSleepTimerInterval);
+                    window.setMobileSleepTimer(null);
+                    return;
+                }
+                mobileSleepTimerSecs--;
+                updateMobileSleepDisplay();
+            }, 1000);
+        };
+
+        function updateMobileSleepDisplay() {
+            const statusEl = document.getElementById('mobile-sleep-status');
+            const iconEl = document.getElementById('mobile-sleep-icon');
+            if (mobileSleepTimerSecs === null) {
+                if (statusEl) {
+                    statusEl.textContent = 'Desativado';
+                    statusEl.className = 'text-[9px] text-slate-500 font-bold uppercase tracking-wider';
+                }
+                if (iconEl) {
+                    iconEl.className = "w-4 h-4 text-slate-500 transition-all duration-300";
+                    if (window.lucide) window.lucide.createIcons();
+                }
+            } else {
+                const mins = Math.floor(mobileSleepTimerSecs / 60);
+                const secs = String(mobileSleepTimerSecs % 60).padStart(2, '0');
+                if (statusEl) {
+                    statusEl.textContent = 'Ativo: ' + mins + ':' + secs;
+                    statusEl.className = 'text-[9px] text-emerald-400 font-black font-mono animate-pulse uppercase tracking-wider';
+                }
+                if (iconEl) {
+                    iconEl.className = "w-4 h-4 text-emerald-400 animate-spin-slow transition-all duration-300";
+                    if (window.lucide) window.lucide.createIcons();
+                }
+            }
+        }
+
+        // ====== MOBILE EQUALIZER LOGIC VIA WEB AUDIO ======
+        let mobileAudioContext = null;
+        let mobileSourceNode = null;
+        let mobileBiquadFilters = [];
+        let mobileEqGains = [0, 0, 0, 0, 0];
+        let mobileAnalyserNode = null;
+        let mobileVisualizerStyle = 'bars';
+        let mobileVisualizerColor = 'wmp';
+        let mobileVisualizerAnimFrame = null;
+        let mobilePeaks = new Array(256).fill(0);
+
+        const mobilePresets = {
+            flat: [0, 0, 0, 0, 0],
+            bass: [6, 4, 0, 0, -1],
+            pop: [-1, 2, 4, 2, -1],
+            rock: [4, 2, -2, 2, 5],
+            vocal: [-2, 1, 3, 4, 2],
+            electronic: [5, 3, 1, 2, 4],
+            suave: [3, 1, 0, 1, -2],
+            classical: [3, 2, 1, -1, 3]
+        };
+
+        function initMobileEqualizer() {
+            if (mobileAudioContext) return;
+            
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextClass) return;
+                
+                mobileAudioContext = new AudioContextClass();
+                mobileSourceNode = mobileAudioContext.createMediaElementSource(audio);
+                
+                const freqs = [60, 230, 910, 4000, 14000];
+                mobileBiquadFilters = freqs.map((freq, idx) => {
+                    const filter = mobileAudioContext.createBiquadFilter();
+                    filter.type = 'peaking';
+                    filter.frequency.value = freq;
+                    filter.Q.value = 1.0;
+                    filter.gain.value = mobileEqGains[idx];
+                    return filter;
+                });
+                
+                mobileAnalyserNode = mobileAudioContext.createAnalyser();
+                mobileAnalyserNode.fftSize = 256;
+
+                let lastNode = mobileSourceNode;
+                mobileBiquadFilters.forEach(filter => {
+                    lastNode.connect(filter);
+                    lastNode = filter;
+                });
+                lastNode.connect(mobileAnalyserNode);
+                mobileAnalyserNode.connect(mobileAudioContext.destination);
+            } catch (err) {
+                console.warn('Web Audio error mobile:', err);
+            }
+        }
+
+        window.setMobileStyle = function(style) {
+            initMobileEqualizer();
+            if (mobileAudioContext && mobileAudioContext.state === 'suspended') {
+                mobileAudioContext.resume();
+            }
+            mobileVisualizerStyle = style;
+            const styles = ['bars', 'scope', 'beat'];
+            styles.forEach(s => {
+                const btn = document.getElementById('m-v-' + s);
+                if (btn) {
+                    if (s === style) {
+                        btn.className = 'px-1.5 py-0.5 bg-sky-500/10 text-sky-400 text-[8px] font-black uppercase rounded tracking-wider cursor-pointer';
+                    } else {
+                        btn.className = 'px-1.5 py-0.5 text-slate-400 hover:text-white text-[8px] font-black uppercase rounded tracking-wider cursor-pointer';
+                    }
+                }
+            });
+        };
+
+        window.setMobileColor = function(color) {
+            initMobileEqualizer();
+            if (mobileAudioContext && mobileAudioContext.state === 'suspended') {
+                mobileAudioContext.resume();
+            }
+            mobileVisualizerColor = color;
+            const colors = ['wmp', 'neon', 'fire', 'cyber'];
+            colors.forEach(c => {
+                const btn = document.getElementById('m-c-' + c);
+                if (btn) {
+                    if (c === color) {
+                        let activeBg = 'bg-cyan-500/10 text-cyan-405 border border-cyan-500/10';
+                        if (c === 'neon') activeBg = 'bg-purple-500/10 text-purple-400 border border-purple-500/10';
+                        if (c === 'fire') activeBg = 'bg-orange-500/10 text-orange-400 border border-orange-500/10';
+                        if (c === 'cyber') activeBg = 'bg-green-500/10 text-green-400 border border-green-500/10';
+                        btn.className = 'px-1.5 py-0.5 text-[8px] font-black uppercase rounded ' + activeBg + ' cursor-pointer';
+                    } else {
+                        btn.className = 'px-1.5 py-0.5 text-[8px] font-black uppercase rounded text-slate-400 hover:text-white cursor-pointer';
+                    }
+                }
+            });
+        };
+
+        function startMobileVisualizerLoop() {
+            if (mobileVisualizerAnimFrame) return;
+
+            const canvas = document.getElementById('mobile-visualizer-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            let angleOffset = 0;
+
+            function draw() {
+                mobileVisualizerAnimFrame = requestAnimationFrame(draw);
+
+                const width = canvas.clientWidth;
+                const height = canvas.clientHeight;
+
+                if (canvas.width !== width || canvas.height !== height) {
+                    canvas.width = width;
+                    canvas.height = height;
+                }
+
+                ctx.fillStyle = '#020617';
+                ctx.fillRect(0, 0, width, height);
+
+                ctx.strokeStyle = 'rgba(15, 23, 42, 0.5)';
+                ctx.lineWidth = 1;
+                const gridSize = 12;
+                for (let x = 0; x < width; x += gridSize) {
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+                }
+                for (let y = 0; y < height; y += gridSize) {
+                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+                }
+
+                const bufferLength = mobileAnalyserNode ? mobileAnalyserNode.frequencyBinCount : 128;
+                const dataArray = new Uint8Array(bufferLength);
+
+                let active = false;
+                if (mobileAnalyserNode) {
+                    if (mobileVisualizerStyle === 'scope') {
+                        mobileAnalyserNode.getByteTimeDomainData(dataArray);
+                    } else {
+                        mobileAnalyserNode.getByteFrequencyData(dataArray);
+                    }
+                    for (let i = 0; i < bufferLength; i++) {
+                        if (dataArray[i] > 0 && dataArray[i] !== 128) {
+                            active = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!active) {
+                    const time = Date.now() * 0.003;
+                    for (let i = 0; i < bufferLength; i++) {
+                        if (mobileVisualizerStyle === 'scope') {
+                            dataArray[i] = 128 + Math.sin(i * 0.15 + time) * 25 * Math.sin(i * 0.03);
+                        } else {
+                            dataArray[i] = Math.max(10, (Math.sin(i * 0.1 + time) + 1.0) * 35 * Math.sin(i * 0.01 + 0.5));
+                        }
+                    }
+                }
+
+                let bassSum = 0;
+                const bassBins = Math.min(10, bufferLength);
+                for (let i = 0; i < bassBins; i++) {
+                    bassSum += (mobileVisualizerStyle === 'scope' ? Math.abs(dataArray[i] - 128) * 2 : dataArray[i]);
+                }
+                const bassAvg = bassSum / bassBins;
+                const beatScale = 1.0 + (bassAvg / 255) * 0.35;
+
+                let primaryColor = '#06b6d4';
+                let secondaryColor = '#3b82f6';
+                let glowColor = 'rgba(6, 182, 212, 0.5)';
+
+                if (mobileVisualizerColor === 'neon') {
+                    primaryColor = '#a855f7'; secondaryColor = '#f43f5e'; glowColor = 'rgba(168, 85, 247, 0.5)';
+                } else if (mobileVisualizerColor === 'fire') {
+                    primaryColor = '#f97316'; secondaryColor = '#eab308'; glowColor = 'rgba(249, 115, 22, 0.55)';
+                } else if (mobileVisualizerColor === 'cyber') {
+                    primaryColor = '#39ff14'; secondaryColor = '#10b981'; glowColor = 'rgba(57, 255, 20, 0.6)';
+                }
+
+                if (mobileVisualizerStyle === 'bars') {
+                    const barWidth = (width / bufferLength) * 1.5;
+                    let x = 0;
+                    for (let i = 0; i < bufferLength; i++) {
+                        const barHeight = (dataArray[i] / 255) * height * 0.8;
+                        if (barHeight > mobilePeaks[i]) {
+                            mobilePeaks[i] = barHeight;
+                        } else {
+                            mobilePeaks[i] = Math.max(0, mobilePeaks[i] - 1.2);
+                        }
+
+                        const grad = ctx.createLinearGradient(x, height, x, height - barHeight);
+                        grad.addColorStop(0, 'rgba(15, 23, 42, 0.8)');
+                        grad.addColorStop(0.5, secondaryColor);
+                        grad.addColorStop(1, primaryColor);
+
+                        ctx.fillStyle = grad;
+                        ctx.fillRect(x, height - barHeight, barWidth - 1, barHeight);
+
+                        ctx.fillStyle = primaryColor;
+                        ctx.shadowBlur = beatScale > 1.15 ? 8 : 4;
+                        ctx.shadowColor = glowColor;
+                        ctx.fillRect(x, height - mobilePeaks[i] - 2, barWidth - 1, 1.5);
+                        ctx.shadowBlur = 0;
+
+                        x += barWidth;
+                        if (x >= width) break;
+                    }
+                } else if (mobileVisualizerStyle === 'scope') {
+                    ctx.beginPath();
+                    ctx.lineWidth = 1.8 + (beatScale - 1.0) * 3;
+                    ctx.strokeStyle = primaryColor;
+                    ctx.shadowBlur = 10 * beatScale;
+                    ctx.shadowColor = glowColor;
+
+                    const sliceWidth = width / bufferLength;
+                    let x = 0;
+                    for (let i = 0; i < bufferLength; i++) {
+                        const v = dataArray[i] / 128.0;
+                        const y = (v * height) / 2;
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                        x += sliceWidth;
+                    }
+                    ctx.lineTo(width, height / 2);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+
+                    ctx.strokeStyle = 'rgba(51, 65, 85, 0.3)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(0, height / 2); ctx.lineTo(width, height / 2); ctx.stroke();
+                } else if (mobileVisualizerStyle === 'beat') {
+                    const centerX = width / 2;
+                    const centerY = height / 2;
+                    const baseRadius = Math.min(width, height) * 0.22 * beatScale;
+
+                    angleOffset += 0.005 + (beatScale - 1.0) * 0.04;
+
+                    ctx.strokeStyle = 'rgba(30, 41, 59, 0.35)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.arc(centerX, centerY, baseRadius * 1.4, 0, Math.PI * 2); ctx.stroke();
+
+                    const spikes = Math.min(64, bufferLength);
+                    ctx.beginPath();
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = primaryColor;
+                    ctx.shadowBlur = 6 * beatScale;
+                    ctx.shadowColor = glowColor;
+
+                    for (let i = 0; i < spikes; i++) {
+                        const angle = (i / spikes) * Math.PI * 2 + angleOffset;
+                        const magnitude = (dataArray[i] / 125) * baseRadius * 0.45;
+                        const innerR = baseRadius - (magnitude * 0.25);
+                        const outerR = baseRadius + magnitude;
+
+                        const p1X = centerX + Math.cos(angle) * innerR;
+                        const p1Y = centerY + Math.sin(angle) * innerR;
+                        const p2X = centerX + Math.cos(angle) * outerR;
+                        const p2Y = centerY + Math.sin(angle) * outerR;
+
+                        ctx.moveTo(p1X, p1Y);
+                        ctx.lineTo(p2X, p2Y);
+                    }
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+
+                    const solidG = ctx.createRadialGradient(centerX, centerY, 1, centerX, centerY, baseRadius);
+                    solidG.addColorStop(0, secondaryColor);
+                    solidG.addColorStop(0.8, primaryColor);
+                    solidG.addColorStop(1, 'transparent');
+                    ctx.fillStyle = solidG;
+                    ctx.beginPath(); ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2); ctx.fill();
+
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1.2;
+                    ctx.beginPath(); ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2); ctx.stroke();
+                }
+            }
+
+            draw();
+        }
+
+        // Initialize mobile visualizer immediately on setup
+        setTimeout(startMobileVisualizerLoop, 600);
+
+        window.onMobileEqChange = function(bandIdx, value) {
+            initMobileEqualizer();
+            if (mobileAudioContext && mobileAudioContext.state === 'suspended') {
+                mobileAudioContext.resume();
+            }
+            
+            const numVal = parseFloat(value);
+            mobileEqGains[bandIdx] = numVal;
+            
+            const label = document.getElementById('mobile-eq-gain-val-' + bandIdx);
+            if (label) {
+                label.textContent = (numVal > 0 ? '+' : '') + numVal + 'dB';
+            }
+            
+            if (mobileBiquadFilters[bandIdx]) {
+                mobileBiquadFilters[bandIdx].gain.value = numVal;
+            }
+            
+            // Set preset select to flat/custom if it doesn't match preset
+            const select = document.getElementById('mobile-eq-preset-select');
+            if (select) {
+                let foundPreset = 'custom';
+                for (const presetName in mobilePresets) {
+                    const presetGains = mobilePresets[presetName];
+                    const match = presetGains.every((g, idx) => g === mobileEqGains[idx]);
+                    if (match) {
+                        foundPreset = presetName;
+                        break;
+                    }
+                }
+                
+                let hasCustom = false;
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].value === 'custom') {
+                        hasCustom = true;
+                        break;
+                    }
+                }
+                if (!hasCustom && foundPreset === 'custom') {
+                    const opt = document.createElement('option');
+                    opt.value = 'custom';
+                    opt.textContent = 'PERSONALIZADO';
+                    select.appendChild(opt);
+                }
+                select.value = foundPreset;
+            }
+        };
+
+        window.applyMobilePreset = function(presetName) {
+            if (!mobilePresets[presetName]) return;
+            const gains = mobilePresets[presetName];
+            
+            gains.forEach((gain, idx) => {
+                const slider = document.getElementById('mobile-eq-band-' + idx);
+                if (slider) {
+                    slider.value = gain;
+                }
+                window.onMobileEqChange(idx, gain);
+            });
         };
     </script>
 

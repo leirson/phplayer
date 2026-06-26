@@ -26,12 +26,57 @@ echo "<h3>1. Verificação do Ambiente PHP</h3>";
 echo "<ul>";
 echo "<li>Versão do PHP: <strong>" . PHP_VERSION . "</strong> " . (version_compare(PHP_VERSION, '7.0.0', '>=') ? "<span class='success'>[OK]</span>" : "<span class='error'>[Desatualizada! Requer PHP >= 7.0]</span>") . "</li>";
 echo "<li>Extensão PDO_MYSQL: " . (extension_loaded('pdo_mysql') ? "<span class='success'>[Ativa]</span>" : "<span class='error'>[Inativa ou Não Instalada! Active pdo_mysql no Hostinger]</span>") . "</li>";
-echo "<li>Pasta de Uploads (uploads/): ";
+echo "<li>Pasta de Músicas (music/): ";
+$musicDir = __DIR__ . '/music/';
+if (file_exists($musicDir)) {
+    echo "Existe " . (is_writable($musicDir) ? "<span class='success'>[E é Gravável (0755/0777)]</span>" : "<span class='warning'>[Mas NÃO é Gravável! Defina permissões para 0755 ou 0777]</span>");
+} else {
+    echo "<span class='warning'>Não existe (será criada automaticamente na primeira varredura ou importação)</span>";
+}
+echo "</li>";
+
+echo "<li>Pasta de Vídeos (videos/): ";
+$videosDir = __DIR__ . '/videos/';
+if (file_exists($videosDir)) {
+    echo "Existe " . (is_writable($videosDir) ? "<span class='success'>[E é Gravável (0755/0777)]</span>" : "<span class='warning'>[Mas NÃO é Gravável! Defina permissões para 0755 ou 0777]</span>");
+} else {
+    echo "<span class='warning'>Não existe (será criada automaticamente ao escanear vídeos)</span>";
+}
+echo "</li>";
+
+echo "<li>Pasta Geral de Uploads (uploads/): ";
 $uploadsDir = __DIR__ . '/uploads/';
 if (file_exists($uploadsDir)) {
     echo "Existe " . (is_writable($uploadsDir) ? "<span class='success'>[E é Gravável (0755/0777)]</span>" : "<span class='warning'>[Mas NÃO é Gravável! Defina permissões para 0755 ou 0777]</span>");
 } else {
     echo "<span class='warning'>Não existe (tentará ser criada)</span>";
+}
+echo "</li>";
+
+echo "<li>Subpasta de Capas de Álbuns (uploads/covers/): ";
+$coversDir = __DIR__ . '/uploads/covers/';
+if (file_exists($coversDir)) {
+    echo "Existe " . (is_writable($coversDir) ? "<span class='success'>[E é Gravável]</span>" : "<span class='warning'>[Mas NÃO é Gravável!]</span>");
+} else {
+    echo "<span class='warning'>Não existe (será criada automaticamente ao alterar capas)</span>";
+}
+echo "</li>";
+
+echo "<li>Subpasta de Capas de Vídeo (uploads/videos_covers/): ";
+$vCoversDir = __DIR__ . '/uploads/videos_covers/';
+if (file_exists($vCoversDir)) {
+    echo "Existe " . (is_writable($vCoversDir) ? "<span class='success'>[E é Gravável]</span>" : "<span class='warning'>[Mas NÃO é Gravável!]</span>");
+} else {
+    echo "<span class='warning'>Não existe (será criada automaticamente ao escanear/carregar capas de vídeos)</span>";
+}
+echo "</li>";
+
+echo "<li>Subpasta de Podcasts (uploads/podcast/): ";
+$podcastDir = __DIR__ . '/uploads/podcast/';
+if (file_exists($podcastDir)) {
+    echo "Existe " . (is_writable($podcastDir) ? "<span class='success'>[E é Gravável]</span>" : "<span class='warning'>[Mas NÃO é Gravável!]</span>");
+} else {
+    echo "<span class='warning'>Não existe (será criada automaticamente na primeira sincronização de Podcast)</span>";
 }
 echo "</li>";
 echo "</ul>";
@@ -61,7 +106,7 @@ if (!file_exists('config.php')) {
         echo "<p class='success'>✓ Conexão com o banco de dados MySQL realizada com absoluto SUCESSO!</p>";
         
         echo "<h3>3. Verificação de Tabelas (Importação database.sql)</h3>";
-        $tabelasRequeridas = ['users', 'songs', 'playlists', 'playlist_songs', 'favorites'];
+        $tabelasRequeridas = ['users', 'songs', 'playlists', 'playlist_songs', 'favorites', 'videos', 'settings', 'artist_metadata', 'radios'];
         $tabelasFaltando = [];
         
         foreach ($tabelasRequeridas as $tab) {
@@ -86,6 +131,103 @@ if (!file_exists('config.php')) {
                 echo "<p class='success'>✓ Usuários ativos localizados! O login 'admin' com senha 'admin' deve funcionar perfeitamente.</p>";
             }
         }
+
+        // --- INICIO DE TESTES DE CONSULTAS SQL DIRETAS ---
+        echo "<h3>4. Diagnóstico Direto de Consultas SQL (Simulando api.php)</h3>";
+        echo "<ul>";
+        
+        // Helper interno de debug
+        if (!function_exists('debug_get_songs_tables')) {
+            function debug_get_songs_tables($pdo) {
+                try {
+                    $stmt = $pdo->query("SHOW TABLES");
+                    $tables = [];
+                    if ($stmt) {
+                        while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
+                            $tblName = $row[0];
+                            if ($tblName === 'songs' || preg_match('/^songs_([0-9]+)$/', $tblName)) {
+                                $tables[] = $tblName;
+                            }
+                        }
+                    }
+                    if (empty($tables)) {
+                        $tables[] = 'songs';
+                    }
+                    return $tables;
+                } catch (Exception $e) {
+                    return ['songs'];
+                }
+            }
+        }
+
+        // 4.1 Teste de Músicas (Tracks)
+        echo "<li><strong>Teste de Músicas (Rota 'tracks'):</strong><ul>";
+        try {
+            $tables = debug_get_songs_tables($test_pdo);
+            echo "<li>Tabelas de músicas no DB: <code>" . implode(', ', $tables) . "</code></li>";
+            
+            $query = null;
+            if (count($tables) === 1) {
+                $t = $tables[0];
+                $sql = "SELECT * FROM " . $t . " ORDER BY created_at DESC";
+                echo "<li>SQL executado: <code>" . htmlspecialchars($sql) . "</code></li>";
+                $query = $test_pdo->query($sql);
+            } else {
+                $parts = [];
+                foreach ($tables as $t) {
+                    $parts[] = "SELECT * FROM " . $t;
+                }
+                $sql = "SELECT * FROM (" . implode(" UNION ALL ", $parts) . ") AS union_songs ORDER BY created_at DESC";
+                echo "<li>SQL executado: <code>" . htmlspecialchars($sql) . "</code></li>";
+                $query = $test_pdo->query($sql);
+            }
+            
+            if ($query) {
+                $rows = $query->fetchAll(PDO::FETCH_ASSOC);
+                echo "<li>Linhas retornadas: <span class='success'>" . count($rows) . " músicas</span></li>";
+                if (count($rows) > 0) {
+                    echo "<li>Primeiro registro (amostra): <pre style='background: #020617; padding: 10px; color: #a5f3fc; font-size:11px;'>" . htmlspecialchars(json_encode(array_slice($rows[0], 0, 5), JSON_UNESCAPED_UNICODE)) . "</pre></li>";
+                }
+            } else {
+                echo "<li><span class='error'>A query retornou um valor nulo ou falso!</span></li>";
+            }
+        } catch (Throwable $e) {
+            echo "<li><span class='error'>FALHA NA EXECUÇÃO: " . htmlspecialchars($e->getMessage()) . "</span></li>";
+        }
+        echo "</ul></li><br>";
+
+        // 4.2 Teste de Playlists
+        echo "<li><strong>Teste de Playlists (Rota 'playlists'):</strong><ul>";
+        try {
+            $stmt = $test_pdo->query("SELECT * FROM playlists ORDER BY name ASC");
+            if ($stmt) {
+                $playlists = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                echo "<li>Total de Playlists: <span class='success'>" . count($playlists) . " playlists</span></li>";
+            } else {
+                echo "<li><span class='error'>Query de playlists inválida</span></li>";
+            }
+        } catch (Throwable $e) {
+            echo "<li><span class='error'>FALHA: " . htmlspecialchars($e->getMessage()) . "</span></li>";
+        }
+        echo "</ul></li><br>";
+
+        // 4.3 Teste de Favoritos
+        echo "<li><strong>Teste de Favoritos (Rota 'favorites'):</strong><ul>";
+        try {
+            $stmt = $test_pdo->query("SELECT * FROM favorites");
+            if ($stmt) {
+                $favorites = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                echo "<li>Total de Favoritos salvos: <span class='success'>" . count($favorites) . " favoritos</span></li>";
+            } else {
+                echo "<li><span class='error'>Query de favoritos inválida</span></li>";
+            }
+        } catch (Throwable $e) {
+            echo "<li><span class='error'>FALHA: " . htmlspecialchars($e->getMessage()) . "</span></li>";
+        }
+        echo "</ul></li>";
+        
+        echo "</ul>";
+        // --- FIM DE TESTES DE CONSULTAS SQL DIRETAS ---
         
     } catch (PDOException $e) {
         echo "<div class='error'>FALHA NA CONEXÃO MYSQL:<br><br>Mensagem: " . $e->getMessage() . "<br><br><strong>Possíveis Causas se estiver na Hostinger:</strong><br>
@@ -98,7 +240,7 @@ if (!file_exists('config.php')) {
 echo "</div>";
 
 echo "<div class='card'>";
-echo "<h3>4. Registro de Erros do Servidor (api_errors.log)</h3>";
+echo "<h3>5. Registro de Erros do Servidor (api_errors.log)</h3>";
 if (file_exists('api_errors.log')) {
     echo "<p class='warning'>Histórico de erros detectados recentemente:</p>";
     echo "<pre style='background: #020617; border: 1px solid #1e293b; padding: 15px; border-radius: 8px; color: #ef4444; max-height: 250px; overflow-y: auto; font-size: 11px;'>" . htmlspecialchars(file_get_contents('api_errors.log')) . "</pre>";
@@ -115,46 +257,101 @@ echo "</div>";
 
 ?>
 <div class='card'>
-<h3>5. Teste Interativo de Endpoint da API</h3>
-<p>Clique no botão abaixo para simular uma requisição JavaScript de login para o seu arquivo <code>api.php</code> e diagnosticar respostas em branco:</p>
-<button id='test-btn' onclick='testApiLogin()' style='background: #e11d48; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.2s;'>Simular Requisição de Login (POST)</button>
+<h3>6. Teste Interativo de Endpoints da API</h3>
+<p>Verifique o comportamento em tempo real das rotas da API em <code>api.php</code>:</p>
+
+<div style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 200px;">
+        <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 5px;">Selecione o Endpoint:</label>
+        <select id="api-endpoint" onchange="onEndpointChange()" style="width: 100%; background: #020617; border: 1px solid #1e293b; color: white; padding: 8px; border-radius: 6px;">
+            <option value="api.php?route=tracks">GET api.php?route=tracks (Músicas)</option>
+            <option value="api.php?route=playlists">GET api.php?route=playlists (Playlists)</option>
+            <option value="api.php?route=favorites">GET api.php?route=favorites (Favoritos)</option>
+            <option value="api.php?route=genres">GET api.php?route=genres (Gêneros)</option>
+            <option value="api.php?route=settings">GET api.php?route=settings (Configurações)</option>
+            <option value="api.php?route=login">POST api.php?route=login (Autenticação)</option>
+        </select>
+    </div>
+    <div style="width: 100px;">
+        <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 5px;">Método:</label>
+        <input type="text" id="api-method" value="GET" readonly style="width: 100%; background: #1e293b; border: 1px solid #1e293b; color: #cbd5e1; padding: 8px; border-radius: 6px; text-align: center;" />
+    </div>
+</div>
+
+<div id="api-body-container" style="display: none; margin-bottom: 15px;">
+    <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 5px;">Corpo da Requisição (JSON):</label>
+    <textarea id="api-body" style="width: 100%; height: 80px; background: #020617; border: 1px solid #1e293b; color: #38bdf8; font-family: monospace; padding: 10px; border-radius: 6px; font-size: 12px; resize: vertical;">{
+  "username": "admin",
+  "password": "wrong_password_test"
+}</textarea>
+</div>
+
+<button id='test-btn' onclick='executeInteractiveTest()' style='background: #e11d48; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.2s;'>Executar Requisição de Teste PHP</button>
+
 <div id='api-test-result' style='margin-top: 15px; padding: 15px; background: #020617; border: 1px solid #1e293b; border-radius: 8px; font-family: monospace; font-size: 12px; display: none; line-height: 1.6;'></div>
 
 <script>
-async function testApiLogin() {
+function onEndpointChange() {
+    const endpoint = document.getElementById("api-endpoint").value;
+    const methodField = document.getElementById("api-method");
+    const labelContainer = document.getElementById("api-body-container");
+    
+    if (endpoint.includes("route=login")) {
+        methodField.value = "POST";
+        labelContainer.style.display = "block";
+    } else {
+        methodField.value = "GET";
+        labelContainer.style.display = "none";
+    }
+}
+
+async function executeInteractiveTest() {
     const resBox = document.getElementById("api-test-result");
     const btn = document.getElementById("test-btn");
+    const url = document.getElementById("api-endpoint").value;
+    const method = document.getElementById("api-method").value;
+    
     resBox.style.display = "block";
-    resBox.innerHTML = "<em>Enviando requisição POST para api.php?route=login...</em>";
+    resBox.innerHTML = "<em>Enviando requisição " + method + " para " + url + "...</em>";
     btn.disabled = true;
     btn.style.opacity = "0.6";
+    
     try {
-        const res = await fetch("api.php?route=login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username: "admin", password: "wrong_password_test" })
-        });
+        const options = {
+            method: method,
+            headers: {}
+        };
+        
+        if (method === "POST") {
+            options.headers["Content-Type"] = "application/json";
+            options.body = document.getElementById("api-body").value;
+        }
+        
+        const startTime = performance.now();
+        const res = await fetch(url, options);
+        const duration = (performance.now() - startTime).toFixed(1);
         const text = await res.text();
+        
         let formattedText = text.trim() || "[CORPO EM BRANCO / SEM RETORNO]";
         let isJson = true;
         try { JSON.parse(text); } catch(e) { isJson = false; }
         
-        let statusStyle = (res.status >= 200 && res.status < 300) ? "color: #4ade80;" : (res.status === 401 ? "color: #facc15;" : "color: #f87171;");
+        let statusStyle = (res.status >= 200 && res.status < 300) ? "color: #4ade80;" : "color: #f87171;";
         
-        resBox.innerHTML = "<strong>Código de Status HTTP:</strong> <span style='" + statusStyle + "'>" + res.status + " " + res.statusText + "</span><br>" +
+        resBox.innerHTML = "<strong>Código de Status HTTP:</strong> <span style='" + statusStyle + "'>" + res.status + " " + res.statusText + "</span> (" + duration + "ms)<br>" +
                            "<strong>Tipo de Conteúdo Recebido:</strong> <code>" + (res.headers.get("content-type") || "Não especificado") + "</code><br>" +
                            "<strong>Formato JSON Válido:</strong> " + (isJson ? "<span class='success'>Sim [OK]</span>" : "<span class='warning'>Não [Inválido]</span>") + "<br><br>" +
                            "<strong>Conteúdo Bruto Devolvido (Response Body):</strong><br>" +
-                           "<pre style='background: #090d16; border: 1px solid #1e293b; padding: 10px; border-radius: 6px; margin: 8px 0; overflow-x: auto; color: " + (isJson ? "#38bdf8" : "#ef4444") + "'>" + 
+                           "<pre style='background: #090d16; border: 1px solid #1e293b; padding: 10px; border-radius: 6px; margin: 8px 0; overflow-x: auto; max-height: 400px; color: " + (isJson ? "#38bdf8" : "#ef4444") + "'>" + 
                            (formattedText.replace(/</g, "&lt;").replace(/>/g, "&gt;")) + "</pre>";
                            
         if (res.status === 404) {
-            resBox.innerHTML += "<p class='warning'>⚠️ O servidor retornou 404. Verifique se o arquivo <strong>api.php</strong> foi colocado exatamente na mesma pasta que este arquivo de de diagnóstico!</p>";
+            resBox.innerHTML += "<p class='warning'>⚠️ O servidor retornou 404. Verifique se o arquivo <strong>api.php</strong> foi colocado exatamente na mesma pasta que este diagnosticador!</p>";
         } else if (text.trim() === "") {
-            resBox.innerHTML += "<p class='warning'>⚠️ O arquivo <strong>api.php</strong> existe, mas devolveu uma resposta 100% vazia. Isso pode indicar uma restrição do servidor ao ler JSON brutos no PHP, ou erro fatal oculto que não pôde ser gravado nos logs.</p>";
+            resBox.innerHTML += "<p class='warning'>⚠️ O endpoint devolveu uma resposta vazia. Veja no log 'api_errors.log' se houve um erro oculto ou confira se suas tabelas no banco de dados estão vazias ou ausentes.</p>";
         }
     } catch(err) {
-        resBox.innerHTML = "<span class='error'>Erro de rede ao disparar a requisição: " + err.message + "</span>";
+        resBox.innerHTML = "<div class='error'>FALHA NA REQUISIÇÃO AJAX:<br><br>Mensagem: " + err.message + "</div>";
     } finally {
         btn.disabled = false;
         btn.style.opacity = "1";

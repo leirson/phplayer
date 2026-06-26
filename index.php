@@ -1,4 +1,10 @@
 <?php
+if (isset($_GET['share'])) {
+    require 'shared.php';
+    exit;
+}
+?>
+<?php
 // Detecta se o acesso é por dispositivo móvel
 function isMobile() {
     return preg_match(
@@ -16,8 +22,9 @@ if (isMobile()) {
 @error_reporting(E_ALL);
 @ini_set('display_errors', 1);
 if (!file_exists('config.php')) {
-    die("<div style='font-family:sans-serif;background:#0f172a;color:#f87171;padding:30px;border-radius:12px;margin:50px auto;max-width:600px;border:1px solid #ef444430;'><h3>Arquivo de Configuração Ausente</h3><p>O arquivo <strong>config.php</strong> não foi encontrado na mesma pasta raiz que o <strong>index.php</strong>. Crie-o primeiro com as definições de conexão corretas antes de abrir o reprodutor.</p></div>");
+    die("config.php missing");
 }
+define('DONT_EXIT_ON_DB_ERROR', true);
 ?><!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -29,6 +36,12 @@ if (!file_exists('config.php')) {
         tailwind.config = {
             theme: {
                 extend: {
+                    zIndex: {
+                        '55': '55',
+                        '56': '56',
+                        '57': '57',
+                        '60': '60'
+                    },
                     colors: {
                         sky: {
                             300: 'var(--theme-sky-300)',
@@ -160,7 +173,15 @@ if (!file_exists('config.php')) {
         .paused-animation {
             animation-play-state: paused !important;
         }
-    </style>
+    
+    .no-download [onclick*="startDownload"] { display: none !important; }
+    .no-download [onclick*="route=download"] { display: none !important; }
+    .no-download button[title*="Download"] { display: none !important; }
+    .no-download button[title*="Baixar"] { display: none !important; }
+    .no-download a[data-download-bot] { display: none !important; }
+    .no-download [data-lucide="download"] { display: none !important; }
+    .no-download .only-downloaders { display: none !important; }
+</style>
 </head>
 <body class="h-screen overflow-hidden flex flex-col antialiased">
 
@@ -303,6 +324,11 @@ if (!file_exists('config.php')) {
     </div>
 
     <!-- WORKSPACE PANEL -->
+    <!-- WORKSPACE PANEL (Public Shared Player) -->
+    <div id="public-shared-player" class="flex-1 flex overflow-hidden hidden bg-slate-950 flex-col items-center">
+    </div>
+
+    <!-- WORKSPACE PANEL (Logged In) -->
     <div id="workspace-panel" class="flex-1 flex overflow-hidden hidden">
         
         <!-- SIDEBAR -->
@@ -563,7 +589,19 @@ if (!file_exists('config.php')) {
                     <button onclick="setConfigSubTab('media')" id="subtab-btn-media" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none hidden admin-only" data-i18n="subnav-sync">
                         Sincronização e Mídia
                     </button>
-                    <button onclick="setConfigSubTab('users')" id="subtab-btn-users" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none hidden admin-only" data-i18n="subnav-users">
+                    <!-- end current -->
+
+                    <button onclick="setConfigSubTab('updates')" id="subtab-btn-updates" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none hidden admin-only">
+                        Atualização
+                    </button>
+
+                    <button onclick="setConfigSubTab('shares')" id="subtab-btn-shares" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none hidden admin-only">
+                        Compartilhamentos
+                    </button>
+                    <button onclick="setConfigSubTab('dashboard_cfg')" id="subtab-btn-dashboard_cfg" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none hidden admin-only">
+                        Dashboard
+                    </button>
+<button onclick="setConfigSubTab('users')" id="subtab-btn-users" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none hidden admin-only" data-i18n="subnav-users">
                         Editar Usuários
                     </button>
                     <button onclick="setConfigSubTab('password')" id="subtab-btn-password" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none" data-i18n="subnav-password">
@@ -893,92 +931,7 @@ if (!file_exists('config.php')) {
                         </div>
                     </div>
 
-                    <!-- DLNA Server Settings Card -->
-                    <div class="bg-slate-900/10 border border-slate-900 rounded-2xl p-6 space-y-4 text-left mt-6 animate-fade-in font-sans">
-                        <div>
-                            <h3 class="text-sm font-bold text-white flex items-center gap-1.5 align-middle">
-                                <i data-lucide="cast" class="w-4 h-4 text-sky-400"></i> Servidor DLNA (UPnP MediaServer)
-                            </h3>
-                            <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-                                Ative o suporte a DLNA no seu servidor PHPlayer para parear e reproduzir músicas e vídeos diretamente em Smart TVs, consoles de videogame ou receptores de áudio compatíveis na sua rede doméstica.
-                            </p>
-                        </div>
-                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-950/20 border border-slate-900 p-4 rounded-xl">
-                            <div class="flex items-center gap-3">
-                                <label class="relative inline-flex items-center cursor-pointer select-none">
-                                    <input id="dlna-enabled-toggle" type="checkbox" onchange="toggleDlnaSetting(this)" class="sr-only peer">
-                                    <div class="w-11 h-6 bg-slate-900 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500 peer-checked:after:bg-white border border-slate-800"></div>
-                                    <span class="ml-3 text-xs font-bold text-slate-300 uppercase tracking-wider">Habilitar DLNA</span>
-                                </label>
-                            </div>
-                            <!-- DLNA active status dynamic micro indicators -->
-                            <div id="dlna-status-indicator" class="flex items-center gap-1.5 text-[11px] font-mono text-slate-500 bg-slate-950/45 px-3 py-1.5 rounded-lg border border-slate-900">
-                                <span class="w-2 h-2 rounded-full bg-slate-600 block"></span>
-                                OFFLINE
-                            </div>
-                        </div>
-                        <!-- Paired renderers view, loaded when enabled -->
-                        <div id="dlna-devices-expanded" class="space-y-2.5 hidden">
-                            <span class="text-[10px] uppercase tracking-wider font-extrabold text-indigo-400 block">Dispositivos de Mídia Pareados (UPnP-AV Renderer) IP:3000:</span>
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <div class="bg-indigo-950/15 border border-indigo-500/15 rounded-xl p-3 flex flex-col justify-between hover:border-indigo-500/25 transition animate-fade-in">
-                                    <div class="flex items-center gap-2">
-                                        <i data-lucide="tv" class="w-4 h-4 text-emerald-400 animate-pulse"></i>
-                                        <span class="text-xs font-bold text-white truncate">Sala de Estar TV</span>
-                                    </div>
-                                    <span class="text-[9px] font-mono text-slate-500 mt-2 block uppercase font-bold">LG webOS TV (Ativo)</span>
-                                </div>
-                                <div class="bg-indigo-950/15 border border-indigo-500/15 rounded-xl p-3 flex flex-col justify-between hover:border-indigo-500/25 transition animate-fade-in">
-                                    <div class="flex items-center gap-2">
-                                        <i data-lucide="tv" class="w-4 h-4 text-emerald-400 animate-pulse"></i>
-                                        <span class="text-xs font-bold text-white truncate">Quarto Principal TV</span>
-                                    </div>
-                                    <span class="text-[9px] font-mono text-slate-500 mt-2 block uppercase font-bold">Samsung QLED (Ativo)</span>
-                                </div>
-                                <div class="bg-indigo-950/15 border border-indigo-500/15 rounded-xl p-3 flex flex-col justify-between hover:border-indigo-500/25 transition animate-fade-in">
-                                    <div class="flex items-center gap-2">
-                                        <i data-lucide="gamepad-2" class="w-4 h-4 text-emerald-400 animate-pulse font-bold"></i>
-                                        <span class="text-xs font-bold text-white truncate font-bold">Xbox Series X</span>
-                                    </div>
-                                    <span class="text-[9px] font-mono text-slate-500 mt-2 block uppercase font-bold">UPnP AV Player (Ativo)</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Instruções de Firewall e PHP-Sockets para Debian/Ubuntu -->
-                        <div class="mt-5 pt-4 border-t border-slate-900/60 space-y-3">
-                            <span class="text-[10px] uppercase tracking-wider font-extrabold text-sky-400 block flex items-center gap-1.5 select-none">
-                                <i data-lucide="terminal" class="w-3.5 h-3.5 text-sky-400"></i> Servidor Debian / Ubuntu - Guia de Configuração DLNA
-                            </span>
-                            <p class="text-xs text-slate-400 leading-relaxed">
-                                Para que as Smart TVs locais descubram este servidor via SSDP (UDP multicast), o seu PHP precisa ter a extensão de <code class="bg-slate-950 text-white px-1.5 py-0.5 rounded text-[10px] font-mono font-bold">sockets</code> ativa e os firewalls locais devem liberar a porta UDP multicast 1900.
-                            </p>
-                            
-                            <div class="bg-slate-950/60 rounded-xl p-4 border border-slate-900/60 space-y-2 font-mono text-xs text-slate-300">
-                                <div class="flex items-center justify-between gap-3 border-b border-slate-900 pb-2 mb-2">
-                                    <span class="text-[10px] text-slate-500 font-sans font-bold uppercase tracking-wider">Comandos Rápidos no Terminal:</span>
-                                    <button onclick="navigator.clipboard.writeText('wget -O setup_dlna.sh http://endereço-do-servidor/setup_dlna.sh && chmod +x setup_dlna.sh && sudo ./setup_dlna.sh').then(() => alert('Comandos de instalação copiados! Execute no seu Debian.'))" class="text-[10px] font-sans bg-slate-900 hover:bg-slate-850 border border-slate-800 px-2.5 py-1 rounded-lg text-white font-semibold transition active:scale-95 cursor-pointer">
-                                        Copiar Comandos
-                                    </button>
-                                </div>
-                                <p class="text-sky-350 select-all font-bold">wget -O setup_dlna.sh http://endereço-do-servidor/setup_dlna.sh</p>
-                                <p class="text-slate-400">chmod +x setup_dlna.sh</p>
-                                <p class="text-slate-400">sudo ./setup_dlna.sh</p>
-                            </div>
-
-                            <div class="flex flex-wrap items-center justify-between gap-4 pt-1">
-                                <div class="flex items-center gap-2">
-                                    <a href="setup_dlna.sh" download="setup_dlna.sh" class="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-xs text-white font-bold px-4 py-2.5 rounded-xl transition cursor-pointer select-none active:scale-95">
-                                        <i data-lucide="download" class="w-4 h-4 text-sky-400"></i> Baixar setup_dlna.sh
-                                    </a>
-                                </div>
-                                <span class="text-[10.5px] text-yellow-500/90 font-bold flex items-center gap-1 leading-tight max-w-sm">
-                                    <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0 text-yellow-500"></i>
-                                    <span>Se o PHP rodar sob Docker, use <code class="bg-slate-950 text-white px-1 py-0.5 rounded text-[9.5px] font-mono">--network host</code> na inicialização do contêiner.</span>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
+                    
 
                     <!-- Upload Form -->
                     <div class="bg-slate-950/50 border border-slate-900 p-6 rounded-2xl space-y-4 text-left">
@@ -1118,8 +1071,100 @@ if (!file_exists('config.php')) {
                     </div>
                 </div>
 
+                
+                <!-- SUBTAB 6: ATUALIZAÇÕES -->
+                <div id="subtab-pane-updates" class="space-y-6 hidden admin-only font-sans">
+                    <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl max-w-2xl text-left">
+                        <h3 class="text-xs font-black uppercase text-white flex items-center gap-1.5 mb-1">
+                            <i data-lucide="refresh-cw" class="w-4 h-4 text-sky-400"></i> Atualização do Sistema
+                        </h3>
+                        <p class="text-xs text-slate-400 leading-normal mb-5">Verifique se existe uma nova versão do PHPlayer disponível no GitHub.</p>
+                        
+                        <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-5 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <span class="text-[10px] uppercase font-bold text-slate-500 tracking-wider block mb-1">Status Atual</span>
+                                    <div id="update-status-badge" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 border border-slate-800 text-slate-300 rounded-lg text-[11px] font-bold">
+                                        <i data-lucide="help-circle" class="w-3.5 h-3.5"></i> Desconhecido
+                                    </div>
+                                </div>
+                                <button onclick="checkPhpUpdates()" id="btn-check-updates" class="bg-gradient-to-r from-sky-500 to-indigo-600 text-white hover:opacity-90 font-bold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer shadow-lg shadow-sky-500/10 flex items-center gap-1.5">
+                                    <i data-lucide="search" class="w-3.5 h-3.5"></i> Verificar Atualização
+                                </button>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4 border-t border-slate-900/60 pt-4">
+                                <div>
+                                    <span class="text-[9px] uppercase font-bold text-slate-500 tracking-wider block mb-1">Sua Versão</span>
+                                    <div id="current-version-label" class="text-xl font-black text-white font-mono">--</div>
+                                </div>
+                                <div>
+                                    <span class="text-[9px] uppercase font-bold text-slate-500 tracking-wider block mb-1">Versão Disponível</span>
+                                    <div id="remote-version-label" class="text-xl font-black text-sky-400 font-mono">--</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="changelog-container" class="mt-5 hidden">
+                            <h4 class="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 flex items-center gap-1.5">
+                                <i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-400"></i> O que há de novo (Changelog)
+                            </h4>
+                            <pre id="changelog-content" class="bg-slate-950 border border-slate-900 p-4 rounded-xl text-[11px] text-slate-300 font-mono whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto custom-scroll shadow-inner">
+                            </pre>
+                            
+                            <div id="download-update-wrapper" class="mt-4 hidden">
+                                <a href="https://github.com/leirson/phplayer" target="_blank" class="w-full flex items-center justify-center gap-2 px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-xl text-xs uppercase tracking-wider transition shadow-lg shadow-emerald-500/20">
+                                    <i data-lucide="download-cloud" class="w-4 h-4"></i> Baixar Nova Versão do GitHub
+                                </a>
+                                <p class="text-[10px] text-center text-slate-500 mt-2 font-bold uppercase tracking-wider">Lembre-se de fazer backup antes de atualizar.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- SUBTAB 4: CHANGE MY PASSWORD (Visible to all users) -->
-                <div id="subtab-pane-password" class="space-y-6 hidden">
+                <div 
+                <!-- SUBTAB 5: SHARES & DASHBOARD (Admin only) -->
+                <div id="subtab-pane-dashboard_cfg" class="space-y-6 hidden">
+                    <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl max-w-md text-left">
+                        <h3 class="text-xs font-black uppercase text-white flex items-center gap-1.5 mb-4">
+                            <i data-lucide="layout-grid" class="w-4 h-4 text-sky-400"></i>
+                            Configuração do Dashboard
+                        </h3>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Qtd. de Álbuns Aleatórios/Recentes</label>
+                        <div class="flex gap-2 mb-3">
+                           <input type="number" id="dashboard-albums-count" placeholder="12" class="w-full bg-slate-900 border border-slate-800 text-white text-sm rounded-lg py-2 px-3 focus:outline-none focus:border-sky-500 transition">
+                        </div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Tempo de Atualização (Segundos)</label>
+                        <div class="flex gap-2">
+                           <input type="number" id="dashboard-rotate-time" placeholder="8" class="w-full bg-slate-900 border border-slate-800 text-white text-sm rounded-lg py-2 px-3 focus:outline-none focus:border-sky-500 transition">
+                           <button onclick="saveDashboardSettings()" class="bg-sky-500 hover:bg-sky-600 focus:scale-95 text-white px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap">Salvar Todos</button>
+                        </div>
+                    </div>
+                </div>
+<div id="subtab-pane-shares" class="space-y-6 hidden">
+                    <div class="bg-slate-950/50 border border-slate-900 overflow-hidden rounded-2xl text-left">
+                        <h3 class="p-4 text-xs font-black uppercase text-white bg-slate-900 flex items-center gap-1.5">
+                            <i data-lucide="share-2" class="w-4 h-4 text-sky-400"></i>
+                            Links Compartilhados
+                        </h3>
+                        <div class="w-full overflow-x-auto min-h-[100px] custom-scroll">
+                            <table class="w-full text-left text-xs text-slate-300 whitespace-nowrap">
+                                <thead>
+                                    <tr class="border-b border-slate-900/60 text-slate-500 font-mono tracking-wider text-[9px] uppercase">
+                                        <th class="py-2 px-4">Alvo</th>
+                                        <th class="py-2 px-4">Link</th>
+                                        <th class="py-2 px-4 text-right w-12">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="shares-table-body" class="divide-y divide-slate-900/40">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+<div id="subtab-pane-password" class="space-y-6 hidden">
                     <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl max-w-md text-left">
                         <h3 class="text-xs font-black uppercase text-white flex items-center gap-1.5 mb-1.5">
                             <i data-lucide="lock" class="w-4 h-4 text-sky-400"></i> Alterar Minha Senha de Acesso
@@ -1575,7 +1620,7 @@ if (!file_exists('config.php')) {
                 <!-- ACTIVE REPRODUCING STATE -->
                 <div id="reprodutor-active-state" class="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-start text-left hidden">
                     <!-- COLUMN 1: VINYL AND PROGRESS -->
-                    <div class="lg:col-span-5 space-y-6">
+                    <div class="lg:col-span-8 space-y-6">
                         <div class="bg-[#0c1322]/80 border border-slate-900/80 p-6 md:p-8 rounded-3xl flex flex-col items-center justify-between shadow-2xl relative overflow-hidden">
                             <!-- Top Info Header Row -->
                             <div class="flex items-center justify-between w-full pb-4 border-b border-slate-900">
@@ -1678,7 +1723,7 @@ if (!file_exists('config.php')) {
                     </div>
 
                     <!-- COLUMN 2: AJUSTES ADICIONAIS, EQUALIZER AND VISUALIZER -->
-                    <div class="lg:col-span-3 space-y-4">
+                    <div class="lg:col-span-4 space-y-4">
                         <!-- TIMERS AND TRANSITIONS (Ajustes Adicionais) -->
                         <div class="bg-[#090e18] border border-slate-900 p-5 rounded-2xl text-left space-y-4">
                             <h4 class="text-xs font-black uppercase text-slate-400 tracking-wider">Ajustes Adicionais</h4>
@@ -1713,163 +1758,7 @@ if (!file_exists('config.php')) {
                             </div>
                         </div>
 
-                        <!-- EMBEDDED EQUALIZER -->
-                        <div class="bg-[#090e18] border border-slate-900 rounded-2xl overflow-hidden text-left flex flex-col font-sans">
-                            <!-- Title bar -->
-                            <div class="flex items-center justify-between p-4 border-b border-slate-900 bg-[#0d131f]/15">
-                                <div class="flex items-center gap-2">
-                                    <i data-lucide="sliders" class="w-4 h-4 text-sky-455 shrink-0"></i>
-                                    <span class="text-xs font-bold text-white uppercase tracking-wider">Equalizador de Áudio</span>
-                                </div>
-                            </div>
-                            <!-- Presets -->
-                            <div class="p-3 border-b border-slate-900 bg-slate-900/10">
-                                <label class="text-[8px] uppercase font-bold text-slate-500 tracking-wider block mb-2">Predefinições (Presets)</label>
-                                <div class="grid grid-cols-4 gap-1">
-                                    <button onclick="setEqPresetPhp('flat')" id="preset-php-flat" class="preset-btn px-1 py-0.5 bg-sky-500/10 border border-sky-500 text-sky-400 rounded text-[9px] hover:border-sky-500 hover:text-sky-400 transition font-bold shadow-lg shadow-sky-500/5 cursor-pointer">Flat</button>
-                                    <button onclick="setEqPresetPhp('bass')" id="preset-php-bass" class="preset-btn px-1 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded text-[9px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Grav</button>
-                                    <button onclick="setEqPresetPhp('pop')" id="preset-php-pop" class="preset-btn px-1 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded text-[9px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Pop</button>
-                                    <button onclick="setEqPresetPhp('rock')" id="preset-php-rock" class="preset-btn px-1 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded text-[9px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Rock</button>
-                                    <button onclick="setEqPresetPhp('vocal')" id="preset-php-vocal" class="preset-btn px-1 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded text-[9px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Voz</button>
-                                    <button onclick="setEqPresetPhp('electronic')" id="preset-php-electronic" class="preset-btn px-1 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded text-[9px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Eletr</button>
-                                    <button onclick="setEqPresetPhp('suave')" id="preset-php-suave" class="preset-btn px-1 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded text-[9px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Suav</button>
-                                    <button onclick="setEqPresetPhp('classical')" id="preset-php-classical" class="preset-btn px-1 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded text-[9px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Clás</button>
-                                </div>
-                            </div>
-                            <!-- Sliders -->
-                            <div class="px-3 py-6 flex justify-around items-center h-44 bg-slate-900/5">
-                                <div class="flex flex-col items-center h-full gap-1">
-                                    <span class="text-[8px] text-slate-500 font-mono" id="php-eq-gain-val-0">0dB</span>
-                                    <div class="flex-1 w-6 relative flex justify-center">
-                                        <input type="range" min="-12" max="12" value="0" id="php-eq-slider-0" oninput="onEqSliderChangePhp(0, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="-webkit-appearance: slider-vertical; width: 4px; height: 100%;">
-                                    </div>
-                                    <span class="text-[8px] font-bold text-white">60Hz</span>
-                                    <span class="text-[7px] text-sky-455 uppercase font-black tracking-wider">Graves</span>
-                                </div>
-                                <div class="flex flex-col items-center h-full gap-1">
-                                    <span class="text-[8px] text-slate-500 font-mono" id="php-eq-gain-val-1">0dB</span>
-                                    <div class="flex-1 w-6 relative flex justify-center">
-                                        <input type="range" min="-12" max="12" value="0" id="php-eq-slider-1" oninput="onEqSliderChangePhp(1, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="-webkit-appearance: slider-vertical; width: 4px; height: 100%;">
-                                    </div>
-                                    <span class="text-[8px] font-bold text-white">230Hz</span>
-                                    <span class="text-[7px] text-slate-500 uppercase font-bold tracking-wider">MGrav</span>
-                                </div>
-                                <div class="flex flex-col items-center h-full gap-1">
-                                    <span class="text-[8px] text-slate-500 font-mono" id="php-eq-gain-val-2">0dB</span>
-                                    <div class="flex-1 w-6 relative flex justify-center">
-                                        <input type="range" min="-12" max="12" value="0" id="php-eq-slider-2" oninput="onEqSliderChangePhp(2, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="-webkit-appearance: slider-vertical; width: 4px; height: 100%;">
-                                    </div>
-                                    <span class="text-[8px] font-bold text-white">910Hz</span>
-                                    <span class="text-[7px] text-slate-500 uppercase font-bold tracking-wider">Médio</span>
-                                </div>
-                                <div class="flex flex-col items-center h-full gap-1">
-                                    <span class="text-[8px] text-slate-500 font-mono" id="php-eq-gain-val-3">0dB</span>
-                                    <div class="flex-1 w-6 relative flex justify-center">
-                                        <input type="range" min="-12" max="12" value="0" id="php-eq-slider-3" oninput="onEqSliderChangePhp(3, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="-webkit-appearance: slider-vertical; width: 4px; height: 100%;">
-                                    </div>
-                                    <span class="text-[8px] font-bold text-white">4kHz</span>
-                                    <span class="text-[7px] text-slate-500 uppercase font-bold tracking-wider">Pres</span>
-                                </div>
-                                <div class="flex flex-col items-center h-full gap-1">
-                                    <span class="text-[8px] text-slate-500 font-mono" id="php-eq-gain-val-4">0dB</span>
-                                    <div class="flex-1 w-6 relative flex justify-center">
-                                        <input type="range" min="-12" max="12" value="0" id="php-eq-slider-4" oninput="onEqSliderChangePhp(4, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="-webkit-appearance: slider-vertical; width: 4px; height: 100%;">
-                                    </div>
-                                    <span class="text-[8px] font-bold text-white">14kHz</span>
-                                    <span class="text-[7px] text-sky-455 uppercase font-black tracking-wider">Agudo</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- EMBEDDED VISUALIZER -->
-                        <div class="bg-[#090e18] border border-slate-900 rounded-2xl overflow-hidden flex flex-col font-sans">
-                            <!-- Title bar -->
-                            <div class="flex items-center justify-between p-4 border-b border-slate-900 bg-[#0d131f]/15">
-                                <div class="flex items-center gap-2">
-                                    <i data-lucide="activity" class="w-4 h-4 text-sky-455 shrink-0 animate-pulse"></i>
-                                    <span class="text-xs font-bold text-white uppercase tracking-wider">Visualizador de Áudio</span>
-                                </div>
-                            </div>
-                            <!-- Toolbar controls -->
-                            <div class="p-2 border-b border-slate-900 bg-slate-900/10 flex flex-col gap-2">
-                                <div class="flex items-center gap-0.5 bg-slate-950 border border-slate-900 p-0.5 rounded-lg justify-around">
-                                    <button onclick="setVisualizerStylePhp('bars')" id="v-style-bars" class="px-2 py-1 rounded-md text-[9px] font-bold uppercase transition flex items-center gap-1 bg-sky-500/10 text-sky-400 cursor-pointer">
-                                        Barras
-                                    </button>
-                                    <button onclick="setVisualizerStylePhp('scope')" id="v-style-scope" class="px-2 py-1 rounded-md text-[9px] font-bold uppercase transition flex items-center gap-1 text-slate-400 hover:text-white hover:bg-slate-900 cursor-pointer">
-                                        Onda
-                                    </button>
-                                    <button onclick="setVisualizerStylePhp('beat')" id="v-style-beat" class="px-2 py-1 rounded-md text-[9px] font-bold uppercase transition flex items-center gap-1 text-slate-400 hover:text-white hover:bg-slate-900 cursor-pointer">
-                                        Batida
-                                    </button>
-                                </div>
-                                <div class="flex items-center gap-0.5 bg-slate-950 border border-slate-900 p-0.5 rounded-lg justify-around">
-                                    <button onclick="setVisualizerColorPhp('wmp')" id="v-color-wmp" class="px-1.5 py-0.5 rounded text-[8px] uppercase font-bold tracking-wider transition bg-cyan-500/10 text-cyan-405 border border-cyan-500/20 cursor-pointer">WMP</button>
-                                    <button onclick="setVisualizerColorPhp('neon')" id="v-color-neon" class="px-1.5 py-0.5 rounded text-[8px] uppercase font-bold tracking-wider transition text-slate-400 hover:text-white cursor-pointer">Neon</button>
-                                    <button onclick="setVisualizerColorPhp('fire')" id="v-color-fire" class="px-1.5 py-0.5 rounded text-[8px] uppercase font-bold tracking-wider transition text-slate-400 hover:text-white cursor-pointer">Fire</button>
-                                    <button onclick="setVisualizerColorPhp('cyber')" id="v-color-cyber" class="px-1.5 py-0.5 rounded text-[8px] uppercase font-bold tracking-wider transition text-slate-400 hover:text-white cursor-pointer">Cyber</button>
-                                </div>
-                            </div>
-                            <!-- Canvas -->
-                            <div class="h-32 w-full relative bg-slate-950 flex items-center justify-center p-1 overflow-hidden">
-                                <canvas id="php-visualizer-canvas" class="w-full h-full block rounded-xl"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- COLUMN 3: LYRICS ALWAYS OPEN -->
-                    <div class="lg:col-span-4 bg-[#090e18] border border-slate-900 rounded-3xl overflow-hidden shadow-2xl flex flex-col h-full min-h-[580px] lg:min-h-[660px] font-sans">
-                        <!-- Header -->
-                        <div class="flex items-center justify-between p-4 border-b border-slate-900 bg-[#0d131f]/15">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <i data-lucide="file-text" class="w-4 h-4 text-sky-455 shrink-0"></i>
-                                <div class="text-left min-w-0">
-                                    <div class="flex items-center gap-1 flex-wrap">
-                                        <span id="lyrics-title" class="text-xs font-bold text-white max-w-[120px] sm:max-w-[160px] truncate block">Título</span>
-                                        <span id="lyrics-source" class="text-[8px] bg-sky-500/15 text-sky-400 px-1 py-0.5 rounded font-black tracking-wider uppercase hidden">Lyrics.ovh</span>
-                                    </div>
-                                    <span id="lyrics-artist" class="text-[9px] text-sky-450 truncate block font-semibold">Artista</span>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-1">
-                                <div class="flex bg-slate-900/40 p-0.5 border border-slate-800/40 rounded-lg gap-0.5 shrink-0 select-none">
-                                    <button id="btn-lyrics-karaoke" onclick="setLyricsMode('karaoke')" class="px-2 py-0.5 font-bold uppercase tracking-wider text-[8px] rounded cursor-pointer flex items-center gap-0.5 transition-all duration-200">
-                                        Karaoke
-                                    </button>
-                                    <button id="btn-lyrics-standard" onclick="setLyricsMode('standard')" class="px-2 py-0.5 font-bold uppercase tracking-wider text-[8px] rounded cursor-pointer flex items-center gap-0.5 transition-all duration-200">
-                                        Leitura
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
                         
-                        <!-- Lyrics search controls -->
-                        <div class="px-4 py-2 bg-[#0a0f18]/80 border-b border-slate-900/80 flex flex-col gap-2">
-                            <div class="grid grid-cols-2 gap-1.5 w-full">
-                                <div class="space-y-0.5">
-                                    <label class="text-[7px] uppercase font-bold text-slate-500 tracking-wider">Artista</label>
-                                    <input type="text" id="lyrics-search-artist" placeholder="Artista" class="w-full bg-slate-900/60 border border-slate-800/80 rounded-lg px-2 py-1 text-[10px] text-white placeholder-slate-500 font-medium focus:outline-none focus:border-sky-500 transition" onkeydown="if(event.key === 'Enter') searchLyricsCustom()">
-                                </div>
-                                <div class="space-y-0.5">
-                                    <label class="text-[7px] uppercase font-bold text-slate-500 tracking-wider">Música</label>
-                                    <input type="text" id="lyrics-search-title" placeholder="Música" class="w-full bg-slate-900/60 border border-slate-800/80 rounded-lg px-2 py-1 text-[10px] text-white placeholder-slate-500 font-medium focus:outline-none focus:border-sky-500 transition" onkeydown="if(event.key === 'Enter') searchLyricsCustom()">
-                                </div>
-                            </div>
-                            <button onclick="searchLyricsCustom()" class="w-full px-3 py-1 bg-sky-600 hover:bg-sky-500 font-bold text-[9px] uppercase tracking-wider text-white rounded-lg transition cursor-pointer flex items-center justify-center gap-1 shrink-0 h-[24px]">
-                                <i data-lucide="search" class="w-3 h-3"></i>
-                                Buscar Letras
-                            </button>
-                        </div>
-
-                        <!-- Lyrics scrolling panel -->
-                        <div id="lyrics-content" class="flex-1 overflow-y-auto p-4 text-center whitespace-pre-line custom-scroll text-xs leading-relaxed text-slate-350 min-h-[300px]">
-                            <!-- Loaded on demand -->
-                        </div>
-                        <!-- Footer -->
-                        <div class="p-2 border-t border-slate-900 bg-slate-950/85 text-center text-[8px] font-mono text-slate-650 uppercase tracking-widest block shrink-0">
-                            Letras em Tempo Real
-                        </div>
-                    </div>
                 </div>
             </section>
         </main>
@@ -2030,14 +1919,182 @@ if (!file_exists('config.php')) {
                     <p class="text-xs font-bold text-slate-400">Nenhum resultado de imagem</p>
                 </div>
             </div>
+        </div>
+    </div>
             
-              <!-- DUMMY HIDDEN MODAL HOLDERS FOR BACKWARD COMPATIBILITY -->
-    <div id="equalizer-modal" class="hidden"></div>
-    <div id="visualizer-modal" class="hidden"></div>
-    <div id="lyrics-modal" class="hidden"></div>
+              
+    <!-- EQUALIZER MODAL -->
+    <div id="equalizer-modal" class="fixed inset-0 bg-black/85 flex flex-col items-center justify-center z-[60] p-4 backdrop-blur-sm hidden font-sans">
+        <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl max-w-2xl w-full text-left shadow-2xl relative flex flex-col overflow-hidden animate-fade-in">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-5 border-b border-slate-900">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="sliders" class="w-5 h-5 text-sky-455"></i>
+                    <h3 class="text-sm font-black uppercase text-white tracking-wider">Equalizador de Áudio</h3>
+                </div>
+                <button onclick="closeEqualizerModal()" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-900 rounded-lg transition cursor-pointer">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto w-full">
+                <!-- Presets -->
+                <div class="mb-6">
+                    <label class="text-[9px] uppercase font-bold text-slate-500 tracking-wider block mb-3">Predefinições (Presets)</label>
+                    <div class="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                        <button onclick="setEqPresetPhp('flat')" id="preset-php-flat" class="preset-btn px-2 py-1.5 bg-sky-500/10 border border-sky-500 text-sky-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-bold shadow-lg shadow-sky-500/5 cursor-pointer">Flat</button>
+                        <button onclick="setEqPresetPhp('bass')" id="preset-php-bass" class="preset-btn px-2 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Grav</button>
+                        <button onclick="setEqPresetPhp('pop')" id="preset-php-pop" class="preset-btn px-2 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Pop</button>
+                        <button onclick="setEqPresetPhp('rock')" id="preset-php-rock" class="preset-btn px-2 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Rock</button>
+                        <button onclick="setEqPresetPhp('vocal')" id="preset-php-vocal" class="preset-btn px-2 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Voz</button>
+                        <button onclick="setEqPresetPhp('electronic')" id="preset-php-electronic" class="preset-btn px-2 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Eletr</button>
+                        <button onclick="setEqPresetPhp('suave')" id="preset-php-suave" class="preset-btn px-2 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Suav</button>
+                        <button onclick="setEqPresetPhp('classical')" id="preset-php-classical" class="preset-btn px-2 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Clás</button>
+                    </div>
+                </div>
+
+                <!-- Sliders -->
+                <div class="p-6 flex justify-around items-center h-56 bg-slate-900/40 border border-slate-800/60 rounded-xl">
+                    <div class="flex flex-col items-center h-full gap-2">
+                        <span class="text-[9px] text-slate-500 font-mono" id="php-eq-gain-val-0">0dB</span>
+                        <div class="flex-1 w-8 relative flex justify-center py-2">
+                            <input type="range" min="-12" max="12" value="0" id="php-eq-slider-0" oninput="onEqSliderChangePhp(0, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="-webkit-appearance: slider-vertical; width: 6px; height: 100%;">
+                        </div>
+                        <span class="text-[9px] font-bold text-white">60Hz</span>
+                        <span class="text-[8px] text-sky-455 uppercase font-black tracking-wider">Graves</span>
+                    </div>
+                    <div class="flex flex-col items-center h-full gap-2">
+                        <span class="text-[9px] text-slate-500 font-mono" id="php-eq-gain-val-1">0dB</span>
+                        <div class="flex-1 w-8 relative flex justify-center py-2">
+                            <input type="range" min="-12" max="12" value="0" id="php-eq-slider-1" oninput="onEqSliderChangePhp(1, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="-webkit-appearance: slider-vertical; width: 6px; height: 100%;">
+                        </div>
+                        <span class="text-[9px] font-bold text-white">230Hz</span>
+                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider">MGrav</span>
+                    </div>
+                    <div class="flex flex-col items-center h-full gap-2">
+                        <span class="text-[9px] text-slate-500 font-mono" id="php-eq-gain-val-2">0dB</span>
+                        <div class="flex-1 w-8 relative flex justify-center py-2">
+                            <input type="range" min="-12" max="12" value="0" id="php-eq-slider-2" oninput="onEqSliderChangePhp(2, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="-webkit-appearance: slider-vertical; width: 6px; height: 100%;">
+                        </div>
+                        <span class="text-[9px] font-bold text-white">910Hz</span>
+                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider">Médio</span>
+                    </div>
+                    <div class="flex flex-col items-center h-full gap-2">
+                        <span class="text-[9px] text-slate-500 font-mono" id="php-eq-gain-val-3">0dB</span>
+                        <div class="flex-1 w-8 relative flex justify-center py-2">
+                            <input type="range" min="-12" max="12" value="0" id="php-eq-slider-3" oninput="onEqSliderChangePhp(3, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="-webkit-appearance: slider-vertical; width: 6px; height: 100%;">
+                        </div>
+                        <span class="text-[9px] font-bold text-white">4kHz</span>
+                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider">Pres</span>
+                    </div>
+                    <div class="flex flex-col items-center h-full gap-2">
+                        <span class="text-[9px] text-slate-500 font-mono" id="php-eq-gain-val-4">0dB</span>
+                        <div class="flex-1 w-8 relative flex justify-center py-2">
+                            <input type="range" min="-12" max="12" value="0" id="php-eq-slider-4" oninput="onEqSliderChangePhp(4, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="-webkit-appearance: slider-vertical; width: 6px; height: 100%;">
+                        </div>
+                        <span class="text-[9px] font-bold text-white">14kHz</span>
+                        <span class="text-[8px] text-sky-455 uppercase font-black tracking-wider">Agudo</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- VISUALIZER MODAL -->
+    <div id="visualizer-modal" class="fixed inset-0 bg-black flex items-center justify-center z-[60] p-4 hidden font-sans">
+        <div id="visualizer-container" class="bg-[#090e18] border border-slate-800 rounded-3xl w-full max-w-4xl shadow-2xl flex flex-col overflow-hidden animate-fade-in relative">
+            <!-- Toolbar (hidable in fullscreen) -->
+            <div id="visualizer-toolbar" class="flex flex-col shrink-0">
+                <div class="flex items-center justify-between p-4 border-b border-slate-900 bg-[#0d131f]/50">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="activity" class="w-5 h-5 text-sky-455 animate-pulse"></i>
+                        <span class="text-sm font-black text-white uppercase tracking-widest">Visualizador</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="toggleVisualizerFullscreen()" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition cursor-pointer" title="Tela Cheia">
+                            <i data-lucide="maximize" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="closeVisualizerModal()" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition cursor-pointer" title="Fechar">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-3 border-b border-slate-900 bg-slate-900/20 flex flex-wrap gap-4 items-center justify-between">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[10px] font-bold text-slate-500 uppercase mr-1">Estilos:</span>
+                        <button onclick="setVisualizerStylePhp('bars')" id="v-style-bars" class="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition bg-sky-500/10 text-sky-400 cursor-pointer border border-sky-500/30">Barras</button>
+                        <button onclick="setVisualizerStylePhp('scope')" id="v-style-scope" class="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent cursor-pointer">Onda</button>
+                        <button onclick="setVisualizerStylePhp('beat')" id="v-style-beat" class="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent cursor-pointer">Batida</button>
+                        <button onclick="setVisualizerStylePhp('circle')" id="v-style-circle" class="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent cursor-pointer">Círculo</button>
+                        <button onclick="setVisualizerStylePhp('particles')" id="v-style-particles" class="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent cursor-pointer">Partículas</button>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[10px] font-bold text-slate-500 uppercase mr-1">Cores:</span>
+                        <button onclick="setVisualizerColorPhp('wmp')" id="v-color-wmp" class="px-2.5 py-1 rounded-md text-[10px] uppercase font-black transition bg-cyan-500/10 text-cyan-405 border border-cyan-500/30 cursor-pointer">WMP</button>
+                        <button onclick="setVisualizerColorPhp('neon')" id="v-color-neon" class="px-2.5 py-1 rounded-md text-[10px] uppercase font-black transition text-purple-400/50 hover:text-purple-400 cursor-pointer">Neon</button>
+                        <button onclick="setVisualizerColorPhp('fire')" id="v-color-fire" class="px-2.5 py-1 rounded-md text-[10px] uppercase font-black transition text-orange-400/50 hover:text-orange-400 cursor-pointer">Fire</button>
+                        <button onclick="setVisualizerColorPhp('cyber')" id="v-color-cyber" class="px-2.5 py-1 rounded-md text-[10px] uppercase font-black transition text-green-400/50 hover:text-green-400 cursor-pointer">Cyber</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Canvas -->
+            <div id="visualizer-canvas-wrapper" class="w-full relative bg-[#040810] flex items-center justify-center overflow-hidden h-72 sm:h-96" style="min-height: 250px; transform: translateZ(0); will-change: transform;">
+                <canvas id="php-visualizer-canvas" class="w-full h-full block" style="will-change: transform;"></canvas>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- LYRICS MODAL -->
+    <div id="lyrics-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-[60] p-4 backdrop-blur-sm hidden font-sans text-left">
+        <div class="bg-[#0b0f19] border border-slate-800 rounded-3xl max-w-2xl w-full flex flex-col shadow-2xl overflow-hidden animate-fade-in relative max-h-[90vh]">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-5 border-b border-slate-900 shrink-0">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-sky-400 shrink-0">
+                        <i data-lucide="file-text" class="w-5 h-5"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h3 id="lyrics-title" class="text-sm font-bold text-white truncate max-w-[200px] sm:max-w-xs">Título</h3>
+                        <p id="lyrics-artist" class="text-[10px] text-sky-450 truncate mt-0.5 font-semibold">Artista</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 shrink-0">
+                    <div class="flex bg-slate-900/60 p-1 border border-slate-800 rounded-lg gap-1 select-none">
+                        <button id="btn-lyrics-karaoke" onclick="setLyricsMode('karaoke')" class="px-2.5 py-1 font-bold uppercase tracking-wider text-[9px] rounded cursor-pointer transition-all duration-200">
+                            Karaoke
+                        </button>
+                        <button id="btn-lyrics-standard" onclick="setLyricsMode('standard')" class="px-2.5 py-1 font-bold uppercase tracking-wider text-[9px] rounded cursor-pointer transition-all duration-200">
+                            Leitura
+                        </button>
+                    </div>
+                    <button onclick="closeLyricsModal()" class="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-900 rounded-xl transition cursor-pointer">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Search controls -->
+            <div class="px-5 py-3 bg-[#0a0f18] border-b border-slate-900 flex flex-col sm:flex-row gap-3 shrink-0">
+                <input type="text" id="lyrics-search-artist" placeholder="Artista" class="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-sky-500 transition" onkeydown="if(event.key === 'Enter') searchLyricsCustom()">
+                <input type="text" id="lyrics-search-title" placeholder="Música" class="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-sky-500 transition" onkeydown="if(event.key === 'Enter') searchLyricsCustom()">
+                <button onclick="searchLyricsCustom()" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 font-bold text-[10px] uppercase tracking-wider text-white rounded-xl transition cursor-pointer sm:w-auto w-full">
+                    Buscar Letras
+                </button>
+            </div>
+
+            <!-- Content -->
+            <div id="lyrics-content" class="flex-1 overflow-y-auto p-6 text-center whitespace-pre-line custom-scroll text-sm leading-relaxed text-slate-350">
+                <!-- Loaded on demand -->
+            </div>
+        </div>
+    </div>
+
 
     <!-- ID3 TAGS EDITOR MODAL (Admin Only) -->
-    <div id="id3-edit-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-56 p-4 backdrop-blur-sm hidden">
+    <div id="id3-edit-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-[60] p-4 backdrop-blur-sm hidden">
         <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl max-w-md w-full flex flex-col overflow-hidden shadow-2xl font-sans animate-fade-in">
             <!-- Modal Header -->
             <div class="p-5 border-b border-slate-900 flex items-center justify-between col-span-2">
@@ -2093,7 +2150,7 @@ if (!file_exists('config.php')) {
     </div>
 
     <!-- ID3 TAGS BULK EDITOR MODAL (Admin Only) -->
-    <div id="id3-bulk-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-56 p-4 backdrop-blur-sm hidden font-sans">
+    <div id="id3-bulk-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-[60] p-4 backdrop-blur-sm hidden font-sans">
         <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl max-w-md w-full flex flex-col overflow-hidden shadow-2xl font-sans animate-fade-in text-left">
             <!-- Modal Header -->
             <div class="p-5 border-b border-slate-900 flex items-center justify-between">
@@ -2173,7 +2230,7 @@ if (!file_exists('config.php')) {
     </div>
 
     <!-- ID3 ALBUM BULK EDITOR MODAL (Admin Only) -->
-    <div id="id3-album-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-57 p-4 backdrop-blur-sm hidden font-sans">
+    <div id="id3-album-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-[60] p-4 backdrop-blur-sm hidden font-sans">
         <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl max-w-lg w-full flex flex-col overflow-hidden shadow-2xl font-sans animate-fade-in text-left max-h-[90vh]">
             <!-- Modal Header -->
             <div class="p-5 border-b border-slate-900 flex items-center justify-between shrink-0">
@@ -2281,7 +2338,8 @@ if (!file_exists('config.php')) {
             console.error("Erro ao definir interceptor fetch:", e);
         }
 
-        let currentUser = null;
+        let globalSettings = {};
+let currentUser = null;
         let activeTab = 'dashboard';
         
         let allTracks = [];
@@ -2296,6 +2354,7 @@ if (!file_exists('config.php')) {
         let phpSelectedAlbum = '';
         let artistBioText = '';
         let artistPhotoUrl = '';
+        let artistTopTracks = [];
         let loadingArtistBio = false;
         let loadedCoversCache = {};
         let isBioExpanded = false;
@@ -2324,10 +2383,23 @@ if (!file_exists('config.php')) {
         let dashboardRandomInterval = null;
 
         window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            let shareHash = urlParams.get('share');
+            if (!shareHash && window.location.hash.length > 1) {
+                shareHash = window.location.hash.substring(1);
+            }
+            if (shareHash) {
+                const lp = document.getElementById('login-panel');
+                if (lp) lp.classList.add('hidden');
+                const wp = document.getElementById('workspace-panel');
+                if (wp) wp.classList.add('hidden');
+                return bootPublicSharedPlayer(shareHash);
+            }
             const savedLang = localStorage.getItem('phplayer_lang') || 'pt';
             if (window.applySystemLanguage) {
                 window.applySystemLanguage(savedLang);
             }
+            
             const stored = localStorage.getItem('phplayer_user');
             if (stored) {
                 try {
@@ -2554,6 +2626,21 @@ if (!file_exists('config.php')) {
         }
 
         async function bootPlayer() {
+                try {
+                    const resSet = await fetch(API + '?route=get_settings');
+                    if (resSet.ok) {
+                        const datSet = await resSet.json();
+                        if (datSet && datSet.settings) {
+                            globalSettings = datSet.settings;
+                        }
+                    }
+                } catch (e) {}
+
+            if (currentUser && currentUser.can_download !=='' && parseInt(currentUser.can_download) === 0) {
+                document.body.classList.add('no-download');
+            } else {
+                document.body.classList.remove('no-download');
+            }
             if (!currentUser || !currentUser.username) {
                 const lp = document.getElementById('login-panel');
                 if (lp) lp.classList.remove('hidden');
@@ -2604,15 +2691,7 @@ if (!file_exists('config.php')) {
             updateRandomDashboardAlbums();
             setTab('dashboard');
 
-            if (!dashboardRandomInterval) {
-                dashboardRandomInterval = setInterval(() => {
-                    const pane = document.getElementById('pane-dashboard');
-                    if (pane && !pane.classList.contains('hidden')) {
-                        updateRandomDashboardAlbums();
-                        renderAlbumGrid();
-                    }
-                }, 8000);
-            }
+            setupDashboardInterval();
         }
 
         async function loadData() {
@@ -2729,6 +2808,7 @@ if (!file_exists('config.php')) {
                 .then(data => {
                     artistBioText = (data.bio || 'Sem biografia disponível.').replace(/<[^>]*>/g, '').trim();
                     artistPhotoUrl = data.artist_photo || '';
+                    artistTopTracks = data.top_tracks || [];
                     loadingArtistBio = false;
                     renderLeftSidebar();
                     renderTracksTable();
@@ -2785,7 +2865,7 @@ if (!file_exists('config.php')) {
 
         let configActiveSubTab = 'theme';
         function setConfigSubTab(subTabName) {
-            const adminTabs = ['media', 'users', 'files', 'id3'];
+            const adminTabs = ['media', 'users', 'files', 'id3', 'shares', 'dashboard_cfg', 'updates'];
             if (adminTabs.includes(subTabName) && (!currentUser || currentUser.role !== 'admin')) {
                 subTabName = 'theme';
             }
@@ -2796,6 +2876,11 @@ if (!file_exists('config.php')) {
             document.getElementById('subtab-pane-media').classList.add('hidden');
             document.getElementById('subtab-pane-users').classList.add('hidden');
             const pwdPane = document.getElementById('subtab-pane-password');
+            const sharesPane = document.getElementById('subtab-pane-shares');
+            if (sharesPane) sharesPane.classList.add('hidden');
+const updPane = document.getElementById('subtab-pane-updates');
+            if (updPane) updPane.classList.add('hidden');
+            const pshares = document.getElementById('subtab-pane-shares'); if(pshares) pshares.classList.add('hidden');
             if (pwdPane) pwdPane.classList.add('hidden');
             const filesPane = document.getElementById('subtab-pane-files');
             if (filesPane) filesPane.classList.add('hidden');
@@ -2805,7 +2890,7 @@ if (!file_exists('config.php')) {
             if (id3Pane) id3Pane.classList.add('hidden');
             
             // Hide all nav button markers
-            const subBtns = ['theme', 'media', 'users', 'password', 'files', 'shortcuts', 'id3'];
+            const subBtns = ['theme', 'media', 'dashboard_cfg', 'shares', 'users', 'password', 'files', 'shortcuts', 'id3', 'updates'];
             subBtns.forEach(sb => {
                 const el = document.getElementById('subtab-btn-' + sb);
                 if (el) {
@@ -2832,9 +2917,7 @@ if (!file_exists('config.php')) {
             if (subTabName === 'files') {
                 loadFileManager(fileManagerCurrentPath || '');
             }
-            if (subTabName === 'id3') {
-                renderId3SongsList();
-            }
+            if (subTabName === 'id3') { renderId3SongsList(); } if (subTabName === 'shares') { renderSharesTable(); } if (subTabName === 'dashboard_cfg') { loadDashSettings(); }
             lucide.createIcons();
         }
 
@@ -2989,12 +3072,19 @@ if (!file_exists('config.php')) {
             });
             
             document.getElementById('id3-bulk-selected-count').textContent = selectedId3SongIds.length;
-            document.getElementById('id3-bulk-modal').classList.remove('hidden');
-            lucide.createIcons();
+            const bulkModal = document.getElementById('id3-bulk-modal');
+            bulkModal.classList.remove('hidden');
+            bulkModal.style.zIndex = '999999';
+            bulkModal.style.display = 'flex';
+            if(window.lucide) window.lucide.createIcons();
         }
 
         function closeId3BulkModal() {
-            document.getElementById('id3-bulk-modal').classList.add('hidden');
+            const m = document.getElementById('id3-bulk-modal');
+            if(m) {
+                m.classList.add('hidden');
+                m.style.display = 'none';
+            }
         }
 
         async function saveBulkId3Tags(event) {
@@ -3162,92 +3252,33 @@ if (!file_exists('config.php')) {
                 const albumName = btn.getAttribute('data-album-name') || 'Álbum Desconhecido';
                 
                 if (!trackIdsStr) {
-                    // Fallback to fuzzy match instantly
                     openAlbumBulkEditByName(albumName);
                     return;
                 }
-                // Split and normalize matching tracking keys safely
                 const ids = trackIdsStr.split(',').map(id => id.trim().toLowerCase());
-                
-                // Find all tracks matching these ids
                 const albumTracks = allTracks.filter(t => t && t.id && ids.includes(String(t.id).trim().toLowerCase()));
+                
                 if (albumTracks.length === 0) {
-                    console.warn('Nenhuma música encontrada para os IDs solicitados, tentando fuzzy fallback por nome...', ids);
-                    // Also try fuzzy fallback by album name to prevent failure
                     openAlbumBulkEditByName(albumName);
                     return;
                 }
                 
-                const baseTrack = albumTracks[0] || {};
-                
-                // Fill field values nicely
-                const titleTextEl = document.getElementById('id3-album-title-text');
-                const origNameInput = document.getElementById('id3-album-original-name');
-                const nameInput = document.getElementById('id3-album-name');
-                const artistInput = document.getElementById('id3-album-artist');
-                const genreInput = document.getElementById('id3-album-genre');
-                const yearInput = document.getElementById('id3-album-year');
-                
-                if (titleTextEl) titleTextEl.textContent = albumName;
-                if (origNameInput) origNameInput.value = albumName;
-                if (nameInput) nameInput.value = albumName;
-                if (artistInput) artistInput.value = baseTrack.artist || 'Artista Desconhecido';
-                if (genreInput) genreInput.value = baseTrack.genre || 'Desconhecido';
-                if (yearInput) yearInput.value = baseTrack.album_year || '';
-
-                // Render list preview of songs in that album with editable text inputs
-                const listEl = document.getElementById('id3-album-songs-list');
-                const countEl = document.getElementById('id3-album-songs-count');
-                if (countEl) countEl.textContent = albumTracks.length;
-                if (listEl) {
-                    listEl.innerHTML = '';
-                    
-                    albumTracks.forEach((t, i) => {
-                        const div = document.createElement('div');
-                        div.className = "py-3 flex flex-col gap-1.5 border-b border-slate-900/40 last:border-0";
-                        div.innerHTML = `
-                            <div class="flex items-center justify-between text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                                <span>Música #${i+1}</span>
-                                ${t.duration ? `<span class="font-mono text-[9px]">${formatSecs(t.duration)}</span>` : ''}
-                            </div>
-                            <input type="text" data-track-id="${t.id}" autocomplete="off" class="id3-album-track-title-input w-full bg-slate-950 border border-slate-900 text-sky-400 p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition font-semibold" value="${(t.title || '').replace(/"/g, '&quot;')}">
-                        `;
-                        listEl.appendChild(div);
-                    });
-                }
-
-                // Display modal
-                const modalEl = document.getElementById('id3-album-modal');
-                if (modalEl) {
-                    modalEl.classList.remove('hidden');
-                } else {
-                    console.error('Modal id3-album-modal não encontrado no DOM');
-                }
-                if (window.lucide && typeof window.lucide.createIcons === 'function') {
-                    window.lucide.createIcons();
-                } else if (typeof lucide !== 'undefined' && lucide.createIcons) {
-                    lucide.createIcons();
-                }
+                populateAndShowId3AlbumModal(albumTracks, albumName);
             } catch (err) {
                 console.error("Erro em openAlbumBulkEditByElement:", err);
-                alert("Erro ao abrir ID3: " + err.message);
             }
         };
 
-        function openAlbumBulkEditByName(albumName, artistName = '') {
+        window.openAlbumBulkEditByName = function(albumName, artistName = '') {
             if (!albumName) return;
-            
             try {
-                // If artistName is not specified but selectedArtist is set, use it!
                 const artistFilter = artistName || selectedArtist || '';
                 const lowerAlbumName = albumName.toLowerCase();
                 const isEmptyAlbum = lowerAlbumName === 'single' || lowerAlbumName === 'álbum desconhecido' || lowerAlbumName === 'album desconhecido';
                 
-                // Find all tracks belonging to this album, optionally filtering by artist
                 let albumTracks = allTracks.filter(t => {
                     const tAlbum = t.album || '';
                     const isAlbumMatch = (isEmptyAlbum && !tAlbum) || (!isEmptyAlbum && tAlbum.toLowerCase() === lowerAlbumName);
-                    
                     if (artistFilter) {
                         const tArtist = t.artist || '';
                         const isArtistMatch = (!tArtist && artistFilter.toLowerCase() === 'artista desconhecido') || 
@@ -3257,7 +3288,6 @@ if (!file_exists('config.php')) {
                     return isAlbumMatch;
                 });
                 
-                // Fallback: If no tracks found using artist filter, search by album name only
                 if (albumTracks.length === 0 && artistFilter) {
                     albumTracks = allTracks.filter(t => {
                         const tAlbum = t.album || '';
@@ -3269,10 +3299,17 @@ if (!file_exists('config.php')) {
                     alert('Nenhuma música encontrada para este álbum: ' + albumName);
                     return;
                 }
+                
+                populateAndShowId3AlbumModal(albumTracks, albumName);
+            } catch (err) {
+                console.error("Erro em openAlbumBulkEditByName:", err);
+            }
+        };
 
+        function populateAndShowId3AlbumModal(albumTracks, albumName) {
+            try {
                 const baseTrack = albumTracks[0] || {};
-
-                // Fill field values nicely
+                
                 const titleTextEl = document.getElementById('id3-album-title-text');
                 const origNameInput = document.getElementById('id3-album-original-name');
                 const nameInput = document.getElementById('id3-album-name');
@@ -3287,13 +3324,11 @@ if (!file_exists('config.php')) {
                 if (genreInput) genreInput.value = baseTrack.genre || 'Desconhecido';
                 if (yearInput) yearInput.value = baseTrack.album_year || '';
 
-                // Render list preview of songs in that album with editable text inputs
                 const listEl = document.getElementById('id3-album-songs-list');
                 const countEl = document.getElementById('id3-album-songs-count');
                 if (countEl) countEl.textContent = albumTracks.length;
                 if (listEl) {
                     listEl.innerHTML = '';
-                    
                     albumTracks.forEach((t, i) => {
                         const div = document.createElement('div');
                         div.className = "py-3 flex flex-col gap-1.5 border-b border-slate-900/40 last:border-0";
@@ -3302,32 +3337,36 @@ if (!file_exists('config.php')) {
                                 <span>Música #${i+1}</span>
                                 ${t.duration ? `<span class="font-mono text-[9px]">${formatSecs(t.duration)}</span>` : ''}
                             </div>
-                            <input type="text" data-track-id="${t.id}" autocomplete="off" class="id3-album-track-title-input w-full bg-slate-950 border border-slate-900 text-sky-450 p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition font-semibold" value="${(t.title || '').replace(/"/g, '&quot;')}">
+                            <input type="text" data-track-id="${t.id}" autocomplete="off" class="id3-album-track-title-input w-full bg-slate-950 border border-slate-900 text-sky-400 p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition font-semibold" value="${String(t.title || '').replace(/"/g, '&quot;')}">
                         `;
                         listEl.appendChild(div);
                     });
                 }
 
-                // Display modal
                 const modalEl = document.getElementById('id3-album-modal');
                 if (modalEl) {
                     modalEl.classList.remove('hidden');
-                } else {
-                    console.error('Modal id3-album-modal não encontrado no DOM');
+                    // Ensure absolute top zindex
+                    modalEl.style.zIndex = '999999';
+                    modalEl.style.display = 'flex';
                 }
+                
                 if (window.lucide && typeof window.lucide.createIcons === 'function') {
                     window.lucide.createIcons();
                 } else if (typeof lucide !== 'undefined' && lucide.createIcons) {
                     lucide.createIcons();
                 }
             } catch (err) {
-                console.error("Erro em openAlbumBulkEditByName:", err);
-                alert("Erro ao abrir ID3 por Nome: " + err.message);
+                console.error("Erro interno modal id3:", err);
             }
         }
 
         function closeId3AlbumModal() {
-            document.getElementById('id3-album-modal').classList.add('hidden');
+            const m = document.getElementById('id3-album-modal');
+            if(m) {
+                m.classList.add('hidden');
+                m.style.display = 'none';
+            }
         }
 
         async function saveAlbumId3Tags(event) {
@@ -3350,7 +3389,7 @@ if (!file_exists('config.php')) {
             let hasEmptyTitle = false;
 
             inputs.forEach(input => {
-                const id = parseInt(input.getAttribute('data-track-id'));
+                const id = input.getAttribute('data-track-id'); // Ensure UUIDs string works
                 const title = input.value.trim();
                 if (!title) {
                     hasEmptyTitle = true;
@@ -3419,12 +3458,20 @@ if (!file_exists('config.php')) {
             document.getElementById('id3-edit-genre').value = track.genre || '';
             document.getElementById('id3-edit-year').value = track.album_year || '';
 
-            document.getElementById('id3-edit-modal').classList.remove('hidden');
-            lucide.createIcons();
+            const modal = document.getElementById('id3-edit-modal');
+            modal.classList.remove('hidden');
+            modal.style.zIndex = '99999';
+            modal.style.display = 'flex';
+            if(window.lucide) window.modal.style.display = 'flex';
+            if(window.lucide) window.lucide.createIcons();
         }
 
         function closeId3EditModal() {
-            document.getElementById('id3-edit-modal').classList.add('hidden');
+            const m = document.getElementById('id3-edit-modal');
+            if(m) {
+                m.classList.add('hidden');
+                m.style.display = 'none';
+            }
         }
 
         async function saveId3Tags(event) {
@@ -4920,6 +4967,7 @@ if (!file_exists('config.php')) {
         }
 
         window.phpDashboardGenre = 'all';
+        
         window.phpDashboardSort = 'random';
         window.phpDashboardQuery = '';
 
@@ -4973,6 +5021,28 @@ if (!file_exists('config.php')) {
             window.phpDashboardSort = val;
             updateRandomDashboardAlbums();
             renderAlbumGrid();
+        };
+
+        
+
+        
+
+        window.setupDashboardInterval = function() {
+            if (dashboardRandomInterval) {
+                clearInterval(dashboardRandomInterval);
+                dashboardRandomInterval = null;
+            }
+            let timeStr = globalSettings.dashboard_rotate_time;
+            let timeSecs = timeStr !== undefined && timeStr !== "" ? parseInt(timeStr) : 8;
+            if (timeSecs > 0) {
+                dashboardRandomInterval = setInterval(() => {
+                    const pane = document.getElementById('pane-dashboard');
+                    if (pane && !pane.classList.contains('hidden')) {
+                        updateRandomDashboardAlbums();
+                        renderAlbumGrid();
+                    }
+                }, timeSecs * 1000);
+            }
         };
 
         function updateRandomDashboardAlbums() {
@@ -5043,7 +5113,7 @@ if (!file_exists('config.php')) {
             } else {
                 // 'random' (Auto-rotated 12 random albums)
                 const shuffled = [...albumsArray].sort(() => Math.random() - 0.5);
-                randomDashboardAlbums = shuffled.slice(0, 12);
+                randomDashboardAlbums = shuffled.slice(0, globalSettings.dashboard_albums_count ? parseInt(globalSettings.dashboard_albums_count) : 12);
             }
         }
 
@@ -5156,15 +5226,19 @@ if (!file_exists('config.php')) {
             let rotateBtnText = "";
             
             const currentCount = randomDashboardAlbums ? randomDashboardAlbums.length : 0;
+            const limitStr = globalSettings.dashboard_albums_count ? parseInt(globalSettings.dashboard_albums_count) : 12;
+            let rTime = globalSettings.dashboard_rotate_time;
+            const timeStr = rTime === '0' ? 'Desativada' : (rTime ? rTime + 's' : '8s');
+            
             if (isRandom) {
                 if (currentLang === 'en') {
-                    countLabel = `Showing ${Math.min(12, currentCount)} of ${currentCount} random albums (Auto-rotated every 8s)`;
+                    countLabel = `Showing ${Math.min(limitStr, currentCount)} of ${currentCount} random albums (Rotate: ${timeStr})`;
                     rotateBtnText = "Next Albums ⟳";
                 } else if (currentLang === 'es') {
-                    countLabel = `Mostrando ${Math.min(12, currentCount)} de ${currentCount} álbumes aleatorios (Rotación automática cada 8s)`;
+                    countLabel = `Mostrando ${Math.min(limitStr, currentCount)} de ${currentCount} álbumes aleatorios (Rotación: ${timeStr})`;
                     rotateBtnText = "Siguientes álbumes ⟳";
                 } else {
-                    countLabel = `Mostrando ${Math.min(12, currentCount)} de ${currentCount} álbuns aleatórios (Rotação a cada 8s)`;
+                    countLabel = `Mostrando ${Math.min(limitStr, currentCount)} de ${currentCount} álbuns aleatórios (Rotação: ${timeStr})`;
                     rotateBtnText = "Próximos Álbuns ⟳";
                 }
             } else {
@@ -5177,7 +5251,7 @@ if (!file_exists('config.php')) {
                 }
             }
 
-            if (isRandom && currentCount > 12) {
+            if (isRandom && currentCount > limitStr) {
                 pagDiv.innerHTML = `
                     <div class="flex items-center justify-between gap-4 py-3 mt-4 text-xs font-medium border-t border-slate-900/40 pt-4">
                         <div class="text-slate-500 font-semibold flex items-center gap-2">
@@ -5616,7 +5690,35 @@ if (!file_exists('config.php')) {
             if (modal) modal.classList.add('hidden');
         };
 
-        // EQUALIZER WEB AUDIO CONTROLLER (PHP DESKTOP)
+        window.toggleVisualizerFullscreen = function() {
+    const container = document.getElementById('visualizer-container');
+    const toolbar = document.getElementById('visualizer-toolbar');
+    const wrapper = document.getElementById('visualizer-canvas-wrapper');
+    
+    if (!document.fullscreenElement) {
+        container.requestFullscreen().then(() => {
+            toolbar.classList.add('hidden');
+            wrapper.classList.remove('h-72', 'sm:h-96');
+            wrapper.classList.add('h-screen');
+        }).catch(err => {
+            console.error(err);
+        });
+    } else {
+        document.exitFullscreen();
+    }
+};
+
+document.addEventListener('fullscreenchange', (event) => {
+    const toolbar = document.getElementById('visualizer-toolbar');
+    const wrapper = document.getElementById('visualizer-canvas-wrapper');
+    if (!document.fullscreenElement && toolbar && wrapper) {
+        toolbar.classList.remove('hidden');
+        wrapper.classList.add('h-72', 'sm:h-96');
+        wrapper.classList.remove('h-screen');
+    }
+});
+
+// EQUALIZER WEB AUDIO CONTROLLER (PHP DESKTOP)
         let phpAudioContext = null;
         let phpSourceNode = null;
         let phpBiquadFilters = [];
@@ -5676,7 +5778,7 @@ if (!file_exists('config.php')) {
         }
 
         window.showVisualizerPhp = function() {
-            setTab('reprodutor');
+            document.getElementById('visualizer-modal').classList.remove('hidden');
             initPhpEqualizer();
             if (phpAudioContext && phpAudioContext.state === 'suspended') {
                 phpAudioContext.resume();
@@ -5685,12 +5787,17 @@ if (!file_exists('config.php')) {
         };
 
         window.closeVisualizerModalPhp = function() {
-            // Inline player visualizer remains active on the main dashboard
+            document.getElementById('visualizer-modal').classList.add('hidden');
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(err => console.error(err));
+            }
         };
+
+        window.closeVisualizerModal = window.closeVisualizerModalPhp;
 
         window.setVisualizerStylePhp = function(style) {
             phpVisualizerStyle = style;
-            const styles = ['bars', 'scope', 'beat'];
+            const styles = ['bars', 'scope', 'beat', 'circle', 'particles'];
             styles.forEach(s => {
                 const btn = document.getElementById('v-style-' + s);
                 if (btn) {
@@ -5857,60 +5964,122 @@ if (!file_exists('config.php')) {
                     ctx.lineWidth = 1;
                     ctx.beginPath(); ctx.moveTo(0, height / 2); ctx.lineTo(width, height / 2); ctx.stroke();
                 } else if (phpVisualizerStyle === 'beat') {
-                    const centerX = width / 2;
-                    const centerY = height / 2;
-                    const baseRadius = Math.min(width, height) * 0.22 * beatScale;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const baseRadius = Math.min(width, height) * 0.25;
+    const modRadius = baseRadius * beatScale;
 
-                    angleOffset += 0.005 + (beatScale - 1.0) * 0.04;
+    const grad = ctx.createRadialGradient(centerX, centerY, baseRadius * 0.5, centerX, centerY, modRadius * 1.5);
+    grad.addColorStop(0, primaryColor);
+    grad.addColorStop(0.5, secondaryColor);
+    grad.addColorStop(1, 'transparent');
 
-                    ctx.strokeStyle = 'rgba(30, 41, 59, 0.35)';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath(); ctx.arc(centerX, centerY, baseRadius * 1.4, 0, Math.PI * 2); ctx.stroke();
-                    ctx.strokeStyle = 'rgba(30, 41, 59, 0.2)';
-                    ctx.beginPath(); ctx.arc(centerX, centerY, baseRadius * 1.8, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = grad;
+    ctx.shadowBlur = beatScale > 1.2 ? 30 : 15;
+    ctx.shadowColor = glowColor;
+    
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, modRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
 
-                    const spikes = Math.min(128, bufferLength);
-                    ctx.beginPath();
-                    ctx.lineWidth = 2;
-                    ctx.strokeStyle = primaryColor;
-                    ctx.shadowBlur = 8 * beatScale;
-                    ctx.shadowColor = glowColor;
-
-                    for (let i = 0; i < spikes; i++) {
-                        const angle = (i / spikes) * Math.PI * 2 + angleOffset;
-                        const magnitude = (dataArray[i] / 125) * baseRadius * 0.45;
-                        const innerR = baseRadius - (magnitude * 0.25);
-                        const outerR = baseRadius + magnitude;
-
-                        const p1X = centerX + Math.cos(angle) * innerR;
-                        const p1Y = centerY + Math.sin(angle) * innerR;
-                        const p2X = centerX + Math.cos(angle) * outerR;
-                        const p2Y = centerY + Math.sin(angle) * outerR;
-
-                        ctx.moveTo(p1X, p1Y);
-                        ctx.lineTo(p2X, p2Y);
-                    }
-                    ctx.stroke();
-                    ctx.shadowBlur = 0;
-
-                    const solidG = ctx.createRadialGradient(centerX, centerY, 1, centerX, centerY, baseRadius);
-                    solidG.addColorStop(0, secondaryColor);
-                    solidG.addColorStop(0.8, primaryColor);
-                    solidG.addColorStop(1, 'transparent');
-                    ctx.fillStyle = solidG;
-                    ctx.beginPath(); ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2); ctx.fill();
-
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 1.5;
-                    ctx.beginPath(); ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2); ctx.stroke();
-                }
-            }
+    ctx.strokeStyle = primaryColor;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2); ctx.stroke();
+} else if (phpVisualizerStyle === 'circle') {
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = Math.min(width, height) * 0.2;
+    
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = glowColor;
+    
+    const totalBars = Math.min(120, bufferLength);
+    const angleStep = (Math.PI * 2) / totalBars;
+    
+    for(let i = 0; i < totalBars; i++) {
+        const val = dataArray[i] / 255.0;
+        const barHeight = val * (Math.min(width, height) * 0.3) * beatScale;
+        const angle = i * angleStep;
+        
+        // Line going outwards
+        const x1 = centerX + Math.cos(angle) * radius;
+        const y1 = centerY + Math.sin(angle) * radius;
+        const x2 = centerX + Math.cos(angle) * (radius + barHeight);
+        const y2 = centerY + Math.sin(angle) * (radius + barHeight);
+        
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        
+        const grad = ctx.createLinearGradient(x1, y1, x2, y2);
+        grad.addColorStop(0, secondaryColor);
+        grad.addColorStop(1, primaryColor);
+        
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        // Mirrored inner line
+        const x3 = centerX + Math.cos(angle) * Math.max(0, radius - (barHeight*0.3));
+        const y3 = centerY + Math.sin(angle) * Math.max(0, radius - (barHeight*0.3));
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x3, y3);
+        ctx.strokeStyle = primaryColor;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+    
+    // Central hollow circle
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius - 2, 0, Math.PI*2);
+    ctx.strokeStyle = secondaryColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+} else if (phpVisualizerStyle === 'particles') {
+    // Simple stateless particle burst simulation based on equalizer arrays
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = glowColor;
+    
+    const centerX = width / 2;
+    const centerY = height / 2;
+    
+    // Center beat base
+    ctx.fillStyle = primaryColor;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 20 * beatScale, 0, Math.PI * 2);
+    ctx.fill();
+    
+    const slice = (Math.PI * 2) / bufferLength;
+    for (let i = 0; i < bufferLength; i++) {
+        const val = dataArray[i] / 255;
+        if(val < 0.1) continue;
+        
+        const dist = val * (Math.min(width, height) * 0.45) * beatScale;
+        const angle = i * slice + (Date.now() * 0.0005);
+        
+        const px = centerX + Math.cos(angle) * dist;
+        const py = centerY + Math.sin(angle) * dist;
+        
+        const pSize = 1 + val * 4;
+        
+        ctx.fillStyle = (i % 2 === 0) ? primaryColor : secondaryColor;
+        ctx.beginPath();
+        ctx.arc(px, py, pSize, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    ctx.shadowBlur = 0;
+}
+}
 
             draw();
         }
 
         window.showEqualizerPhp = function() {
-            setTab('reprodutor');
+            document.getElementById('equalizer-modal').classList.remove('hidden');
             initPhpEqualizer();
             if (phpAudioContext && phpAudioContext.state === 'suspended') {
                 phpAudioContext.resume();
@@ -5918,7 +6087,7 @@ if (!file_exists('config.php')) {
         };
 
         window.closeEqualizerModal = function() {
-            // Equalizer controls are safely embedded inline on the player dashboard
+            document.getElementById('equalizer-modal').classList.add('hidden');
         };
 
         window.onEqSliderChangePhp = function(bandIndex, val) {
@@ -6455,10 +6624,10 @@ if (!file_exists('config.php')) {
                                     <div class="aspect-square bg-slate-900/40 rounded-2xl overflow-hidden border border-slate-900 flex items-center justify-center relative shadow-lg">
                                         <img id="album-cover-img-${albumIdSafe}" src="${albumCover}" referrerpolicy="no-referrer" class="w-full h-full object-cover shadow-md border border-slate-800/40">
                                     </div>
-                                    <div>
-                                        <h3 class="font-extrabold text-[#ffffff] text-sm leading-tight line-clamp-2">${albumName}</h3>
-                                        <p class="text-[11px] text-sky-450 font-semibold mt-1">${firstTrack.artist || 'Artista Desconhecido'}</p>
-                                        <p class="text-[10px] text-slate-500 font-mono mt-1 uppercase tracking-wide flex items-center gap-1">
+                                    <div class="text-center">
+                                        <h3 class="font-extrabold text-[#ffffff] text-lg leading-tight line-clamp-2">${albumName}</h3>
+                                        <p class="text-[12px] text-sky-450 font-semibold mt-1.5 mb-1">${firstTrack.artist || 'Artista Desconhecido'}</p>
+                                        <p class="text-[10px] text-slate-500 font-mono mt-1 uppercase tracking-wide flex items-center justify-center gap-1">
                                             ${albumYear ? `<span class="bg-sky-500/10 text-sky-400 px-1 py-0.5 rounded font-black mr-1">${albumYear}</span>` : ''}
                                             ${albumTracks.length} ${albumTracks.length === 1 ? 'música' : 'músicas'} &bull; ÁLBUM
                                         </p>
@@ -6474,11 +6643,18 @@ if (!file_exists('config.php')) {
                                                 <i data-lucide="shuffle" class="w-3 h-3"></i> Aleatório
                                             </button>
                                         </div>
-                                        ${currentUser.role === 'admin' ? `
-                                            <button onclick="downloadAlbum(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="w-full py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-emerald-500/30 cursor-pointer">
-                                                <i data-lucide="download" class="w-3 h-3"></i> Baixar Álbum (ZIP)
-                                            </button>
-                                        ` : ''}
+                                        ${(currentUser.role === 'admin' || currentUser.can_download !== false || currentUser.can_share !== false) ? `
+    <div class="flex gap-2 w-full mt-1.5">
+        ${(currentUser.role === 'admin' || currentUser.can_download !== false) ? `
+        <button onclick="downloadAlbum(event, '${albumName.replace(/'/g, "\\\\\\\\'")}')" class="flex-1 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-emerald-500/30 cursor-pointer">
+            <i data-lucide="download" class="w-3 h-3"></i> Baixar Álbum
+        </button>` : ''}
+        ${(currentUser.role === 'admin' || currentUser.can_share !== false) ? `
+        <button onclick="shareAlbum('${albumName.replace(/'/g, "\\\\\\\\'")}', '${selectedArtist.replace(/'/g, "\\\\\\\\'")}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-indigo-500/30 cursor-pointer">
+            <i data-lucide="share-2" class="w-3 h-3"></i> Compartilhar
+        </button>` : ''}
+    </div>
+` : ''}
                                     </div>
                                 </div>
                                 
@@ -6537,8 +6713,7 @@ if (!file_exists('config.php')) {
                             </tr>
                         `;
                     });
-
-                    html += `
+                html += `
                                             </tbody>
                                         </table>
                                     </div>
@@ -6667,16 +6842,14 @@ if (!file_exists('config.php')) {
 
                 albumList.sort((a, b) => {
                     if (a.year !== null && b.year !== null) {
-                        return b.year - a.year; // Newer albums on top (descending)
+                        return a.year - b.year; // Older albums first (ascending)
                     }
                     if (a.year !== null) return -1;
                     if (b.year !== null) return 1;
                     return a.name.localeCompare(b.name, 'pt-BR');
                 });
 
-                albumList.forEach(albumObj => {
-                    const albumName = albumObj.name;
-                    const albumTracks = albumObj.tracks;
+                albumList.forEach(albumObj => { const albumName = albumObj.name; let albumTracks = albumObj.tracks; albumTracks.sort((a,b) => { const aNum=a.track_num?parseInt(a.track_num):9999; const bNum=b.track_num?parseInt(b.track_num):9999; return aNum !== bNum ? aNum-bNum : a.title.localeCompare(b.title); });
                     const albumYear = albumObj.year;
                     const firstTrack = albumTracks[0];
                     const albumCover = loadedCoversCache[albumName] || firstTrack.cover_url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400';
@@ -6694,9 +6867,9 @@ if (!file_exists('config.php')) {
                                             <i data-lucide="disc" class="w-8 h-8 text-white animate-spin"></i>
                                         </div>
                                     </div>
-                                    <div>
-                                        <h3 class="font-extrabold text-[#ffffff] text-sm leading-tight line-clamp-2">${albumName}</h3>
-                                        <p class="text-[11px] text-slate-500 font-mono mt-1 uppercase tracking-wide flex items-center gap-1">
+                                    <div class="text-center">
+                                        <h3 class="font-extrabold text-[#ffffff] text-lg leading-tight line-clamp-2">${albumName}</h3>
+                                        <p class="text-[11px] text-slate-500 font-mono mt-1 uppercase tracking-wide flex items-center justify-center gap-1">
                                             ${albumYear ? `<span class="bg-sky-500/15 text-sky-400 px-1.5 py-0.5 rounded font-black mr-1">${albumYear}</span>` : ''}
                                             ${albumTracks.length} ${albumTracks.length === 1 ? 'música' : 'músicas'} &bull; ÁLBUM
                                         </p>
@@ -6713,19 +6886,31 @@ if (!file_exists('config.php')) {
                                             </button>
                                         </div>
                                         
-                                        <div class="${currentUser.role === 'admin' ? 'space-y-1.5' : 'hidden'}">
-                                            <button onclick="downloadAlbum(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="w-full py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-emerald-500/30 cursor-pointer">
-                                                <i data-lucide="download" class="w-3 h-3"></i> Baixar Álbum (ZIP)
-                                            </button>
-                                            <div class="flex gap-2">
-                                                <button onclick="document.getElementById('album-cover-input-${albumIdSafe}').click()" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap">
-                                                    <i data-lucide="image" class="w-3.5 h-3.5 text-sky-400"></i> Capa
-                                                </button>
-                                                <button onclick="window.openAlbumBulkEditByElement(this, event)" data-track-ids="${albumTrackIds}" data-album-name="${albumName.replace(/"/g, '&quot;')}" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap" title="Editar ID3 de todo este álbum">
-                                                    <i data-lucide="edit-3" class="w-3.5 h-3.5 text-indigo-400"></i> Editar ID3
-                                                </button>
-                                            </div>
-                                            <input id="album-cover-input-${albumIdSafe}" type="file" accept="image/*" class="hidden" data-artist="${selectedArtist.replace(/"/g, '&quot;')}" data-album="${albumName.replace(/"/g, '&quot;')}" onchange="uploadAlbumCover(this)">
+                                        ${(currentUser.role === 'admin' || currentUser.can_download !== false || currentUser.can_share !== false) ? `
+    <div class="flex flex-col gap-1.5">
+        <div class="flex gap-2">
+            ${(currentUser.role === 'admin' || currentUser.can_download !== false) ? `
+            <button onclick="downloadAlbum(event, '${albumName.replace(/'/g, "\\\\\\\\'")}')" class="flex-1 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-emerald-500/30 cursor-pointer">
+                <i data-lucide="download" class="w-3 h-3"></i> Baixar Álbum
+            </button>` : ''}
+            ${(currentUser.role === 'admin' || currentUser.can_share !== false) ? `
+            <button onclick="shareAlbum('${albumName.replace(/'/g, "\\\\\\\\'")}', '${selectedArtist.replace(/'/g, "\\\\\\\\'")}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-indigo-500/30 cursor-pointer">
+                <i data-lucide="share-2" class="w-3 h-3"></i> Compartilhar
+            </button>` : ''}
+        </div>
+` : ''}
+        ${currentUser.role === 'admin' ? `
+        <div class="flex gap-2">
+            <button onclick="document.getElementById('album-cover-input-${albumIdSafe}').click()" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap">
+                <i data-lucide="image" class="w-3.5 h-3.5 text-sky-400"></i> Capa
+            </button>
+            <button onclick="window.openAlbumBulkEditByElement(this, event)" data-track-ids="${albumTrackIds}" data-album-name="${albumName.replace(/\"/g, '&quot;')}" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap" title="Editar ID3 de todo este álbum">
+                <i data-lucide="edit-3" class="w-3.5 h-3.5 text-indigo-400"></i> Editar ID3
+            </button>
+        </div>
+        <input id="album-cover-input-${albumIdSafe}" type="file" accept="image/*" class="hidden" data-artist="${selectedArtist.replace(/\"/g, '&quot;')}" data-album="${albumName.replace(/\"/g, '&quot;')}" onchange="uploadAlbumCover(this)">
+        ` : ''}
+    ${(currentUser.role === 'admin' || currentUser.can_download !== false || currentUser.can_share !== false) ? '</div>' : ''}
                                         </div>
                                     </div>
                                 </div>
@@ -7562,10 +7747,15 @@ if (!file_exists('config.php')) {
                         </div>
                         
                         <div class="flex gap-2">
-                            <button onclick="viewPlaylistTracks('${pl.id}', '${safeName}')" class="flex-1 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-350 hover:text-white rounded-xl text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 border border-slate-800">
+                            <button onclick="viewPlaylistTracks('${pl.id}', '${safeName}')" class="flex-1 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-350 hover:text-white rounded-xl text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer">
                                 <i data-lucide="eye" class="w-3" style="width:12px; height:12px;"></i> Músicas
                             </button>
-                            <button onclick="deletePlaylistAndRefresh('${pl.id}')" class="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-[10px] font-bold uppercase tracking-wider transition flex items-center justify-center">
+                            ${(currentUser.role === 'admin' || currentUser.can_share !== false) ? `
+                            <button onclick="sharePlaylist('${pl.id}', '${safeName}')" class="px-2.5 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-xl text-[10px] font-bold uppercase tracking-wider transition flex items-center justify-center cursor-pointer" title="Compartilhar Playlist">
+                                <i data-lucide="share-2" style="width:14px; height:14px;"></i>
+                            </button>
+                            ` : ''}
+                            <button onclick="deletePlaylistAndRefresh('${pl.id}')" class="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-[10px] font-bold uppercase tracking-wider transition flex items-center justify-center cursor-pointer">
                                 <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
                             </button>
                         </div>
@@ -7929,6 +8119,80 @@ if (!file_exists('config.php')) {
             document.getElementById('playlist-selector-modal').classList.remove('hidden');
         };
 
+        window.editUser = function(username, can_dl, can_sh) {
+            if (username === 'admin') {
+                alert("O admin tem todas permissões ativadas por padrão.");
+                return;
+            }
+            const htmlBlock = `
+                <div class="space-y-4">
+                    <h3 class="font-bold text-lg text-white">Editar: ${username}</h3>
+                    <div>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="edit-can-dl" class="rounded bg-slate-900 border-slate-700 text-sky-500" ${can_dl ? 'checked' : ''}>
+                            <span class="text-sm text-slate-300">Pode baixar álbuns</span>
+                        </label>
+                    </div>
+                    <div>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="edit-can-sh" class="rounded bg-slate-900 border-slate-700 text-sky-500" ${can_sh ? 'checked' : ''}>
+                            <span class="text-sm text-slate-300">Pode criar compartilhamentos</span>
+                        </label>
+                    </div>
+                    <button onclick="saveUserRights('${username}')" class="w-full py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-sm font-bold mt-4 shadow cursor-pointer">Salvar Permissões</button>
+                </div>
+            `;
+            window.showModalHTML(htmlBlock);
+        }
+
+        window.saveUserRights = async function(username) {
+            const can_dl = document.getElementById('edit-can-dl').checked;
+            const can_sh = document.getElementById('edit-can-sh').checked;
+            try {
+                const res = await fetch(API + '?route=update_user&username=' + encodeURIComponent(username), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ can_download: can_dl, can_share: can_sh })
+                });
+                if (res.ok) {
+                    window.closeModalHTML();
+                    renderUsersTable();
+                } else {
+                    alert('Erro ao salvar permissões');
+                }
+            } catch(e) { }
+        };
+
+        window.showModalHTML = function(html) {
+            let m = document.getElementById('generic-html-modal');
+            if(!m) {
+                m = document.createElement('div');
+                m.id = 'generic-html-modal';
+                m.className = "fixed inset-0 bg-black/60 backdrop-blur-sm z-60 hidden flex items-center justify-center p-4 opacity-0 transition-opacity";
+                m.innerHTML = `<div class="bg-slate-950 border border-slate-800 rounded-2xl w-full max-w-sm p-6 relative scale-95 transition-transform" id="generic-html-modal-content">
+                    <button onclick="window.closeModalHTML()" class="absolute top-4 right-4 text-slate-500 hover:text-white cursor-pointer"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    <div id="generic-html-modal-body"></div>
+                </div>`;
+                document.body.appendChild(m);
+            }
+            document.getElementById('generic-html-modal-body').innerHTML = html;
+            m.classList.remove('hidden');
+            setTimeout(() => {
+                m.classList.remove('opacity-0');
+                document.getElementById('generic-html-modal-content').classList.remove('scale-95');
+                document.getElementById('generic-html-modal-content').classList.add('scale-100');
+                lucide.createIcons();
+            }, 10);
+        };
+        window.closeModalHTML = function() {
+            let m = document.getElementById('generic-html-modal');
+            if(!m) return;
+            m.classList.add('opacity-0');
+            document.getElementById('generic-html-modal-content').classList.remove('scale-100');
+            document.getElementById('generic-html-modal-content').classList.add('scale-95');
+            setTimeout(() => m.classList.add('hidden'), 200);
+        }
+
         // USER MANAGER CONTROLLER (ADMIN EXCLUSIVE)
         async function renderUsersTable() {
             const tbody = document.getElementById('users-table-body');
@@ -7943,7 +8207,8 @@ if (!file_exists('config.php')) {
                         <td class="py-2.5 px-4 text-white font-bold">${u.username}</td>
                         <td class="py-2.5 px-4 uppercase text-[10px]"><span class="px-2 py-0.5 rounded-full font-bold bg-slate-800 text-slate-400">${u.role}</span></td>
                         <td class="py-2.5 px-4 text-right">
-                            <button onclick="deleteUser('${u.username}')" class="p-1 hover:text-red-400 text-slate-500 transition cursor-pointer ${u.username === 'admin' ? 'hidden' : ''}"><i data-lucide="user-x" class="w-4 h-4"></i></button>
+                            <button onclick="editUser('${u.username}', ${u.can_download !== false}, ${u.can_share !== false})" class="p-1 hover:text-indigo-400 text-slate-500 transition cursor-pointer" title="Editar Permissões"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                            <button onclick="deleteUser('${u.username}')" class="p-1 hover:text-red-400 text-slate-500 transition cursor-pointer ${u.username === 'admin' ? 'hidden' : ''}" title="Excluir"><i data-lucide="user-x" class="w-4 h-4"></i></button>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -7980,7 +8245,144 @@ if (!file_exists('config.php')) {
             }
         }
 
-        async function deleteUser(username) {
+        
+        async function shareAlbum(album, artist) {
+            try {
+                const res = await fetch(API + '?route=create_share', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        target_type: 'album',
+                        target_id: JSON.stringify({ album, artist }),
+                        target_name: album + ' - ' + artist
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const url = window.location.origin + window.location.pathname + '?share=' + data.hash;
+                    alert('Compartilhamento criado com sucesso!\nLink: ' + url);
+                    navigator.clipboard.writeText(url);
+                    if (window.renderSharesTable) window.renderSharesTable();
+                } else {
+                    alert('Erro ao criar');
+                }
+            } catch (ee) { console.error(ee); }
+        }
+
+        async function sharePlaylist(id, name) {
+            try {
+                const res = await fetch(API + '?route=create_share', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        target_type: 'playlist',
+                        target_id: String(id),
+                        target_name: name
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const url = window.location.origin + window.location.pathname + '?share=' + data.hash;
+                    alert('Compartilhamento criado com sucesso!\nLink: ' + url);
+                    navigator.clipboard.writeText(url);
+                    if (window.renderSharesTable) window.renderSharesTable();
+                } else {
+                    alert('Erro ao criar');
+                }
+            } catch (ee) { console.error(ee); }
+        }
+
+async function renderSharesTable() {
+    const tbody = document.getElementById('shares-table-body');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    try {
+        const res = await fetch(API + '?route=list_shares');
+        const shares = await res.json();
+        shares.forEach(s => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+            <td class="py-2 px-4 font-bold">${s.target_name}</td>
+            <td class="py-2 px-4">
+                <a href="?share=${s.share_hash}" target="_blank" class="text-sky-400 hover:underline">?share=${s.share_hash}</a>
+            </td>
+            <td class="py-2 px-4 text-right">
+                <button onclick="deleteShare('${s.share_hash}')" class="p-1 hover:text-red-400 text-slate-500 transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </td>
+            `;
+            tbody.appendChild(tr);
+        });
+        if(window.lucide) lucide.createIcons();
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+async function deleteShare(hash) {
+    if (!confirm('Remover compartilhamento?')) return;
+    try {
+        const res = await fetch(API + '?route=delete_share&hash=' + hash);
+        if (res.ok) {
+            renderSharesTable(); loadDashSettings();
+        }
+    } catch(r) { console.error(r) }
+}
+
+async function loadDashSettings() {
+    try {
+        const res = await fetch(API + '?route=get_settings');
+        if (!res.ok) return;
+        const set = await res.json();
+        if (set && set.settings) {
+            globalSettings = set.settings;
+        } else {
+            globalSettings = set;
+        }
+        
+        const elLimit = document.getElementById('dashboard-albums-count');
+        if(elLimit) elLimit.value = globalSettings['dashboard_albums_count'] || 12;
+        
+        const elTime = document.getElementById('dashboard-rotate-time');
+        if(elTime) elTime.value = (globalSettings['dashboard_rotate_time'] !== undefined) ? globalSettings['dashboard_rotate_time'] : 8;
+        
+    } catch(e) { console.error(e); }
+}
+
+async function saveDashboardSettings() {
+    const elLimit = document.getElementById('dashboard-albums-count');
+    const elTime = document.getElementById('dashboard-rotate-time');
+    if(!elLimit || !elTime) return;
+    
+    const limitVal = elLimit.value || '12';
+    const timeVal = elTime.value || '8';
+    
+    try {
+        await fetch(API + '?route=save_settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ setting_key: 'dashboard_albums_count', setting_value: limitVal })
+        });
+        await fetch(API + '?route=save_settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ setting_key: 'dashboard_rotate_time', setting_value: timeVal })
+        });
+        
+        // Update live
+        globalSettings['dashboard_albums_count'] = limitVal;
+        globalSettings['dashboard_rotate_time'] = timeVal;
+        
+        updateRandomDashboardAlbums();
+        renderAlbumGrid();
+        setupDashboardInterval();
+        
+        alert('Configurações do dashboard salvas com sucesso');
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+async function deleteUser(username) {
             if (!confirm("Deletar permanentemente este usuário?")) return;
             try {
                 const res = await fetch(API + '?route=users&username=' + encodeURIComponent(username), { method: 'DELETE' });
@@ -8741,6 +9143,170 @@ if (!file_exists('config.php')) {
             
             loadRadiosPhp();
         };
+
+        window.bootPublicSharedPlayer = async function(hash) {
+            const container = document.getElementById('public-shared-player');
+            if (!container) return;
+            container.innerHTML = `<div class="w-full h-full flex items-center justify-center text-slate-400">
+                <i data-lucide="loader" class="w-8 h-8 animate-spin"></i>
+            </div>`;
+            container.classList.remove('hidden');
+            if (lucide) lucide.createIcons();
+
+            try {
+                const res = await fetch(API + '?route=resolve_share&hash=' + encodeURIComponent(hash));
+                const data = await res.json();
+                
+                if (!res.ok || !data.tracks) {
+                    container.innerHTML = `<div class="w-full h-full flex flex-col gap-4 items-center justify-center text-slate-400">
+                        <i data-lucide="x-circle" class="w-12 h-12 text-red-500"></i>
+                        <p class="font-bold text-lg text-white">Oops!</p>
+                        <p class="text-sm">Link de compartilhamento inválido ou expirado.</p>
+                        <button onclick="window.location.search=''; window.location.hash=''; window.location.reload();" class="mt-4 px-4 py-2 bg-slate-900 rounded-xl hover:text-white transition">Ir para Home</button>
+                    </div>`;
+                    if (lucide) lucide.createIcons();
+                    return;
+                }
+
+                // Render the clean view
+                const cover = data.tracks[0]?.cover_url || data.tracks[0]?.coverUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400';
+                
+                let html = `
+                    <div class="w-full max-w-4xl p-6 h-full flex flex-col space-y-6 pt-12 animate-fade-in custom-scroll overflow-y-auto">
+                        <div class="flex items-center gap-6">
+                            <img src="${cover}" referrerpolicy="no-referrer" class="w-32 h-32 md:w-48 md:h-48 object-cover rounded-3xl shadow-2xl border border-slate-800">
+                            <div class="space-y-2">
+                                <span class="bg-indigo-500/20 text-indigo-400 font-black uppercase text-[10px] px-2 py-0.5 rounded-full">${data.target_type === 'playlist' ? 'PLAYLIST' : 'ÁLBUM COMPARTILHADO'}</span>
+                                <h1 class="text-3xl md:text-5xl font-black tracking-tight text-white">${data.target_name}</h1>
+                                <p class="text-slate-400 font-semibold flex items-center gap-2">
+                                    <span>${data.tracks.length} músicas</span>
+                                    <button onclick="window.playSharedTracks(false)" class="ml-4 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-bold transition">Tocar Tudo</button>
+                                    <button onclick="window.playSharedTracks(true)" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition"><i data-lucide="shuffle" class="w-4 h-4"></i></button>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-950/60 border border-slate-900/50 rounded-3xl overflow-hidden mt-6 pb-20">
+                            <table class="w-full text-left text-xs text-slate-300">
+                                <thead>
+                                    <tr class="border-b border-slate-900/60 text-slate-500 font-mono tracking-wider text-[9px] uppercase">
+                                        <th class="py-3 px-4 w-12">#</th>
+                                        <th class="py-3 px-4">Música</th>
+                                        <th class="py-3 px-4 text-center">Duração</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-900/40">
+                `;
+
+                data.tracks.forEach((t, i) => {
+                    const dur = t.duration || 0;
+                    const durText = dur ? `${Math.floor(dur/60)}:${String(dur%60).padStart(2,'0')}` : '--:--';
+                    html += `
+                        <tr class="hover:bg-slate-900/40 transition group cursor-pointer" onclick="window.playSharedTrackIndex(${i})">
+                            <td class="py-3 px-4 text-slate-500 font-mono">${t.track_num || i + 1}</td>
+                            <td class="py-3 px-4">
+                                <div class="font-bold text-white leading-tight group-hover:text-emerald-400 transition">${t.title}</div>
+                                <div class="text-[10px] text-slate-500 mt-0.5">${t.artist}</div>
+                            </td>
+                            <td class="py-3 px-4 text-center font-mono text-slate-500 shrink-0">${durText}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `</tbody></table></div></div>`;
+                
+                container.innerHTML = html;
+                const playerToolbar = document.getElementById('player-toolbar');
+                if (playerToolbar) playerToolbar.classList.remove('hidden');
+                if (lucide) lucide.createIcons();
+
+                window.publicSharedTracks = data.tracks;
+            } catch (err) {
+                console.error(err);
+                if (container) container.innerHTML = `<div class="text-red-500">Erro de rede.</div>`;
+            }
+        };
+
+        window.playSharedTracks = function(isShuffle) {
+            if (!window.publicSharedTracks || window.publicSharedTracks.length === 0) return;
+            const tracks = [...window.publicSharedTracks];
+            if (isShuffle) tracks.sort(() => Math.random() - 0.5);
+            activeQueue = tracks;
+            activeQueueIdx = 0;
+            loadTrack(activeQueue[0]);
+            const aud = document.getElementById('real-audio');
+            if (aud) {
+                aud.play();
+                isPlaying = true;
+                const btn = document.getElementById('player-play-btn');
+                if (btn) btn.innerHTML = '<i data-lucide="pause" class="w-4 h-4 fill-current"></i>';
+                renderPlayerMiniQueue();
+            }
+        };
+
+        window.playSharedTrackIndex = function(idx) {
+            if (!window.publicSharedTracks || !window.publicSharedTracks[idx]) return;
+            activeQueue = [...window.publicSharedTracks];
+            activeQueueIdx = idx;
+            loadTrack(activeQueue[idx]);
+            const aud = document.getElementById('real-audio');
+            if (aud) {
+                aud.play();
+                isPlaying = true;
+                const btn = document.getElementById('player-play-btn');
+                if (btn) btn.innerHTML = '<i data-lucide="pause" class="w-4 h-4 fill-current"></i>';
+                renderPlayerMiniQueue();
+            }
+        };
+
+        
+        let isCheckingUpdate = false;
+        async function checkPhpUpdates() {
+            if (isCheckingUpdate) return;
+            const btn = document.getElementById('btn-check-updates');
+            const badge = document.getElementById('update-status-badge');
+            const clCont = document.getElementById('changelog-container');
+            const cvLabel = document.getElementById('current-version-label');
+            const rvLabel = document.getElementById('remote-version-label');
+            const clText = document.getElementById('changelog-content');
+            const dlWrap = document.getElementById('download-update-wrapper');
+            
+            isCheckingUpdate = true;
+            const origHtml = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Verificando...';
+            if(window.lucide) lucide.createIcons();
+
+            try {
+                const res = await fetch(API + '?route=check_update');
+                const data = await res.json();
+                
+                cvLabel.textContent = data.current_version;
+                rvLabel.textContent = data.remote_version;
+                
+                clCont.classList.remove('hidden');
+                clText.textContent = data.changelog;
+                
+                if (data.has_update) {
+                    badge.className = "inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-[11px] font-bold";
+                    badge.innerHTML = '<i data-lucide="alert-circle" class="w-3.5 h-3.5"></i> Atualização Disponível!';
+                    dlWrap.classList.remove('hidden');
+                } else {
+                    badge.className = "inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded-lg text-[11px] font-bold";
+                    badge.innerHTML = '<i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Sistema Atualizado';
+                    dlWrap.classList.add('hidden');
+                }
+            } catch (err) {
+                console.error(err);
+                badge.className = "inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-[11px] font-bold";
+                badge.innerHTML = '<i data-lucide="x-circle" class="w-3.5 h-3.5"></i> Erro ao verificar';
+                clCont.classList.add('hidden');
+            } finally {
+                isCheckingUpdate = false;
+                btn.innerHTML = origHtml;
+                if(window.lucide) lucide.createIcons();
+            }
+        }
+
         // =====================================================
     </script>
 </body>
