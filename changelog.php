@@ -1,0 +1,13 @@
+<?php
+$changelog = <<<EOT
+v1.0.1
+- Correção na exportação das atualizações (version.php e changelog.php)
+- O arquivo config.php nunca será substituído durante as atualizações
+- Adicionada área para verificação de novas versões
+
+v1.0.0
+- Lançamento inicial da versão independente em PHP do PHPlayer.
+- Suporte a reprodução de músicas e vídeos nativamente.
+- Gerenciamento de bibliotecas e DLNA.
+- Interface customizável.
+EOT;
