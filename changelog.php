@@ -1,5 +1,8 @@
 <?php
 $changelog = <<<EOT
+v1.0.3
+- Removido compartilhamento de álbuns e playlists
+
 v1.0.2
 - Melhorias no layout de detalhes do artista (Banner de Destaque na view)
 - Layout da lista de músicas do álbum aprimorado

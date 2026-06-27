@@ -10,13 +10,18 @@ try {
                     target_type VARCHAR(50),
                     target_id VARCHAR(500),
                     target_name VARCHAR(255),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_by VARCHAR(50),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    expires_at DATETIME DEFAULT NULL
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
     $stmt = $pdo->prepare("SELECT * FROM shares WHERE share_hash = ?");
     $stmt->execute([$hash]);
     $share = $stmt->fetch();
-    if (!$share) die("Compartilhamento expirado ou não existente.");
+    if (!$share) die("Compartilhamento não existente.");
+    if ($share['expires_at'] && strtotime($share['expires_at']) < time()) {
+        die("Compartilhamento expirado.");
+    }
     
     $tracks = [];
     $art = '';
@@ -38,7 +43,7 @@ try {
         
         $tables = get_songs_tables2($pdo);
         foreach ($tables as $t) {
-            $stmt1 = $pdo->prepare("SELECT * FROM \`" . $t . "\` WHERE artist = ? AND album = ? ORDER BY track_num ASC, title ASC");
+            $stmt1 = $pdo->prepare("SELECT * FROM `" . $t . "` WHERE artist = ? AND album = ? ORDER BY title ASC");
             $stmt1->execute([$art, $albName]);
             while ($r = $stmt1->fetch(PDO::FETCH_ASSOC)) {
                 $tracks[] = $r;
@@ -71,7 +76,7 @@ try {
         }
     }
 } catch (Exception $e) {
-    die('Erro de banco de dados.');
+    die('Erro de banco de dados: ' . $e->getMessage());
 }
 ?>
 <!DOCTYPE html>

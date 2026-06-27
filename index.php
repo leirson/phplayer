@@ -595,11 +595,11 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                         Atualização
                     </button>
 
-                    <button onclick="setConfigSubTab('shares')" id="subtab-btn-shares" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none hidden admin-only">
-                        Compartilhamentos
-                    </button>
-                    <button onclick="setConfigSubTab('dashboard_cfg')" id="subtab-btn-dashboard_cfg" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none hidden admin-only">
+                                        <button onclick="setConfigSubTab('dashboard_cfg')" id="subtab-btn-dashboard_cfg" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none hidden admin-only">
                         Dashboard
+                    </button>
+<button onclick="setConfigSubTab('shares')" id="subtab-btn-shares" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none">
+                        Compartilhamentos
                     </button>
 <button onclick="setConfigSubTab('users')" id="subtab-btn-users" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none hidden admin-only" data-i18n="subnav-users">
                         Editar Usuários
@@ -1122,9 +1122,41 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     </div>
                 </div>
 
-                <!-- SUBTAB 4: CHANGE MY PASSWORD (Visible to all users) -->
-                <div 
-                <!-- SUBTAB 5: SHARES & DASHBOARD (Admin only) -->
+                <!-- SUBTAB 5: SHARES (Admin only) -->
+                <div id="subtab-pane-shares" class="space-y-6 hidden admin-only">
+                    <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl text-left">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 class="text-xs font-black uppercase text-white flex items-center gap-1.5">
+                                    <i data-lucide="share-2" class="w-4 h-4 text-sky-400"></i> Links Compartilhados
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-1">
+                                    Músicas, álbuns e playlists que você compartilhou externamente.
+                                </p>
+                            </div>
+                            <button onclick="renderSharesTable()" class="p-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition rounded-xl">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-900">
+                                        <th class="py-2.5 px-4 font-black">Item</th>
+                                        <th class="py-2.5 px-4 font-black">Tipo</th>
+                                        <th class="py-2.5 px-4 font-black">Criador</th>
+                                        <th class="py-2.5 px-4 font-black">Expira em</th>
+                                        <th class="py-2.5 px-4 text-right font-black">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="shares-table-body" class="text-sm">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUBTAB 6: DASHBOARD (Admin only) -->
                 <div id="subtab-pane-dashboard_cfg" class="space-y-6 hidden">
                     <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl max-w-md text-left">
                         <h3 class="text-xs font-black uppercase text-white flex items-center gap-1.5 mb-4">
@@ -1139,27 +1171,6 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                         <div class="flex gap-2">
                            <input type="number" id="dashboard-rotate-time" placeholder="8" class="w-full bg-slate-900 border border-slate-800 text-white text-sm rounded-lg py-2 px-3 focus:outline-none focus:border-sky-500 transition">
                            <button onclick="saveDashboardSettings()" class="bg-sky-500 hover:bg-sky-600 focus:scale-95 text-white px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap">Salvar Todos</button>
-                        </div>
-                    </div>
-                </div>
-<div id="subtab-pane-shares" class="space-y-6 hidden">
-                    <div class="bg-slate-950/50 border border-slate-900 overflow-hidden rounded-2xl text-left">
-                        <h3 class="p-4 text-xs font-black uppercase text-white bg-slate-900 flex items-center gap-1.5">
-                            <i data-lucide="share-2" class="w-4 h-4 text-sky-400"></i>
-                            Links Compartilhados
-                        </h3>
-                        <div class="w-full overflow-x-auto min-h-[100px] custom-scroll">
-                            <table class="w-full text-left text-xs text-slate-300 whitespace-nowrap">
-                                <thead>
-                                    <tr class="border-b border-slate-900/60 text-slate-500 font-mono tracking-wider text-[9px] uppercase">
-                                        <th class="py-2 px-4">Alvo</th>
-                                        <th class="py-2 px-4">Link</th>
-                                        <th class="py-2 px-4 text-right w-12">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="shares-table-body" class="divide-y divide-slate-900/40">
-                                </tbody>
-                            </table>
                         </div>
                     </div>
                 </div>
@@ -1640,18 +1651,37 @@ define('DONT_EXIT_ON_DB_ERROR', true);
 
                             <!-- Big Rotating Vinyl Area -->
                             <div class="flex flex-col items-center justify-center py-6">
-                                <div class="relative w-56 h-56 sm:w-64 sm:h-64 aspect-square rounded-full bg-slate-950 flex items-center justify-center shadow-2xl border-4 border-slate-900 overflow-hidden group select-none">
-                                    <div class="absolute inset-1 rounded-full border border-slate-800/10"></div>
-                                    <div class="absolute inset-4 rounded-full border border-slate-800/20"></div>
-                                    <div class="absolute inset-8 rounded-full border border-slate-800/30"></div>
-                                    <div class="absolute inset-12 rounded-full border border-slate-800/40"></div>
-                                    <div class="absolute inset-16 rounded-full border border-slate-800/50"></div>
-                                    
-                                    <div class="w-[50%] h-[50%] rounded-full overflow-hidden z-10 border-2 border-slate-950 shadow-md">
-                                        <img id="reprodutor-cover" src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300" class="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
-                                    </div>
+                                <div class="relative flex justify-center w-full max-w-sm mx-auto">
+                                    <div class="relative w-56 h-56 sm:w-64 sm:h-64 aspect-square rounded-full bg-slate-950 flex items-center justify-center shadow-2xl border-4 border-slate-900 overflow-hidden group select-none">
+                                        <div class="absolute inset-1 rounded-full border border-slate-800/10"></div>
+                                        <div class="absolute inset-4 rounded-full border border-slate-800/20"></div>
+                                        <div class="absolute inset-8 rounded-full border border-slate-800/30"></div>
+                                        <div class="absolute inset-12 rounded-full border border-slate-800/40"></div>
+                                        <div class="absolute inset-16 rounded-full border border-slate-800/50"></div>
+                                        
+                                        <div class="w-[50%] h-[50%] rounded-full overflow-hidden z-10 border-2 border-slate-950 shadow-md">
+                                            <img id="reprodutor-cover" src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300" class="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                                        </div>
 
-                                    <div class="absolute w-4 h-4 bg-slate-900 border-2 border-slate-950 rounded-full z-20"></div>
+                                        <div class="absolute w-4 h-4 bg-slate-900 border-2 border-slate-950 rounded-full z-20"></div>
+                                    </div>
+                                    
+                                    <!-- Tonearm (braço de toca-discos) -->
+                                    <div class="absolute top-2 right-4 sm:right-6 origin-[12px_12px] transition-transform duration-200 z-30 pointer-events-none drop-shadow-2xl" id="tonearm" style="transform: rotate(0deg);">
+                                        <!-- Base / Pivot -->
+                                        <div class="absolute top-0 left-0 w-6 h-6 rounded-full bg-slate-700 border-2 border-slate-600 shadow-xl z-20"></div>
+                                        <div class="absolute top-1.5 left-1.5 w-3 h-3 rounded-full bg-slate-900 z-30"></div>
+                                        
+                                        <!-- Braço principal -->
+                                        <div class="absolute top-3 left-[10px] w-1.5 h-28 sm:h-32 bg-gradient-to-b from-slate-300 to-slate-500 shadow-md rounded-full origin-top"></div>
+                                        
+                                        <!-- Curva e Headstock / Agulha -->
+                                        <div class="absolute top-[120px] sm:top-[136px] left-[10px] w-1.5 h-6 bg-slate-400 origin-top transform rotate-12 rounded-full"></div>
+                                        <div class="absolute top-[138px] sm:top-[154px] left-[6px] w-4 h-8 bg-slate-700 rounded-sm transform rotate-12 border border-slate-600 shadow-md">
+                                            <!-- Agulha -->
+                                            <div class="absolute bottom-1 right-1 w-1 h-2 bg-slate-300 rounded-sm"></div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="text-center mt-6 w-full max-w-sm space-y-1">
@@ -2315,6 +2345,14 @@ define('DONT_EXIT_ON_DB_ERROR', true);
 
         const API = 'api.php';
 
+        let currentUser = null;
+        let globalSettings = {};
+        let activeTab = 'dashboard';
+        
+        let allTracks = [];
+        let allPlaylists = [];
+        let allFavorites = [];
+
         // Interceptador global do fetch no index.php para propagar o cabeçalho X-Username
         const origFetch = window.fetch;
         try {
@@ -2338,13 +2376,6 @@ define('DONT_EXIT_ON_DB_ERROR', true);
             console.error("Erro ao definir interceptor fetch:", e);
         }
 
-        let globalSettings = {};
-let currentUser = null;
-        let activeTab = 'dashboard';
-        
-        let allTracks = [];
-        let allPlaylists = [];
-        let allFavorites = [];
         let filteredTracks = [];
         let allVideos = [];
         let uploadingVideoId = null;
@@ -2442,6 +2473,14 @@ let currentUser = null;
                     const repCurTime = document.getElementById('reprodutor-current-time');
                     if (repSeek && document.activeElement !== repSeek) repSeek.value = audio.currentTime;
                     if (repCurTime) repCurTime.textContent = formatSecs(audio.currentTime);
+
+                    // Sync tonearm progress
+                    const tonearm = document.getElementById('tonearm');
+                    if (tonearm && audio.duration) {
+                        const progress = audio.currentTime / audio.duration;
+                        const angle = 0 + (25 * progress); // Rotates from 0deg to 25deg
+                        tonearm.style.transform = `rotate(${angle}deg)`;
+                    }
 
                     // Real-time Karaoke dynamic highlight syncing
                     const lyricsModal = document.getElementById('lyrics-modal');
@@ -2917,7 +2956,7 @@ const updPane = document.getElementById('subtab-pane-updates');
             if (subTabName === 'files') {
                 loadFileManager(fileManagerCurrentPath || '');
             }
-            if (subTabName === 'id3') { renderId3SongsList(); } if (subTabName === 'shares') { renderSharesTable(); } if (subTabName === 'dashboard_cfg') { loadDashSettings(); }
+            if (subTabName === 'id3') { renderId3SongsList(); } if (subTabName === 'dashboard_cfg') { loadDashSettings(); } if (subTabName === 'shares') { renderSharesTable(); }
             lucide.createIcons();
         }
 
@@ -6650,7 +6689,7 @@ document.addEventListener('fullscreenchange', (event) => {
             <i data-lucide="download" class="w-3 h-3"></i> Baixar Álbum
         </button>` : ''}
         ${(currentUser.role === 'admin' || currentUser.can_share !== false) ? `
-        <button onclick="shareAlbum('${albumName.replace(/'/g, "\\\\\\\\'")}', '${selectedArtist.replace(/'/g, "\\\\\\\\'")}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-indigo-500/30 cursor-pointer">
+        <button onclick="shareAlbum('${albumName.replace(/'/g, "\\\\\\\\'")}', '${(firstTrack.artist || 'Artista Desconhecido').replace(/'/g, "\\\\\\\\'")}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-indigo-500/30 cursor-pointer">
             <i data-lucide="share-2" class="w-3 h-3"></i> Compartilhar
         </button>` : ''}
     </div>
@@ -6849,7 +6888,7 @@ document.addEventListener('fullscreenchange', (event) => {
                     return a.name.localeCompare(b.name, 'pt-BR');
                 });
 
-                albumList.forEach(albumObj => { const albumName = albumObj.name; let albumTracks = albumObj.tracks; albumTracks.sort((a,b) => { const aNum=a.track_num?parseInt(a.track_num):9999; const bNum=b.track_num?parseInt(b.track_num):9999; return aNum !== bNum ? aNum-bNum : a.title.localeCompare(b.title); });
+                albumList.forEach(albumObj => { const albumName = albumObj.name; let albumTracks = albumObj.tracks; albumTracks.sort((a,b) => { const aNum=a.track_num?parseInt(a.track_num):9999; const bNum=b.track_num?parseInt(b.track_num):9999; return aNum !== bNum ? aNum-bNum : (a.title || '').localeCompare(b.title || ''); });
                     const albumYear = albumObj.year;
                     const firstTrack = albumTracks[0];
                     const albumCover = loadedCoversCache[albumName] || firstTrack.cover_url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400';
@@ -6886,11 +6925,18 @@ document.addEventListener('fullscreenchange', (event) => {
                                             </button>
                                         </div>
                                         
-                                        <div class="${currentUser.role === 'admin' ? 'space-y-1.5' : 'hidden'}">
-                                            <button onclick="downloadAlbum(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="w-full py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-emerald-500/30 cursor-pointer">
-                                                <i data-lucide="download" class="w-3 h-3"></i> Baixar Álbum (ZIP)
-                                            </button>
+                                        <div class="${(currentUser.role === 'admin' || currentUser.can_download !== false || currentUser.can_share !== false) ? 'space-y-1.5' : 'hidden'}">
                                             <div class="flex gap-2">
+                                                ${(currentUser.role === 'admin' || currentUser.can_download !== false) ? `
+                                                <button onclick="downloadAlbum(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="flex-1 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-emerald-500/30 cursor-pointer">
+                                                    <i data-lucide="download" class="w-3 h-3"></i> Baixar
+                                                </button>` : ''}
+                                                ${(currentUser.role === 'admin' || currentUser.can_share !== false) ? `
+                                                <button onclick="shareAlbum('${albumName.replace(new RegExp("'", "g"), "\\'")}', '${selectedArtist.replace(new RegExp("'", "g"), "\\'")}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-indigo-500/30 cursor-pointer">
+                                                    <i data-lucide="share-2" class="w-3 h-3"></i> Compartilhar
+                                                </button>` : ''}
+                                            </div>
+                                            <div class="${currentUser.role === 'admin' ? 'flex gap-2' : 'hidden'}">
                                                 <button onclick="document.getElementById('album-cover-input-${albumIdSafe}').click()" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap">
                                                     <i data-lucide="image" class="w-3.5 h-3.5 text-sky-400"></i> Capa
                                                 </button>
@@ -6898,7 +6944,7 @@ document.addEventListener('fullscreenchange', (event) => {
                                                     <i data-lucide="edit-3" class="w-3.5 h-3.5 text-indigo-400"></i> Editar ID3
                                                 </button>
                                             </div>
-                                            <input id="album-cover-input-${albumIdSafe}" type="file" accept="image/*" class="hidden" data-artist="${selectedArtist.replace(/"/g, '&quot;')}" data-album="${albumName.replace(/"/g, '&quot;')}" onchange="uploadAlbumCover(this)">
+                                            <input id="album-cover-input-${albumIdSafe}" type="file" accept="image/*" class="hidden" data-artist="${(firstTrack.artist || 'Artista Desconhecido').replace(/"/g, '&quot;')}" data-album="${albumName.replace(/"/g, '&quot;')}" onchange="uploadAlbumCover(this)">
                                         </div>
                                     </div>
                                 </div>
@@ -7738,11 +7784,13 @@ document.addEventListener('fullscreenchange', (event) => {
                             <button onclick="viewPlaylistTracks('${pl.id}', '${safeName}')" class="flex-1 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-350 hover:text-white rounded-xl text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer">
                                 <i data-lucide="eye" class="w-3" style="width:12px; height:12px;"></i> Músicas
                             </button>
+                            
                             ${(currentUser.role === 'admin' || currentUser.can_share !== false) ? `
                             <button onclick="sharePlaylist('${pl.id}', '${safeName}')" class="px-2.5 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-xl text-[10px] font-bold uppercase tracking-wider transition flex items-center justify-center cursor-pointer" title="Compartilhar Playlist">
                                 <i data-lucide="share-2" style="width:14px; height:14px;"></i>
                             </button>
                             ` : ''}
+                            
                             <button onclick="deletePlaylistAndRefresh('${pl.id}')" class="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-[10px] font-bold uppercase tracking-wider transition flex items-center justify-center cursor-pointer">
                                 <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
                             </button>
@@ -8107,7 +8155,7 @@ document.addEventListener('fullscreenchange', (event) => {
             document.getElementById('playlist-selector-modal').classList.remove('hidden');
         };
 
-        window.editUser = function(username, can_dl, can_sh) {
+        window.editUser = function(username, can_dl) {
             if (username === 'admin') {
                 alert("O admin tem todas permissões ativadas por padrão.");
                 return;
@@ -8121,12 +8169,6 @@ document.addEventListener('fullscreenchange', (event) => {
                             <span class="text-sm text-slate-300">Pode baixar álbuns</span>
                         </label>
                     </div>
-                    <div>
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" id="edit-can-sh" class="rounded bg-slate-900 border-slate-700 text-sky-500" ${can_sh ? 'checked' : ''}>
-                            <span class="text-sm text-slate-300">Pode criar compartilhamentos</span>
-                        </label>
-                    </div>
                     <button onclick="saveUserRights('${username}')" class="w-full py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-sm font-bold mt-4 shadow cursor-pointer">Salvar Permissões</button>
                 </div>
             `;
@@ -8135,12 +8177,11 @@ document.addEventListener('fullscreenchange', (event) => {
 
         window.saveUserRights = async function(username) {
             const can_dl = document.getElementById('edit-can-dl').checked;
-            const can_sh = document.getElementById('edit-can-sh').checked;
             try {
                 const res = await fetch(API + '?route=update_user&username=' + encodeURIComponent(username), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ can_download: can_dl, can_share: can_sh })
+                    body: JSON.stringify({ can_download: can_dl })
                 });
                 if (res.ok) {
                     window.closeModalHTML();
@@ -8182,6 +8223,101 @@ document.addEventListener('fullscreenchange', (event) => {
         }
 
         // USER MANAGER CONTROLLER (ADMIN EXCLUSIVE)
+        window.copyToClipboard = function(text) {
+            const el = document.createElement('textarea');
+            el.value = text;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+        };
+        
+        async function renderSharesTable() {
+            const tbody = document.getElementById('shares-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            try {
+                const res = await fetch(API + '?route=list_shares');
+                if(!res.ok) return;
+                const shares = await res.json();
+                shares.forEach(s => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-900/30 transition border-b border-slate-900";
+                    let url = window.location.href.split('?')[0] + '?share=' + s.share_hash;
+                    let expText = s.expires_at ? new Date(s.expires_at).toLocaleString() : 'Nunca';
+                    let isExpired = s.expires_at && new Date(s.expires_at) < new Date();
+                    
+                    tr.innerHTML = `
+                        <td class="py-2.5 px-4 text-white font-bold max-w-[200px] truncate" title="${s.target_name}">
+                            <a href="${url}" target="_blank" class="hover:text-indigo-400">${s.target_name}</a>
+                        </td>
+                        <td class="py-2.5 px-4 uppercase text-[10px]"><span class="px-2 py-0.5 rounded-full font-bold bg-slate-800 text-slate-400">${s.target_type}</span></td>
+                        <td class="py-2.5 px-4 text-slate-300">${s.created_by}</td>
+                        <td class="py-2.5 px-4 ${isExpired ? 'text-red-400' : 'text-slate-400'}">${expText}</td>
+                        <td class="py-2.5 px-4 text-right flex justify-end gap-2">
+                            <button onclick="copyToClipboard('${url}')" class="p-1 hover:text-indigo-400 text-slate-500 transition cursor-pointer" title="Copiar Link"><i data-lucide="copy" class="w-4 h-4"></i></button>
+                            <button onclick="updateShareExpire('${s.share_hash}')" class="p-1 hover:text-emerald-400 text-slate-500 transition cursor-pointer" title="Alterar Expiração"><i data-lucide="clock" class="w-4 h-4"></i></button>
+                            <button onclick="deleteShare('${s.share_hash}')" class="p-1 hover:text-red-400 text-slate-500 transition cursor-pointer" title="Excluir"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                lucide.createIcons();
+            } catch (e) { console.error(e); }
+        }
+
+        window.deleteShare = async function(hash) {
+            if(!confirm('Excluir este link?')) return;
+            try {
+                await fetch(API + '?route=delete_share&hash=' + hash);
+                renderSharesTable();
+            } catch(e) {}
+        }
+        
+        window.updateShareExpire = async function(hash) {
+            const days = prompt("Novo tempo de expiração em dias (0 = Nunca expira):", "7");
+            if (days === null) return;
+            try {
+                await fetch(API + '?route=update_share&hash=' + hash, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ expires_days: parseInt(days) })
+                });
+                renderSharesTable();
+            } catch(e) {}
+        }
+
+        window.shareAlbum = function(albumName, artistName) {
+            createShare('album', JSON.stringify({album: albumName, artist: artistName}), albumName);
+        }
+
+        window.sharePlaylist = function(playlistId, playlistName) {
+            createShare('playlist', playlistId, playlistName);
+        }
+
+        async function createShare(type, id, name) {
+            const days = prompt("Tempo de expiração em dias (0 = Nunca expira):", "7");
+            if (days === null) return;
+            
+            try {
+                const res = await fetch(API + '?route=create_share', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type, id, name, expires_days: parseInt(days) })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const url = window.location.href.split('?')[0] + data.url;
+                    copyToClipboard(url);
+                    alert("Link copiado para a área de transferência!\n" + url);
+                } else {
+                    alert(data.error || 'Erro ao criar compartilhamento');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        
         async function renderUsersTable() {
             const tbody = document.getElementById('users-table-body');
             tbody.innerHTML = '';
@@ -8195,7 +8331,7 @@ document.addEventListener('fullscreenchange', (event) => {
                         <td class="py-2.5 px-4 text-white font-bold">${u.username}</td>
                         <td class="py-2.5 px-4 uppercase text-[10px]"><span class="px-2 py-0.5 rounded-full font-bold bg-slate-800 text-slate-400">${u.role}</span></td>
                         <td class="py-2.5 px-4 text-right">
-                            <button onclick="editUser('${u.username}', ${u.can_download !== false}, ${u.can_share !== false})" class="p-1 hover:text-indigo-400 text-slate-500 transition cursor-pointer" title="Editar Permissões"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                            <button onclick="editUser('${u.username}', ${u.can_download !== false})" class="p-1 hover:text-indigo-400 text-slate-500 transition cursor-pointer" title="Editar Permissões"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
                             <button onclick="deleteUser('${u.username}')" class="p-1 hover:text-red-400 text-slate-500 transition cursor-pointer ${u.username === 'admin' ? 'hidden' : ''}" title="Excluir"><i data-lucide="user-x" class="w-4 h-4"></i></button>
                         </td>
                     `;
@@ -8234,87 +8370,7 @@ document.addEventListener('fullscreenchange', (event) => {
         }
 
         
-        async function shareAlbum(album, artist) {
-            try {
-                const res = await fetch(API + '?route=create_share', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        target_type: 'album',
-                        target_id: JSON.stringify({ album, artist }),
-                        target_name: album + ' - ' + artist
-                    })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    const url = window.location.origin + window.location.pathname + '?share=' + data.hash;
-                    alert('Compartilhamento criado com sucesso!\nLink: ' + url);
-                    navigator.clipboard.writeText(url);
-                    if (window.renderSharesTable) window.renderSharesTable();
-                } else {
-                    alert('Erro ao criar');
-                }
-            } catch (ee) { console.error(ee); }
-        }
 
-        async function sharePlaylist(id, name) {
-            try {
-                const res = await fetch(API + '?route=create_share', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        target_type: 'playlist',
-                        target_id: String(id),
-                        target_name: name
-                    })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    const url = window.location.origin + window.location.pathname + '?share=' + data.hash;
-                    alert('Compartilhamento criado com sucesso!\nLink: ' + url);
-                    navigator.clipboard.writeText(url);
-                    if (window.renderSharesTable) window.renderSharesTable();
-                } else {
-                    alert('Erro ao criar');
-                }
-            } catch (ee) { console.error(ee); }
-        }
-
-async function renderSharesTable() {
-    const tbody = document.getElementById('shares-table-body');
-    if(!tbody) return;
-    tbody.innerHTML = '';
-    try {
-        const res = await fetch(API + '?route=list_shares');
-        const shares = await res.json();
-        shares.forEach(s => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-            <td class="py-2 px-4 font-bold">${s.target_name}</td>
-            <td class="py-2 px-4">
-                <a href="?share=${s.share_hash}" target="_blank" class="text-sky-400 hover:underline">?share=${s.share_hash}</a>
-            </td>
-            <td class="py-2 px-4 text-right">
-                <button onclick="deleteShare('${s.share_hash}')" class="p-1 hover:text-red-400 text-slate-500 transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-            </td>
-            `;
-            tbody.appendChild(tr);
-        });
-        if(window.lucide) lucide.createIcons();
-    } catch(e) {
-        console.error(e);
-    }
-}
-
-async function deleteShare(hash) {
-    if (!confirm('Remover compartilhamento?')) return;
-    try {
-        const res = await fetch(API + '?route=delete_share&hash=' + hash);
-        if (res.ok) {
-            renderSharesTable(); loadDashSettings();
-        }
-    } catch(r) { console.error(r) }
-}
 
 async function loadDashSettings() {
     try {

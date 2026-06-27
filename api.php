@@ -101,7 +101,7 @@ try {
             try { @$pdo->exec("ALTER TABLE users ADD COLUMN topBg varchar(100) DEFAULT ''"); } catch(Exception $e) {}
             try { @$pdo->exec("ALTER TABLE users ADD COLUMN can_download tinyint(1) DEFAULT 1"); } catch(Exception $e) {}
             try { @$pdo->exec("ALTER TABLE users ADD COLUMN can_share tinyint(1) DEFAULT 1"); } catch(Exception $e) {}
-    try { @$pdo->exec("ALTER TABLE users ADD COLUMN dashboardLimit int(11) DEFAULT 50"); } catch(Exception $e) {}
+                try { @$pdo->exec("ALTER TABLE users ADD COLUMN dashboardLimit int(11) DEFAULT 50"); } catch(Exception $e) {}
 
             $pdo->exec("CREATE TABLE IF NOT EXISTS songs (
               id int(11) NOT NULL AUTO_INCREMENT,
@@ -168,6 +168,16 @@ try {
               resolved_url varchar(500) DEFAULT NULL,
               created_at datetime DEFAULT CURRENT_TIMESTAMP,
               PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+            $pdo->exec("CREATE TABLE IF NOT EXISTS shares (
+                share_hash VARCHAR(100) PRIMARY KEY,
+                target_type VARCHAR(50),
+                target_id VARCHAR(500),
+                target_name VARCHAR(255),
+                created_by VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at DATETIME DEFAULT NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
             // Garantir coluna theme
@@ -553,6 +563,7 @@ try {
         }
     }
 
+    $current_username = $_SERVER["HTTP_X_USERNAME"] ?? $_GET["admin_username"] ?? "";
     switch ($route) {
     
         case 'list_users':
@@ -615,82 +626,137 @@ try {
         }
         $username = $_GET['username'] ?? '';
         $can_download = $input['can_download'] ?? null;
+        
+        if ($can_download !== null) {
+            $val = $can_download ? 1 : 0;
+            $stmt = $pdo->prepare("UPDATE users SET can_download = ? WHERE username = ?");
+            $stmt->execute([$val, $username]);
+        }
+        
         $can_share = $input['can_share'] ?? null;
         if ($can_share !== null) {
             $val = $can_share ? 1 : 0;
             $stmt = $pdo->prepare("UPDATE users SET can_share = ? WHERE username = ?");
             $stmt->execute([$val, $username]);
         }
-        if ($can_download !== null) {
-            $val = $can_download ? 1 : 0;
-            $stmt = $pdo->prepare("UPDATE users SET can_download = ? WHERE username = ?");
-            $stmt->execute([$val, $username]);
-        }
+        
         echo json_encode(['success' => true]);
         break;
-
-    case 'create_share':
-        if ($method !== 'POST') {
-            http_response_code(405);
-            exit(json_encode(['error' => 'Method Not Allowed']));
-        }
-        $username = $_SERVER['HTTP_X_USERNAME'] ?? '';
-        $stmt = $pdo->prepare("SELECT role, can_share FROM users WHERE username = ?");
-        $stmt->execute([$username]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$user || ($user['role'] !== 'admin' && (isset($user['can_share']) ? !(bool)$user['can_share'] : false))) {
-            http_response_code(403);
-            exit(json_encode(['error' => 'Acesso negado: Permissão de compartilhamento revogada']));
-        }
-        $type = trim($input['target_type'] ?? '');
-        $name = trim($input['target_name'] ?? '');
-        $id = trim($input['target_id'] ?? '');
-        if (!$type || !$id) {
-            http_response_code(400);
-            exit(json_encode(['error' => 'Dados incompletos']));
-        }
-        $pdo->exec("CREATE TABLE IF NOT EXISTS shares (
-            share_hash VARCHAR(100) PRIMARY KEY,
-            target_type VARCHAR(50),
-            target_id VARCHAR(500),
-            target_name VARCHAR(255),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         
-        $hash = substr(md5(uniqid('', true)), 0, 16);
-        $pdo->prepare("INSERT INTO shares (share_hash, target_type, target_id, target_name) VALUES (?, ?, ?, ?)")
-            ->execute([$hash, $type, $id, $name]);
-        echo json_encode(['success' => true, 'hash' => $hash]);
+    case 'create_share':
+        if (!is_admin_user($pdo)) {
+            $stmt = $pdo->prepare("SELECT can_share FROM users WHERE username = ?");
+            $stmt->execute([$current_username]);
+            $u = $stmt->fetch();
+            if (!$u || $u['can_share'] == 0) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Você não tem permissão para compartilhar.']);
+                exit;
+            }
+        }
+        try {
+            $pdo->exec("ALTER TABLE shares ADD COLUMN created_by VARCHAR(50) DEFAULT NULL");
+        } catch(Exception $e) {}
+        try {
+            $pdo->exec("ALTER TABLE shares ADD COLUMN expires_at DATETIME DEFAULT NULL");
+        } catch(Exception $e) {}
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS shares (
+                share_hash VARCHAR(100) PRIMARY KEY,
+                target_type VARCHAR(50),
+                target_id VARCHAR(500),
+                target_name VARCHAR(255),
+                created_by VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at DATETIME DEFAULT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        } catch(Exception $e) {}
+        
+        $hash = substr(md5(uniqid(rand(), true)), 0, 12);
+        $type = $input['type'] ?? 'album';
+        $id = $input['id'] ?? '';
+        $name = $input['name'] ?? 'Compartilhamento';
+        $expires = $input['expires_days'] ?? 7; // default 7 days
+        
+        $expires_at = null;
+        if ($expires > 0) {
+            $expires_at = date('Y-m-d H:i:s', strtotime("+$expires days"));
+        }
+        
+        $stmt = $pdo->prepare("INSERT INTO shares (share_hash, target_type, target_id, target_name, created_by, expires_at) VALUES (?, ?, ?, ?, ?, ?)");
+        try {
+            $stmt->execute([$hash, $type, $id, $name, $current_username, $expires_at]);
+        } catch(Exception $e) {
+            exit(json_encode(['error' => $e->getMessage()]));
+        }
+        
+        echo json_encode(['success' => true, 'hash' => $hash, 'url' => '?share=' . $hash]);
         break;
 
     case 'list_shares':
-        if (!is_admin_user($pdo)) {
-            http_response_code(403);
-            exit(json_encode(['error' => 'Acesso negado']));
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS shares (
+                share_hash VARCHAR(100) PRIMARY KEY,
+                target_type VARCHAR(50),
+                target_id VARCHAR(500),
+                target_name VARCHAR(255),
+                created_by VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at DATETIME DEFAULT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            
+            try { $pdo->exec("ALTER TABLE shares ADD COLUMN created_by VARCHAR(50) DEFAULT NULL"); } catch(Exception $e) {}
+            try { $pdo->exec("ALTER TABLE shares ADD COLUMN expires_at DATETIME DEFAULT NULL"); } catch(Exception $e) {}
+
+            if (!is_admin_user($pdo)) {
+                $stmt = $pdo->prepare("SELECT * FROM shares WHERE created_by = ? ORDER BY created_at DESC");
+                $stmt->execute([$current_username]);
+            } else {
+                $stmt = $pdo->query("SELECT * FROM shares ORDER BY created_at DESC");
+            }
+            $shares = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            echo json_encode($shares);
+        } catch(Exception $e) {
+            echo json_encode([]);
         }
-        $pdo->exec("CREATE TABLE IF NOT EXISTS shares (
-            share_hash VARCHAR(100) PRIMARY KEY,
-            target_type VARCHAR(50),
-            target_id VARCHAR(500),
-            target_name VARCHAR(255),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        
-        $stmt = $pdo->query("SELECT * FROM shares ORDER BY created_at DESC");
-        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         break;
 
     case 'delete_share':
+        $hash = $_GET['hash'] ?? '';
         if (!is_admin_user($pdo)) {
-            http_response_code(403);
-            exit(json_encode(['error' => 'Acesso negado']));
-        }
-        $hash = trim($_GET['hash'] ?? '');
-        if ($hash) {
-            $pdo->prepare("DELETE FROM shares WHERE share_hash = ?")->execute([$hash]);
+            $stmt = $pdo->prepare("DELETE FROM shares WHERE share_hash = ? AND created_by = ?");
+            $stmt->execute([$hash, $current_username]);
+        } else {
+            $stmt = $pdo->prepare("DELETE FROM shares WHERE share_hash = ?");
+            $stmt->execute([$hash]);
         }
         echo json_encode(['success' => true]);
         break;
+
+    case 'update_share':
+        $hash = $_GET['hash'] ?? '';
+        $expires = $input['expires_days'] ?? 7;
+        
+        $expires_at = null;
+        if ($expires > 0) {
+            $expires_at = date('Y-m-d H:i:s', strtotime("+$expires days"));
+        }
+        
+        if (!is_admin_user($pdo)) {
+            $stmt = $pdo->prepare("UPDATE shares SET expires_at = ? WHERE share_hash = ? AND created_by = ?");
+            $stmt->execute([$expires_at, $hash, $current_username]);
+        } else {
+            $stmt = $pdo->prepare("UPDATE shares SET expires_at = ? WHERE share_hash = ?");
+            $stmt->execute([$expires_at, $hash]);
+        }
+        echo json_encode(['success' => true]);
+        break;
+
+    
+
+    
+
+    
 
     
     case 'check_update':
