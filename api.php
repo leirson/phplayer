@@ -493,6 +493,16 @@ try {
                 }
             }
 
+            $yearRaw = $findFrame($data, 'TYER');
+            if (empty($yearRaw)) {
+                $yearRaw = $findFrame($data, 'TDRC');
+            }
+            if (!empty($yearRaw)) {
+                if (preg_match('/^(\d{4})/', $yearRaw, $m)) {
+                    $meta['tag_year'] = $m[1];
+                }
+            }
+
             $durationRaw = $findFrame($data, 'TLEN');
             if (!empty($durationRaw) && is_numeric($durationRaw)) {
                 $ms = intval($durationRaw);
@@ -515,6 +525,7 @@ try {
                         $titlev1 = $sanitizeV1(substr($tag, 3, 30));
                         $artistv1 = $sanitizeV1(substr($tag, 33, 30));
                         $albumv1 = $sanitizeV1(substr($tag, 63, 30));
+                        $yearv1 = $sanitizeV1(substr($tag, 93, 4));
                         $genre_byte = ord(substr($tag, 127, 1));
                         $genres_map = [
                             0 => 'Blues', 1 => 'Classic Rock', 2 => 'Country', 3 => 'Dance', 4 => 'Disco', 5 => 'Funk', 
@@ -536,6 +547,7 @@ try {
                         if (!empty($titlev1)) $meta['tag_title'] = $titlev1;
                         if (!empty($artistv1)) $meta['tag_artist'] = $artistv1;
                         if (!empty($albumv1)) $meta['tag_album'] = $albumv1;
+                        if (!empty($yearv1)) $meta['tag_year'] = $yearv1;
                         if (isset($genres_map[$genre_byte])) $meta['tag_genre'] = $genres_map[$genre_byte];
 
                         $zeroByte = ord(substr($tag, 125, 1));
@@ -1339,7 +1351,7 @@ Accept: */*
                         $existing_id = null;
                         $existing_title = '';
                         foreach ($tables as $t) {
-                            $stmtCheck = $pdo->prepare("SELECT id, title FROM `" . $t . "` WHERE file_name = ? LIMIT 1");
+                            $stmtCheck = $pdo->prepare("SELECT id, title, album_year, genre FROM `" . $t . "` WHERE file_name = ? LIMIT 1");
                             $stmtCheck->execute([$relativePath]);
                             $row = $stmtCheck->fetch();
                             if ($row) {
@@ -1347,21 +1359,45 @@ Accept: */*
                                 $existing_table = $t;
                                 $existing_id = $row['id'];
                                 $existing_title = $row['title'];
+                                $existing_year = $row['album_year'];
+                                $existing_genre = $row['genre'];
                                 break;
                             }
                         }
 
                         if ($file_exists_in_db) {
-                            write_scan_log("Já Registrado: '$relativePath' (Tabela: '$existing_table'). Verificando metadata para número da faixa...");
+                            write_scan_log("Já Registrado: '$relativePath' (Tabela: '$existing_table'). Verificando metadata para número da faixa, ano e gênero...");
                             if ($ext === 'mp3') {
                                 try {
                                     $meta = $getMp3Meta($absolutePath);
+                                    $updateClauses = [];
+                                    $updateParams = [];
+
                                     if (!empty($meta['tag_track_number'])) {
                                         if (strpos(trim($existing_title), $meta['tag_track_number']) !== 0) {
                                             $new_title = $meta['tag_track_number'] . ' - ' . $existing_title;
-                                            $pdo->prepare("UPDATE `" . $existing_table . "` SET title = ? WHERE id = ?")->execute([$new_title, $existing_id]);
-                                            write_scan_log("- Atualizado título com número da faixa: '$new_title'");
+                                            $updateClauses[] = "title = ?";
+                                            $updateParams[] = $new_title;
+                                            write_scan_log("- Título necessita atualização com número da faixa: '$new_title'");
                                         }
+                                    }
+                                    
+                                    if (empty($existing_year) && !empty($meta['tag_year'])) {
+                                        $updateClauses[] = "album_year = ?";
+                                        $updateParams[] = $meta['tag_year'];
+                                        write_scan_log("- Ano necessita atualização para: '{$meta['tag_year']}'");
+                                    }
+                                    
+                                    if ((empty($existing_genre) || $existing_genre === 'Local Scan') && !empty($meta['tag_genre']) && $meta['tag_genre'] !== 'Local Scan') {
+                                        $updateClauses[] = "genre = ?";
+                                        $updateParams[] = $meta['tag_genre'];
+                                        write_scan_log("- Gênero necessita atualização para: '{$meta['tag_genre']}'");
+                                    }
+
+                                    if (count($updateClauses) > 0) {
+                                        $updateParams[] = $existing_id;
+                                        $pdo->prepare("UPDATE `" . $existing_table . "` SET " . implode(", ", $updateClauses) . " WHERE id = ?")->execute($updateParams);
+                                        write_scan_log("- Metadados atualizados com sucesso!");
                                     }
                                 } catch (Exception $id3Exc) {
                                     write_scan_log("- Aviso: Falha ao ler ID3 do MP3 já existente: " . $id3Exc->getMessage());
@@ -1419,6 +1455,11 @@ Accept: */*
                                         }
                                     }
 
+                                    $albumYear = null;
+                                    if (!empty($meta['tag_year'])) {
+                                        $albumYear = $meta['tag_year'];
+                                    }
+
                                     // Set artist name to the ID3 artist metadata tag if it exists so we know who sings this track!
                                     if (!$isFolderMultiArtist && !empty($meta['tag_artist'])) {
                                         $artist = $meta['tag_artist'];
@@ -1434,7 +1475,7 @@ Accept: */*
                                         $album = ($dPath !== '.' ? basename($dPath) : 'Single');
                                         $artist = 'Varios Artistas';
                                     }
-                                    write_scan_log("- Metadata obtido -> Título: '$title', Artista: '$artist', Álbum: '$album', Gênero: '$genre', Duração: {$duration}s");
+                                    write_scan_log("- Metadata obtido -> Título: '$title', Artista: '$artist', Álbum: '$album', Ano: '$albumYear', Gênero: '$genre', Duração: {$duration}s");
                                 } catch (Exception $id3Exc) {
                                     write_scan_log("- Aviso: Falha ao ler ID3 do MP3: " . $id3Exc->getMessage());
                                 }
@@ -1443,8 +1484,9 @@ Accept: */*
                             $insertTable = get_insert_song_table($pdo);
                             write_scan_log("- Persistindo no banco de dados na tabela '$insertTable'...");
                             
-                            $pdo->prepare("INSERT INTO `" . $insertTable . "` (title, artist, album, genre, file_name, file_size, duration, cover_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-                                ->execute([$title, $artist, $album, $genre, $relativePath, $fileinfo->getSize(), $duration, $randomCover]);
+                            $albumYearVal = isset($albumYear) ? $albumYear : null;
+                            $pdo->prepare("INSERT INTO `" . $insertTable . "` (title, artist, album, genre, file_name, file_size, duration, cover_url, album_year) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+                                ->execute([$title, $artist, $album, $genre, $relativePath, $fileinfo->getSize(), $duration, $randomCover, $albumYearVal]);
                             $newTracks++;
                             write_scan_log("- Sucesso: Sincronizado com êxito! Registro inserido.");
                             
