@@ -1336,18 +1336,37 @@ Accept: */*
                         // Check if file is already in BD
                         $file_exists_in_db = false;
                         $existing_table = '';
+                        $existing_id = null;
+                        $existing_title = '';
                         foreach ($tables as $t) {
-                            $stmtCheck = $pdo->prepare("SELECT COUNT(*) FROM `" . $t . "` WHERE file_name = ?");
+                            $stmtCheck = $pdo->prepare("SELECT id, title FROM `" . $t . "` WHERE file_name = ? LIMIT 1");
                             $stmtCheck->execute([$relativePath]);
-                            if (intval($stmtCheck->fetchColumn()) > 0) {
+                            $row = $stmtCheck->fetch();
+                            if ($row) {
                                 $file_exists_in_db = true;
                                 $existing_table = $t;
+                                $existing_id = $row['id'];
+                                $existing_title = $row['title'];
                                 break;
                             }
                         }
 
                         if ($file_exists_in_db) {
-                            write_scan_log("Já Registrado: '$relativePath' (Tabela: '$existing_table'). Não necessita reincluir.");
+                            write_scan_log("Já Registrado: '$relativePath' (Tabela: '$existing_table'). Verificando metadata para número da faixa...");
+                            if ($ext === 'mp3') {
+                                try {
+                                    $meta = $getMp3Meta($absolutePath);
+                                    if (!empty($meta['tag_track_number'])) {
+                                        if (strpos(trim($existing_title), $meta['tag_track_number']) !== 0) {
+                                            $new_title = $meta['tag_track_number'] . ' - ' . $existing_title;
+                                            $pdo->prepare("UPDATE `" . $existing_table . "` SET title = ? WHERE id = ?")->execute([$new_title, $existing_id]);
+                                            write_scan_log("- Atualizado título com número da faixa: '$new_title'");
+                                        }
+                                    }
+                                } catch (Exception $id3Exc) {
+                                    write_scan_log("- Aviso: Falha ao ler ID3 do MP3 já existente: " . $id3Exc->getMessage());
+                                }
+                            }
                         } else {
                             write_scan_log("Sincronizando novo arquivo: '$relativePath'");
                             $parts = explode('/', $relativePath);
