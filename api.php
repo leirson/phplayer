@@ -114,6 +114,11 @@ try {
               duration int(11) DEFAULT 180,
               cover_url varchar(500) DEFAULT NULL,
               created_at datetime DEFAULT CURRENT_TIMESTAMP,
+              play_count int(11) DEFAULT 0,
+              last_played datetime DEFAULT NULL,
+              album_year varchar(10) DEFAULT NULL,
+              album_type varchar(50) DEFAULT 'album',
+              track_number int(11) DEFAULT NULL,
               PRIMARY KEY (id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
@@ -194,7 +199,8 @@ try {
                         "play_count INT DEFAULT 0",
                         "last_played DATETIME DEFAULT NULL",
                         "album_year VARCHAR(10) DEFAULT NULL",
-                        "album_type VARCHAR(50) DEFAULT 'album'"
+                        "album_type VARCHAR(50) DEFAULT 'album'",
+                        "track_number INT DEFAULT NULL"
                     ];
                     foreach (get_songs_tables($pdo) as $st) {
                         foreach ($songColsToEnsure as $colDef) {
@@ -350,6 +356,7 @@ try {
                       `last_played` DATETIME DEFAULT NULL,
                       `album_year` VARCHAR(10) DEFAULT NULL,
                       `album_type` VARCHAR(50) DEFAULT 'album',
+                      `track_number` INT DEFAULT NULL,
                       PRIMARY KEY (id)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=" . $nextAutoInc . ";");
                     
@@ -1351,7 +1358,7 @@ Accept: */*
                         $existing_id = null;
                         $existing_title = '';
                         foreach ($tables as $t) {
-                            $stmtCheck = $pdo->prepare("SELECT id, title, album_year, genre FROM `" . $t . "` WHERE file_name = ? LIMIT 1");
+                            $stmtCheck = $pdo->prepare("SELECT id, title, album_year, genre, track_number FROM `" . $t . "` WHERE file_name = ? LIMIT 1");
                             $stmtCheck->execute([$relativePath]);
                             $row = $stmtCheck->fetch();
                             if ($row) {
@@ -1361,6 +1368,7 @@ Accept: */*
                                 $existing_title = $row['title'];
                                 $existing_year = $row['album_year'];
                                 $existing_genre = $row['genre'];
+                                $existing_track_number = $row['track_number'];
                                 break;
                             }
                         }
@@ -1374,11 +1382,33 @@ Accept: */*
                                     $updateParams = [];
 
                                     if (!empty($meta['tag_track_number'])) {
-                                        if (strpos(trim($existing_title), $meta['tag_track_number']) !== 0) {
-                                            $new_title = $meta['tag_track_number'] . ' - ' . $existing_title;
+                                        $meta_track_num = (int)$meta['tag_track_number'];
+                                        $title_needs_update = false;
+                                        $new_title = trim($existing_title);
+
+                                        // Set track number if it doesn't exist
+                                        if (empty($existing_track_number) && $meta_track_num > 0) {
+                                            $updateClauses[] = "track_number = ?";
+                                            $updateParams[] = $meta_track_num;
+                                            write_scan_log("- Número da faixa necessita atualização para: '{$meta_track_num}'");
+                                        }
+
+                                        // Strip track number from the start of the title
+                                        $pattern1 = '/^' . preg_quote(str_pad($meta_track_num, 2, '0', STR_PAD_LEFT), '/') . '\s*-\s*/';
+                                        $pattern2 = '/^' . preg_quote($meta_track_num, '/') . '\s*-\s*/';
+                                        
+                                        if (preg_match($pattern1, $new_title)) {
+                                            $new_title = preg_replace($pattern1, '', $new_title);
+                                            $title_needs_update = true;
+                                        } else if (preg_match($pattern2, $new_title)) {
+                                            $new_title = preg_replace($pattern2, '', $new_title);
+                                            $title_needs_update = true;
+                                        }
+
+                                        if ($title_needs_update) {
                                             $updateClauses[] = "title = ?";
                                             $updateParams[] = $new_title;
-                                            write_scan_log("- Título necessita atualização com número da faixa: '$new_title'");
+                                            write_scan_log("- Título necessita atualização (removendo número da faixa): '$new_title'");
                                         }
                                     }
                                     
@@ -1449,10 +1479,21 @@ Accept: */*
                                     }
 
                                     if (!empty($meta['tag_track_number'])) {
-                                        // Apenas prependar se o título já não começar com esse número
-                                        if (strpos(trim($title), $meta['tag_track_number']) !== 0) {
-                                            $title = $meta['tag_track_number'] . ' - ' . $title;
+                                        $meta_track_num = (int)$meta['tag_track_number'];
+                                        $pattern1 = '/^' . preg_quote(str_pad($meta_track_num, 2, '0', STR_PAD_LEFT), '/') . '\s*-\s*/';
+                                        $pattern2 = '/^' . preg_quote($meta_track_num, '/') . '\s*-\s*/';
+                                        $pattern3 = '/^\d+\s*-\s*/'; // Fallback to strip any preceding number
+
+                                        if (preg_match($pattern1, trim($title))) {
+                                            $title = preg_replace($pattern1, '', trim($title));
+                                        } else if (preg_match($pattern2, trim($title))) {
+                                            $title = preg_replace($pattern2, '', trim($title));
+                                        } else {
+                                            $title = preg_replace($pattern3, '', trim($title));
                                         }
+                                    } else {
+                                        // Still try to strip leading numbers from filename if track_number is empty
+                                        $title = preg_replace('/^\d+\s*-\s*/', '', trim($title));
                                     }
 
                                     $albumYear = null;
@@ -1485,8 +1526,9 @@ Accept: */*
                             write_scan_log("- Persistindo no banco de dados na tabela '$insertTable'...");
                             
                             $albumYearVal = isset($albumYear) ? $albumYear : null;
-                            $pdo->prepare("INSERT INTO `" . $insertTable . "` (title, artist, album, genre, file_name, file_size, duration, cover_url, album_year) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-                                ->execute([$title, $artist, $album, $genre, $relativePath, $fileinfo->getSize(), $duration, $randomCover, $albumYearVal]);
+                            $trackNumberVal = !empty($meta['tag_track_number']) ? (int)$meta['tag_track_number'] : null;
+                            $pdo->prepare("INSERT INTO `" . $insertTable . "` (title, artist, album, genre, file_name, file_size, duration, cover_url, album_year, track_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+                                ->execute([$title, $artist, $album, $genre, $relativePath, $fileinfo->getSize(), $duration, $randomCover, $albumYearVal, $trackNumberVal]);
                             $newTracks++;
                             write_scan_log("- Sucesso: Sincronizado com êxito! Registro inserido.");
                             
@@ -1555,7 +1597,8 @@ Accept: */*
                     "play_count INT DEFAULT 0",
                     "last_played DATETIME DEFAULT NULL",
                     "album_year VARCHAR(10) DEFAULT NULL",
-                    "album_type VARCHAR(50) DEFAULT 'album'"
+                    "album_type VARCHAR(50) DEFAULT 'album'",
+                    "track_number INT DEFAULT NULL"
                 ];
                 foreach ($tables as $st) {
                     foreach ($songColsToEnsure as $colDef) {
@@ -1563,7 +1606,7 @@ Accept: */*
                     }
                 }
 
-                $cols = "id, title, artist, album, genre, file_name, file_size, duration, cover_url, created_at, play_count, last_played, album_year, album_type";
+                $cols = "id, title, artist, album, genre, file_name, file_size, duration, cover_url, created_at, play_count, last_played, album_year, album_type, track_number";
                 $query = null;
                 $songs = null;
                 
@@ -1692,6 +1735,7 @@ Accept: */*
                     $duration = 180;
                     $cover = 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400';
                     
+                    $trackNumberVal = null;
                     if ($ext === 'mp3') {
                         $meta = $getMp3Meta(UPLOAD_DIR . $newFileName);
                         if (!empty($meta['tag_title'])) {
@@ -1699,9 +1743,19 @@ Accept: */*
                         }
 
                         if (!empty($meta['tag_track_number'])) {
-                            if (strpos(trim($title), $meta['tag_track_number']) !== 0) {
-                                $title = $meta['tag_track_number'] . ' - ' . $title;
+                            $trackNumberVal = (int)$meta['tag_track_number'];
+                            $pattern1 = '/^' . preg_quote(str_pad($trackNumberVal, 2, '0', STR_PAD_LEFT), '/') . '\s*-\s*/';
+                            $pattern2 = '/^' . preg_quote($trackNumberVal, '/') . '\s*-\s*/';
+                            $pattern3 = '/^\d+\s*-\s*/'; 
+                            if (preg_match($pattern1, trim($title))) {
+                                $title = preg_replace($pattern1, '', trim($title));
+                            } else if (preg_match($pattern2, trim($title))) {
+                                $title = preg_replace($pattern2, '', trim($title));
+                            } else {
+                                $title = preg_replace($pattern3, '', trim($title));
                             }
+                        } else {
+                            $title = preg_replace('/^\d+\s*-\s*/', '', trim($title));
                         }
 
                         if (!empty($meta['tag_artist'])) {
@@ -1717,8 +1771,8 @@ Accept: */*
                     }
 
                     $insertTable = get_insert_song_table($pdo);
-                    $pdo->prepare("INSERT INTO `" . $insertTable . "` (title, artist, album, genre, file_name, file_size, duration, cover_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-                        ->execute([$title, $artist, $album, $genre, $newFileName, $file['size'], $duration, $cover]);
+                    $pdo->prepare("INSERT INTO `" . $insertTable . "` (title, artist, album, genre, file_name, file_size, duration, cover_url, track_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+                        ->execute([$title, $artist, $album, $genre, $newFileName, $file['size'], $duration, $cover, $trackNumberVal]);
                     $uploadedCount++;
                 } else {
                     $failedCount++;

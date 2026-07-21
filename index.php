@@ -3462,7 +3462,7 @@ const updPane = document.getElementById('subtab-pane-updates');
                         div.className = "py-3 flex flex-col gap-1.5 border-b border-slate-900/40 last:border-0";
                         div.innerHTML = `
                             <div class="flex items-center justify-between text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                                <span>Música #${i+1}</span>
+                                <span>Música #${t.track_number || i+1}</span>
                                 ${t.duration ? `<span class="font-mono text-[9px]">${formatSecs(t.duration)}</span>` : ''}
                             </div>
                             <input type="text" data-track-id="${t.id}" autocomplete="off" class="id3-album-track-title-input w-full bg-slate-950 border border-slate-900 text-sky-400 p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition font-semibold" value="${String(t.title || '').replace(/"/g, '&quot;')}">
@@ -6855,7 +6855,7 @@ document.addEventListener('fullscreenchange', (event) => {
                         
                         html += `
                             <tr class="hover:bg-slate-900/30 group/row transition duration-150">
-                                <td class="py-2 px-3 text-center font-mono text-slate-600 text-xs w-10 ${highlight ? 'text-sky-450 font-black' : ''}">${index + 1}</td>
+                                <td class="py-2 px-3 text-center font-mono text-slate-600 text-xs w-10 ${highlight ? 'text-sky-450 font-black' : ''}">${track.track_number || index + 1}</td>
                                 <td class="py-2 px-3 font-semibold">
                                     <div class="flex items-center gap-2 max-w-full">
                                         <button class="font-bold text-white hover:text-sky-400 text-left truncate hover:underline cursor-pointer ${highlight ? 'text-sky-450' : ''}" onclick="playImmediateFromAlbum('${track.id}')">
@@ -7070,8 +7070,8 @@ document.addEventListener('fullscreenchange', (event) => {
                         const albumName = albumObj.name;
                         let albumTracks = albumObj.tracks;
                         albumTracks.sort((a,b) => {
-                            const aNum = a.track_num ? parseInt(a.track_num) : 9999;
-                            const bNum = b.track_num ? parseInt(b.track_num) : 9999;
+                            const aNum = a.track_number ? parseInt(a.track_number) : 9999;
+                            const bNum = b.track_number ? parseInt(b.track_number) : 9999;
                             return aNum !== bNum ? aNum - bNum : (a.title || '').localeCompare(b.title || '');
                         });
                         const albumYear = albumObj.year;
@@ -7159,7 +7159,7 @@ document.addEventListener('fullscreenchange', (event) => {
                             
                             html += `
                                 <tr class="hover:bg-slate-900/30 group/row transition duration-150">
-                                    <td class="py-2 px-3 text-center font-mono text-slate-600 text-xs w-10 ${highlight ? 'text-sky-450 font-black' : ''}">${index + 1}</td>
+                                    <td class="py-2 px-3 text-center font-mono text-slate-600 text-xs w-10 ${highlight ? 'text-sky-450 font-black' : ''}">${track.track_number || index + 1}</td>
                                     <td class="py-2 px-3 font-semibold">
                                         <div class="flex items-center gap-2 max-w-full">
                                             <button class="font-bold text-white hover:text-sky-400 text-left truncate hover:underline cursor-pointer ${highlight ? 'text-sky-450' : ''}" onclick="playImmediateFromAlbum('${track.id}')">
@@ -9479,7 +9479,7 @@ async function deleteUser(username) {
                     const durText = dur ? `${Math.floor(dur/60)}:${String(dur%60).padStart(2,'0')}` : '--:--';
                     html += `
                         <tr class="hover:bg-slate-900/40 transition group cursor-pointer" onclick="window.playSharedTrackIndex(${i})">
-                            <td class="py-3 px-4 text-slate-500 font-mono">${t.track_num || i + 1}</td>
+                            <td class="py-3 px-4 text-slate-500 font-mono">${t.track_number || i + 1}</td>
                             <td class="py-3 px-4">
                                 <div class="font-bold text-white leading-tight group-hover:text-emerald-400 transition">${t.title}</div>
                                 <div class="text-[10px] text-slate-500 mt-0.5">${t.artist}</div>
