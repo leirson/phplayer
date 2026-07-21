@@ -484,6 +484,15 @@ try {
             $albumRaw = $findFrame($data, 'TALB');
             if (!empty($albumRaw)) $meta['tag_album'] = $albumRaw;
 
+            $trackRaw = $findFrame($data, 'TRCK');
+            if (!empty($trackRaw)) {
+                if (preg_match('/^(\d+)/', $trackRaw, $m)) {
+                    $meta['tag_track_number'] = str_pad($m[1], 2, '0', STR_PAD_LEFT);
+                } else {
+                    $meta['tag_track_number'] = $trackRaw;
+                }
+            }
+
             $durationRaw = $findFrame($data, 'TLEN');
             if (!empty($durationRaw) && is_numeric($durationRaw)) {
                 $ms = intval($durationRaw);
@@ -528,6 +537,12 @@ try {
                         if (!empty($artistv1)) $meta['tag_artist'] = $artistv1;
                         if (!empty($albumv1)) $meta['tag_album'] = $albumv1;
                         if (isset($genres_map[$genre_byte])) $meta['tag_genre'] = $genres_map[$genre_byte];
+
+                        $zeroByte = ord(substr($tag, 125, 1));
+                        $trackByte = ord(substr($tag, 126, 1));
+                        if ($zeroByte === 0 && $trackByte > 0) {
+                            $meta['tag_track_number'] = str_pad($trackByte, 2, '0', STR_PAD_LEFT);
+                        }
                     }
                 }
                 fclose($handle_v1);
@@ -1377,7 +1392,14 @@ Accept: */*
                                     if (!empty($meta['tag_title'])) {
                                         $title = $meta['tag_title'];
                                     }
-                                    
+
+                                    if (!empty($meta['tag_track_number'])) {
+                                        // Apenas prependar se o título já não começar com esse número
+                                        if (strpos(trim($title), $meta['tag_track_number']) !== 0) {
+                                            $title = $meta['tag_track_number'] . ' - ' . $title;
+                                        }
+                                    }
+
                                     // Set artist name to the ID3 artist metadata tag if it exists so we know who sings this track!
                                     if (!$isFolderMultiArtist && !empty($meta['tag_artist'])) {
                                         $artist = $meta['tag_artist'];
@@ -1614,6 +1636,13 @@ Accept: */*
                         if (!empty($meta['tag_title'])) {
                             $title = $meta['tag_title'];
                         }
+
+                        if (!empty($meta['tag_track_number'])) {
+                            if (strpos(trim($title), $meta['tag_track_number']) !== 0) {
+                                $title = $meta['tag_track_number'] . ' - ' . $title;
+                            }
+                        }
+
                         if (!empty($meta['tag_artist'])) {
                             $artist = $meta['tag_artist'];
                         }

@@ -3129,43 +3129,6 @@ const updPane = document.getElementById('subtab-pane-updates');
             }
         };
 
-        window.updateAlbumTypeFromCard = async function(e, albumName, artistName, newType) {
-            if (e) {
-                try { e.stopPropagation(); } catch(err) {}
-            }
-            try {
-                const targetTracks = allTracks.filter(t => (t.album || 'Single') === albumName && (!artistName || t.artist === artistName));
-                if (targetTracks.length === 0) return;
-                
-                const res = await fetch(API + '?route=update_album_tracks_metadata', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Username': currentUser.username
-                    },
-                    body: JSON.stringify({
-                        global: { album: albumName, artist: artistName, album_type: newType },
-                        tracks: targetTracks.map(t => ({ id: t.id, title: t.title }))
-                    })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    targetTracks.forEach(t => { t.album_type = newType; });
-                    allTracks.forEach(t => {
-                        if ((t.album || 'Single') === albumName && (!artistName || t.artist === artistName)) {
-                            t.album_type = newType;
-                        }
-                    });
-                    renderTracksTable();
-                } else {
-                    alert('Erro ao atualizar tipo de álbum: ' + (data.error || 'Erro desconhecido'));
-                }
-            } catch (err) {
-                console.error("Erro ao alterar tipo do álbum", err);
-                alert('Erro de comunicação ao atualizar o tipo do álbum.');
-            }
-        };
-
         function updateId3SelectionCount() {
             const count = selectedId3SongIds.length;
             
@@ -7144,17 +7107,7 @@ document.addEventListener('fullscreenchange', (event) => {
                                                         ${albumYear ? `<span class="bg-sky-500/15 text-sky-400 px-1.5 py-0.5 rounded font-black mr-0.5">${albumYear}</span>` : ''}
                                                         ${albumTracks.length} ${albumTracks.length === 1 ? 'música' : 'músicas'}
                                                     </p>
-                                                    ${currentUser.role === 'admin' ? `
-                                                        <select onchange="updateAlbumTypeFromCard(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}', '${selectedArtist.replace(new RegExp("'", "g"), "\\'")}', this.value)" class="bg-slate-900 border border-slate-800 text-sky-400 hover:text-white font-bold text-[10px] rounded-lg px-2 py-0.5 outline-none focus:border-sky-500 cursor-pointer transition" title="Alterar categoria/tipo do álbum">
-                                                            <option value="album" ${albumObj.type === 'album' ? 'selected' : ''}>Álbum</option>
-                                                            <option value="ep" ${albumObj.type === 'ep' ? 'selected' : ''}>EP</option>
-                                                            <option value="single" ${albumObj.type === 'single' ? 'selected' : ''}>Single</option>
-                                                            <option value="live" ${albumObj.type === 'live' ? 'selected' : ''}>Álbum ao vivo</option>
-                                                            <option value="compilation" ${albumObj.type === 'compilation' ? 'selected' : ''}>Compilação</option>
-                                                        </select>
-                                                    ` : `
-                                                        <span class="text-[9px] font-extrabold text-slate-400 bg-slate-900/80 border border-slate-800 px-2 py-0.5 rounded-lg uppercase tracking-wider">${window.getAlbumTypeLabel ? window.getAlbumTypeLabel(albumObj.type) : 'Álbum'}</span>
-                                                    `}
+                                                    <span class="text-[9px] font-extrabold text-slate-400 bg-slate-900/80 border border-slate-800 px-2 py-0.5 rounded-lg uppercase tracking-wider">${window.getAlbumTypeLabel ? window.getAlbumTypeLabel(albumObj.type) : 'Álbum'}</span>
                                                 </div>
                                             </div>
                                         </div>
