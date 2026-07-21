@@ -4150,9 +4150,16 @@ Accept: */*
         };
 
         $resolved = $is_valid_file_path($subpath, $realBase);
-        if ($resolved === false || $resolved === 'root') {
+        if ($resolved === 'root' || $resolved === false) {
+            $musicDir = $realBase . '/music';
+            if (!file_exists($musicDir)) {
+                @mkdir($musicDir, 0777, true);
+            }
+            $resolved = realpath($musicDir);
+        }
+        if ($resolved === false) {
             http_response_code(403);
-            exit(json_encode(['error' => 'Acesso negado: não é permitido fazer uploads para o diretório raiz virtual.']));
+            exit(json_encode(['error' => 'Acesso negado: pasta de destino inválida.']));
         }
         $targetDir = $resolved;
         if (!isset($_FILES['file'])) {

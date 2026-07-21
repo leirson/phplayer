@@ -4001,7 +4001,11 @@ const updPane = document.getElementById('subtab-pane-updates');
                 formData.append('file', file);
 
                 const xhr = new XMLHttpRequest();
-                xhr.open('POST', 'api.php?route=files_upload', true);
+                const username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : '';
+                xhr.open('POST', `api.php?route=files_upload&admin_username=${encodeURIComponent(username)}`, true);
+                if (username) {
+                    xhr.setRequestHeader('X-Username', username);
+                }
 
                 xhr.upload.onprogress = (e) => {
                     if (e.lengthComputable) {
@@ -4028,7 +4032,14 @@ const updPane = document.getElementById('subtab-pane-updates');
                             console.error(e);
                         }
                     } else {
-                        alert(`Erro no servidor (${xhr.status}) ao enviar ${file.name}`);
+                        let errDetail = `Erro no servidor (${xhr.status})`;
+                        try {
+                            const errObj = JSON.parse(xhr.responseText);
+                            if (errObj && errObj.error) {
+                                errDetail += `: ${errObj.error}`;
+                            }
+                        } catch(e) {}
+                        alert(`${errDetail} ao enviar ${file.name}`);
                     }
 
                     loadFileManager(fileManagerCurrentPath);
