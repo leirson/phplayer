@@ -2139,7 +2139,7 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                 <div class="flex items-center gap-2">
                     <input type="text" id="share-modal-url" readonly class="w-full bg-slate-900 border border-slate-800 text-slate-300 text-xs rounded-xl p-2.5 outline-none selection:bg-sky-500/30">
                     <button id="share-modal-copy-btn" onclick="copyShareModalLink()" class="px-3 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer">
-                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> <span>Copiar</span>
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> <span>Copiar Link</span>
                     </button>
                 </div>
             </div>
@@ -2188,6 +2188,17 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                         <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Ano do Álbum</label>
                         <input type="number" id="id3-edit-year" name="album_year" placeholder="Ex: 2024" min="1900" max="2100" class="w-full bg-slate-900 border border-slate-800 text-white p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition">
                     </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Tipo de Álbum / Categoria</label>
+                    <select id="id3-edit-type" name="album_type" class="w-full bg-slate-900 border border-slate-800 text-white p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition cursor-pointer">
+                        <option value="album">Álbum</option>
+                        <option value="ep">EP</option>
+                        <option value="single">Single</option>
+                        <option value="live">Álbum ao vivo</option>
+                        <option value="compilation">Compilação</option>
+                    </select>
                 </div>
 
                 <div class="pt-2 flex gap-3">
@@ -2270,6 +2281,23 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     <input type="text" id="id3-bulk-genre" placeholder="Ex: Synthwave" disabled class="w-full bg-slate-900/40 border border-slate-900 text-slate-500 p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition opacity-40">
                 </div>
 
+                <!-- Type field -->
+                <div class="space-y-1.5">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="bulk-use-type" onchange="toggleBulkField('type')" class="w-3.5 h-3.5 text-sky-500 bg-slate-900 border-slate-800 rounded focus:ring-sky-500 cursor-pointer">
+                        <label for="bulk-use-type" class="text-[9px] font-bold text-slate-300 uppercase tracking-wider cursor-pointer flex items-center gap-1 select-none">
+                            Alterar Tipo de Álbum
+                        </label>
+                    </div>
+                    <select id="id3-bulk-type" disabled class="w-full bg-slate-900/40 border border-slate-900 text-slate-500 p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition opacity-40 cursor-pointer">
+                        <option value="album">Álbum</option>
+                        <option value="ep">EP</option>
+                        <option value="single">Single</option>
+                        <option value="live">Álbum ao vivo</option>
+                        <option value="compilation">Compilação</option>
+                    </select>
+                </div>
+
                 <div class="pt-4 flex gap-3 text-xs font-bold font-sans">
                     <button type="button" onclick="closeId3BulkModal()" class="flex-1 py-2.5 bg-slate-900 hover:bg-slate-850 hover:text-white text-slate-350 border border-slate-800/80 rounded-xl transition cursor-pointer">
                         Cancelar
@@ -2322,7 +2350,7 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     <input type="text" id="id3-album-artist" autocomplete="off" class="w-full bg-[#050914] border border-slate-800/90 text-sky-400 font-semibold p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition">
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <!-- Genre field -->
                     <div class="space-y-1">
                         <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Gênero</label>
@@ -2333,6 +2361,18 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     <div class="space-y-1">
                         <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Ano</label>
                         <input type="number" id="id3-album-year" min="1900" max="2100" placeholder="Ex: 2024" autocomplete="off" class="w-full bg-[#050914] border border-slate-800/90 text-sky-400 font-semibold p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition">
+                    </div>
+
+                    <!-- Type field -->
+                    <div class="space-y-1">
+                        <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Tipo de Álbum</label>
+                        <select id="id3-album-type" class="w-full bg-[#050914] border border-slate-800/90 text-sky-400 font-semibold p-2.5 text-xs rounded-xl outline-none focus:border-sky-500/50 transition cursor-pointer">
+                            <option value="album">Álbum</option>
+                            <option value="ep">EP</option>
+                            <option value="single">Single</option>
+                            <option value="live">Álbum ao vivo</option>
+                            <option value="compilation">Compilação</option>
+                        </select>
                     </div>
                 </div>
 
@@ -3068,6 +3108,64 @@ const updPane = document.getElementById('subtab-pane-updates');
             master.checked = allChecked;
         }
 
+        window.normalizeAlbumType = function(type) {
+            if (!type) return 'album';
+            const s = String(type).trim().toLowerCase();
+            if (s === 'ep' || s === 'eps') return 'ep';
+            if (s === 'single' || s === 'singles') return 'single';
+            if (s === 'live' || s === 'álbuns ao vivo' || s === 'albuns ao vivo' || s === 'ao vivo') return 'live';
+            if (s === 'compilation' || s === 'compilação' || s === 'compilacao' || s === 'compilações' || s === 'compilacoes') return 'compilation';
+            return 'album';
+        };
+
+        window.getAlbumTypeLabel = function(type) {
+            const norm = window.normalizeAlbumType(type);
+            switch (norm) {
+                case 'ep': return 'EPs';
+                case 'single': return 'Singles';
+                case 'live': return 'Álbuns ao vivo';
+                case 'compilation': return 'Compilações';
+                default: return 'Álbuns';
+            }
+        };
+
+        window.updateAlbumTypeFromCard = async function(e, albumName, artistName, newType) {
+            if (e) {
+                try { e.stopPropagation(); } catch(err) {}
+            }
+            try {
+                const targetTracks = allTracks.filter(t => (t.album || 'Single') === albumName && (!artistName || t.artist === artistName));
+                if (targetTracks.length === 0) return;
+                
+                const res = await fetch(API + '?route=update_album_tracks_metadata', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Username': currentUser.username
+                    },
+                    body: JSON.stringify({
+                        global: { album: albumName, artist: artistName, album_type: newType },
+                        tracks: targetTracks.map(t => ({ id: t.id, title: t.title }))
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    targetTracks.forEach(t => { t.album_type = newType; });
+                    allTracks.forEach(t => {
+                        if ((t.album || 'Single') === albumName && (!artistName || t.artist === artistName)) {
+                            t.album_type = newType;
+                        }
+                    });
+                    renderTracksTable();
+                } else {
+                    alert('Erro ao atualizar tipo de álbum: ' + (data.error || 'Erro desconhecido'));
+                }
+            } catch (err) {
+                console.error("Erro ao alterar tipo do álbum", err);
+                alert('Erro de comunicação ao atualizar o tipo do álbum.');
+            }
+        };
+
         function updateId3SelectionCount() {
             const count = selectedId3SongIds.length;
             
@@ -3126,7 +3224,7 @@ const updPane = document.getElementById('subtab-pane-updates');
                 return;
             }
             
-            const fields = ['album', 'year', 'artist', 'genre'];
+            const fields = ['album', 'year', 'artist', 'genre', 'type'];
             fields.forEach(f => {
                 const cb = document.getElementById('bulk-use-' + f);
                 if (cb) cb.checked = false;
@@ -3161,8 +3259,9 @@ const updPane = document.getElementById('subtab-pane-updates');
             const useYear = document.getElementById('bulk-use-year').checked;
             const useArtist = document.getElementById('bulk-use-artist').checked;
             const useGenre = document.getElementById('bulk-use-genre').checked;
+            const useType = document.getElementById('bulk-use-type').checked;
             
-            if (!useAlbum && !useYear && !useArtist && !useGenre) {
+            if (!useAlbum && !useYear && !useArtist && !useGenre && !useType) {
                 alert('Selecione e ative ao menos um campo para realizar a alteração em massa.');
                 return;
             }
@@ -3176,7 +3275,9 @@ const updPane = document.getElementById('subtab-pane-updates');
                 update_artist: useArtist,
                 artist: useArtist ? document.getElementById('id3-bulk-artist').value.trim() : '',
                 update_genre: useGenre,
-                genre: useGenre ? document.getElementById('id3-bulk-genre').value.trim() : ''
+                genre: useGenre ? document.getElementById('id3-bulk-genre').value.trim() : '',
+                update_album_type: useType,
+                album_type: useType ? document.getElementById('id3-bulk-type').value.trim() : ''
             };
             
             try {
@@ -3378,6 +3479,7 @@ const updPane = document.getElementById('subtab-pane-updates');
                 const artistInput = document.getElementById('id3-album-artist');
                 const genreInput = document.getElementById('id3-album-genre');
                 const yearInput = document.getElementById('id3-album-year');
+                const typeInput = document.getElementById('id3-album-type');
                 
                 if (titleTextEl) titleTextEl.textContent = albumName;
                 if (origNameInput) origNameInput.value = albumName;
@@ -3385,6 +3487,7 @@ const updPane = document.getElementById('subtab-pane-updates');
                 if (artistInput) artistInput.value = baseTrack.artist || 'Artista Desconhecido';
                 if (genreInput) genreInput.value = baseTrack.genre || 'Desconhecido';
                 if (yearInput) yearInput.value = baseTrack.album_year || '';
+                if (typeInput) typeInput.value = baseTrack.album_type || 'album';
 
                 const listEl = document.getElementById('id3-album-songs-list');
                 const countEl = document.getElementById('id3-album-songs-count');
@@ -3439,6 +3542,7 @@ const updPane = document.getElementById('subtab-pane-updates');
             const newArtist = document.getElementById('id3-album-artist').value.trim();
             const newGenre = document.getElementById('id3-album-genre').value.trim();
             const newYear = document.getElementById('id3-album-year').value.trim();
+            const newType = document.getElementById('id3-album-type') ? document.getElementById('id3-album-type').value.trim() : 'album';
 
             if (!newAlbumName) {
                 alert('O Nome do Álbum é obrigatório.');
@@ -3469,7 +3573,8 @@ const updPane = document.getElementById('subtab-pane-updates');
                     album: newAlbumName,
                     artist: newArtist,
                     genre: newGenre,
-                    album_year: newYear
+                    album_year: newYear,
+                    album_type: newType
                 },
                 tracks: tracksData
             };
@@ -3519,12 +3624,14 @@ const updPane = document.getElementById('subtab-pane-updates');
             document.getElementById('id3-edit-album').value = track.album || '';
             document.getElementById('id3-edit-genre').value = track.genre || '';
             document.getElementById('id3-edit-year').value = track.album_year || '';
+            if (document.getElementById('id3-edit-type')) {
+                document.getElementById('id3-edit-type').value = track.album_type || 'album';
+            }
 
             const modal = document.getElementById('id3-edit-modal');
             modal.classList.remove('hidden');
             modal.style.zIndex = '99999';
             modal.style.display = 'flex';
-            if(window.lucide) window.modal.style.display = 'flex';
             if(window.lucide) window.lucide.createIcons();
         }
 
@@ -3544,6 +3651,7 @@ const updPane = document.getElementById('subtab-pane-updates');
             const album = document.getElementById('id3-edit-album').value.trim();
             const genre = document.getElementById('id3-edit-genre').value.trim();
             const album_year = document.getElementById('id3-edit-year').value.trim();
+            const album_type = document.getElementById('id3-edit-type') ? document.getElementById('id3-edit-type').value.trim() : 'album';
 
             if (!id || !title) {
                 alert('O ID e o Título são obrigatórios.');
@@ -3557,7 +3665,7 @@ const updPane = document.getElementById('subtab-pane-updates');
                         'Content-Type': 'application/json',
                         'X-Username': currentUser.username
                     },
-                    body: JSON.stringify({ id, title, artist, album, genre, album_year })
+                    body: JSON.stringify({ id, title, artist, album, genre, album_year, album_type })
                 });
                 const result = await response.json();
                 if (result.success) {
@@ -5254,8 +5362,8 @@ const updPane = document.getElementById('subtab-pane-updates');
                             <button onclick="playAlbumQueueShuffled(event, ${JSON.stringify(alb.tracks).replace(/"/g, '&quot;')})" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full shadow-lg border border-slate-800 cursor-pointer transform hover:scale-105 transition" title="Reproduzir em Modo Aleatório">
                                 <i data-lucide="shuffle" class="w-3.5 h-3.5 text-slate-300"></i>
                             </button>
-                            <button onclick="appendAlbumToQueue(event, ${JSON.stringify(alb.tracks).replace(/"/g, '&quot;')})" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full shadow-lg border border-slate-800 cursor-pointer transform hover:scale-105 transition" title="Adicionar Álbum à Fila">
-                                <i data-lucide="list-plus" class="w-3.5 h-3.5 text-slate-300"></i>
+                            <button onclick="appendAlbumToQueue(event, ${JSON.stringify(alb.tracks).replace(/"/g, '&quot;')})" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full shadow-lg border border-slate-800 cursor-pointer transform hover:scale-105 transition" title="Acrescentar Álbum à Lista de Reprodução">
+                                <i data-lucide="plus" class="w-3.5 h-3.5 text-slate-300"></i>
                             </button>
                         </div>
                     </div>
@@ -5366,8 +5474,8 @@ const updPane = document.getElementById('subtab-pane-updates');
         }
 
         window.appendAlbumToQueue = function(e, trackList) {
-            e.stopPropagation();
-            if (trackList.length === 0) return;
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            if (!trackList || trackList.length === 0) return;
             if (!activeQueue || activeQueue.length === 0) {
                 activeQueue = [...trackList];
                 activeQueueIdx = 0;
@@ -5377,6 +5485,18 @@ const updPane = document.getElementById('subtab-pane-updates');
                 if (typeof renderPlayerMiniQueue === 'function') renderPlayerMiniQueue();
                 if (typeof renderReprodutorQueueList === 'function') renderReprodutorQueueList();
             }
+
+            // Toast feedback
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-20 right-6 bg-sky-500 text-white font-bold text-xs px-4 py-3 rounded-2xl shadow-2xl z-[99999] transition-all duration-300 transform translate-y-0 opacity-100 flex items-center gap-2 border border-sky-400/40';
+            toast.innerHTML = `<i data-lucide="plus-circle" class="w-4 h-4 shrink-0"></i> <span>Álbum acrescentado à lista de reprodução! (${trackList.length} faixas)</span>`;
+            document.body.appendChild(toast);
+            if (window.lucide) lucide.createIcons();
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
         };
 
         let sleepTimerSecs = null;
@@ -6709,8 +6829,8 @@ document.addEventListener('fullscreenchange', (event) => {
                                             <button onclick="playAlbumByNameShuffled(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full shadow-lg border border-slate-800 cursor-pointer transform hover:scale-105 transition" title="Reproduzir em Modo Aleatório">
                                                 <i data-lucide="shuffle" class="w-3.5 h-3.5 text-slate-300"></i>
                                             </button>
-                                            <button onclick="appendAlbumToQueue(event, ${JSON.stringify(albumTracks).replace(/"/g, '&quot;')})" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full shadow-lg border border-slate-800 cursor-pointer transform hover:scale-105 transition" title="Adicionar Álbum à Fila">
-                                                <i data-lucide="list-plus" class="w-3.5 h-3.5 text-slate-300"></i>
+                                            <button onclick="appendAlbumToQueue(event, ${JSON.stringify(albumTracks).replace(/"/g, '&quot;')})" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full shadow-lg border border-slate-800 cursor-pointer transform hover:scale-105 transition" title="Acrescentar Álbum à Lista de Reprodução">
+                                                <i data-lucide="plus" class="w-3.5 h-3.5 text-slate-300"></i>
                                             </button>
                                         </div>
                                     </div>
@@ -6775,7 +6895,7 @@ document.addEventListener('fullscreenchange', (event) => {
                                     </div>
                                 </td>
                                 <td class="py-2 px-3 text-center text-slate-400 font-mono text-[11px]">
-                                    s${formatSecs(track.duration || 180)}
+                                    ${formatSecs(track.duration || 180)}
                                 </td>
                                 <td class="py-2 px-3 text-right w-20">
                                     <div class="flex items-center justify-end gap-1">
@@ -6902,23 +7022,33 @@ document.addEventListener('fullscreenchange', (event) => {
                                 Voltar para Biblioteca
                             </button>
                         </div>
-                        
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12">
                 `;
                 
+                const ALBUM_CATEGORIES = [
+                    { key: 'album', title: 'Álbuns', icon: 'disc' },
+                    { key: 'ep', title: 'EPs', icon: 'disc-3' },
+                    { key: 'single', title: 'Singles', icon: 'music' },
+                    { key: 'live', title: 'Álbuns ao vivo', icon: 'radio' },
+                    { key: 'compilation', title: 'Compilações', icon: 'layers' }
+                ];
+
                 const albumList = Object.keys(albums).map(albumName => {
                     const albumTracks = albums[albumName];
                     let albumYear = null;
+                    let albumType = 'album';
                     for (const t of albumTracks) {
                         if (t.album_year) {
                             albumYear = parseInt(t.album_year);
-                            break;
+                        }
+                        if (t.album_type) {
+                            albumType = window.normalizeAlbumType ? window.normalizeAlbumType(t.album_type) : 'album';
                         }
                     }
                     return {
                         name: albumName,
                         tracks: albumTracks,
-                        year: albumYear
+                        year: albumYear,
+                        type: albumType
                     };
                 });
 
@@ -6931,127 +7061,186 @@ document.addEventListener('fullscreenchange', (event) => {
                     return a.name.localeCompare(b.name, 'pt-BR');
                 });
 
-                albumList.forEach(albumObj => { const albumName = albumObj.name; let albumTracks = albumObj.tracks; albumTracks.sort((a,b) => { const aNum=a.track_num?parseInt(a.track_num):9999; const bNum=b.track_num?parseInt(b.track_num):9999; return aNum !== bNum ? aNum-bNum : (a.title || '').localeCompare(b.title || ''); });
-                    const albumYear = albumObj.year;
-                    const firstTrack = albumTracks[0];
-                    const albumCover = loadedCoversCache[albumName] || firstTrack.cover_url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400';
-                    const albumIdSafe = albumName.replace(/[^a-zA-Z0-9]/g, '-');
-                    const albumTrackIds = albumTracks.map(t => t.id).join(',');
-                    
+                const groupedAlbums = {
+                    album: [],
+                    ep: [],
+                    single: [],
+                    live: [],
+                    compilation: []
+                };
+
+                albumList.forEach(albObj => {
+                    const tKey = albObj.type || 'album';
+                    if (groupedAlbums[tKey]) {
+                        groupedAlbums[tKey].push(albObj);
+                    } else {
+                        groupedAlbums.album.push(albObj);
+                    }
+                });
+
+                ALBUM_CATEGORIES.forEach(cat => {
+                    const categoryAlbums = groupedAlbums[cat.key];
+                    if (!categoryAlbums || categoryAlbums.length === 0) return;
+
                     html += `
-                        <div class="bg-slate-950/40 border border-slate-900 rounded-2xl overflow-hidden hover:border-slate-850 transition duration-150 p-5 shadow-xl">
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                                <!-- Left side: Big Cover Art, info and buttons -->
-                                <div class="sm:col-span-1 flex flex-col h-full">
-                                    <div class="relative rounded-2xl overflow-hidden aspect-square bg-slate-900/40 flex items-center justify-center border border-slate-905/60 shadow-inner group">
-                                        <img id="album-cover-img-${albumIdSafe}" src="${albumCover}" referrerpolicy="no-referrer" class="w-full h-full object-cover shadow-md border border-slate-800/40 group-hover:scale-105 duration-300 transition">
-                                        <div class="absolute inset-0 bg-black/60 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition duration-300">
-                                            <button onclick="playAlbumByName(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="p-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-full shadow-lg cursor-pointer transform hover:scale-105 transition" title="Reproduzir Álbum em Ordem">
-                                                <i data-lucide="play" class="w-3.5 h-3.5 fill-current text-white"></i>
-                                            </button>
-                                            <button onclick="playAlbumByNameShuffled(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full shadow-lg border border-slate-800 cursor-pointer transform hover:scale-105 transition" title="Reproduzir em Modo Aleatório">
-                                                <i data-lucide="shuffle" class="w-3.5 h-3.5 text-slate-300"></i>
-                                            </button>
-                                            <button onclick="appendAlbumToQueue(event, ${JSON.stringify(albumTracks).replace(/"/g, '&quot;')})" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full shadow-lg border border-slate-800 cursor-pointer transform hover:scale-105 transition" title="Adicionar Álbum à Fila">
-                                                <i data-lucide="list-plus" class="w-3.5 h-3.5 text-slate-300"></i>
-                                            </button>
+                        <div class="space-y-4 pt-2 pb-6">
+                            <div class="flex items-center gap-2 border-b border-slate-900 pb-2.5">
+                                <i data-lucide="${cat.icon}" class="w-4 h-4 text-sky-400"></i>
+                                <h2 class="text-sm font-black text-white uppercase tracking-wider">${cat.title}</h2>
+                                <span class="text-[10px] font-extrabold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-full font-mono">${categoryAlbums.length}</span>
+                            </div>
+                            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    `;
+
+                    categoryAlbums.forEach(albumObj => {
+                        const albumName = albumObj.name;
+                        let albumTracks = albumObj.tracks;
+                        albumTracks.sort((a,b) => {
+                            const aNum = a.track_num ? parseInt(a.track_num) : 9999;
+                            const bNum = b.track_num ? parseInt(b.track_num) : 9999;
+                            return aNum !== bNum ? aNum - bNum : (a.title || '').localeCompare(b.title || '');
+                        });
+                        const albumYear = albumObj.year;
+                        const firstTrack = albumTracks[0];
+                        const albumCover = loadedCoversCache[albumName] || firstTrack.cover_url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400';
+                        const albumIdSafe = albumName.replace(/[^a-zA-Z0-9]/g, '-');
+                        const albumTrackIds = albumTracks.map(t => t.id).join(',');
+
+                        html += `
+                            <div class="bg-slate-950/40 border border-slate-900 rounded-2xl overflow-hidden hover:border-slate-850 transition duration-150 p-5 shadow-xl">
+                                <div class="flex flex-col sm:flex-row gap-5 items-stretch h-full">
+                                    <!-- Left side: Cover Art, info and buttons -->
+                                    <div class="w-full sm:w-56 shrink-0 flex flex-col justify-between">
+                                        <div>
+                                            <div class="relative rounded-2xl overflow-hidden aspect-square bg-slate-900/40 flex items-center justify-center border border-slate-905/60 shadow-inner group">
+                                                <img id="album-cover-img-${albumIdSafe}" src="${albumCover}" referrerpolicy="no-referrer" class="w-full h-full object-cover shadow-md border border-slate-800/40 group-hover:scale-105 duration-300 transition">
+                                                <div class="absolute inset-0 bg-black/60 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition duration-300">
+                                                    <button onclick="playAlbumByName(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="p-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-full shadow-lg cursor-pointer transform hover:scale-105 transition" title="Reproduzir Álbum em Ordem">
+                                                        <i data-lucide="play" class="w-3.5 h-3.5 fill-current text-white"></i>
+                                                    </button>
+                                                    <button onclick="playAlbumByNameShuffled(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full shadow-lg border border-slate-800 cursor-pointer transform hover:scale-105 transition" title="Reproduzir em Modo Aleatório">
+                                                        <i data-lucide="shuffle" class="w-3.5 h-3.5 text-slate-300"></i>
+                                                    </button>
+                                                    <button onclick="appendAlbumToQueue(event, ${JSON.stringify(albumTracks).replace(/"/g, '&quot;')})" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full shadow-lg border border-slate-800 cursor-pointer transform hover:scale-105 transition" title="Acrescentar Álbum à Lista de Reprodução">
+                                                        <i data-lucide="plus" class="w-3.5 h-3.5 text-slate-300"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="mt-3 mb-2 space-y-1">
+                                                <h3 class="font-extrabold text-[#ffffff] text-sm leading-tight line-clamp-2">${albumName}</h3>
+                                                <div class="flex items-center justify-between gap-1 pt-1">
+                                                    <p class="text-[11px] text-slate-500 font-mono uppercase tracking-wide flex items-center gap-1">
+                                                        ${albumYear ? `<span class="bg-sky-500/15 text-sky-400 px-1.5 py-0.5 rounded font-black mr-0.5">${albumYear}</span>` : ''}
+                                                        ${albumTracks.length} ${albumTracks.length === 1 ? 'música' : 'músicas'}
+                                                    </p>
+                                                    ${currentUser.role === 'admin' ? `
+                                                        <select onchange="updateAlbumTypeFromCard(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}', '${selectedArtist.replace(new RegExp("'", "g"), "\\'")}', this.value)" class="bg-slate-900 border border-slate-800 text-sky-400 hover:text-white font-bold text-[10px] rounded-lg px-2 py-0.5 outline-none focus:border-sky-500 cursor-pointer transition" title="Alterar categoria/tipo do álbum">
+                                                            <option value="album" ${albumObj.type === 'album' ? 'selected' : ''}>Álbum</option>
+                                                            <option value="ep" ${albumObj.type === 'ep' ? 'selected' : ''}>EP</option>
+                                                            <option value="single" ${albumObj.type === 'single' ? 'selected' : ''}>Single</option>
+                                                            <option value="live" ${albumObj.type === 'live' ? 'selected' : ''}>Álbum ao vivo</option>
+                                                            <option value="compilation" ${albumObj.type === 'compilation' ? 'selected' : ''}>Compilação</option>
+                                                        </select>
+                                                    ` : `
+                                                        <span class="text-[9px] font-extrabold text-slate-400 bg-slate-900/80 border border-slate-800 px-2 py-0.5 rounded-lg uppercase tracking-wider">${window.getAlbumTypeLabel ? window.getAlbumTypeLabel(albumObj.type) : 'Álbum'}</span>
+                                                    `}
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="mt-4 mb-2">
-                                        <h3 class="font-extrabold text-[#ffffff] text-sm leading-tight line-clamp-2">${albumName}</h3>
-                                        <p class="text-[11px] text-slate-500 font-mono mt-1 uppercase tracking-wide flex items-center gap-1">
-                                            ${albumYear ? `<span class="bg-sky-500/15 text-sky-400 px-1.5 py-0.5 rounded font-black mr-1">${albumYear}</span>` : ''}
-                                            ${albumTracks.length} ${albumTracks.length === 1 ? 'música' : 'músicas'} &bull; ÁLBUM
-                                        </p>
+                                        
+                                        <!-- Action buttons stack -->
+                                        <div class="flex flex-col gap-2 mt-2">
+                                            <div class="${(currentUser.role === 'admin' || currentUser.can_download !== false || currentUser.can_share !== false) ? 'space-y-1.5' : 'hidden'}">
+                                                <div class="flex gap-2">
+                                                    ${(currentUser.role === 'admin' || currentUser.can_download !== false) ? `
+                                                    <button onclick="downloadAlbum(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="flex-1 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-emerald-500/30 cursor-pointer">
+                                                        <i data-lucide="download" class="w-3 h-3"></i> Baixar
+                                                    </button>` : ''}
+                                                    ${(currentUser.role === 'admin' || currentUser.can_share !== false) ? `
+                                                    <button onclick="shareAlbum('${albumName.replace(new RegExp("'", "g"), "\\'")}', '${selectedArtist.replace(new RegExp("'", "g"), "\\'")}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-indigo-500/30 cursor-pointer">
+                                                        <i data-lucide="share-2" class="w-3 h-3"></i> Compartilhar
+                                                    </button>` : ''}
+                                                </div>
+                                                <div class="${currentUser.role === 'admin' ? 'flex gap-2' : 'hidden'}">
+                                                    <button onclick="document.getElementById('album-cover-input-${albumIdSafe}').click()" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap">
+                                                        <i data-lucide="image" class="w-3.5 h-3.5 text-sky-400"></i> Capa
+                                                    </button>
+                                                    <button onclick="window.openAlbumBulkEditByElement(this, event)" data-track-ids="${albumTrackIds}" data-album-name="${albumName.replace(/"/g, '&quot;')}" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap" title="Editar ID3 de todo este álbum">
+                                                        <i data-lucide="edit-3" class="w-3.5 h-3.5 text-indigo-400"></i> Editar ID3
+                                                    </button>
+                                                </div>
+                                                <input id="album-cover-input-${albumIdSafe}" type="file" accept="image/*" class="hidden" data-artist="${(firstTrack.artist || 'Artista Desconhecido').replace(/"/g, '&quot;')}" data-album="${albumName.replace(/"/g, '&quot;')}" onchange="uploadAlbumCover(this)">
+                                            </div>
+                                        </div>
                                     </div>
                                     
-                                    <!-- Action buttons stack -->
-                                    <div class="flex flex-col gap-2 mt-auto">
-                                        <div class="${(currentUser.role === 'admin' || currentUser.can_download !== false || currentUser.can_share !== false) ? 'space-y-1.5' : 'hidden'}">
-                                            <div class="flex gap-2">
-                                                ${(currentUser.role === 'admin' || currentUser.can_download !== false) ? `
-                                                <button onclick="downloadAlbum(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="flex-1 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-emerald-500/30 cursor-pointer">
-                                                    <i data-lucide="download" class="w-3 h-3"></i> Baixar
-                                                </button>` : ''}
-                                                ${(currentUser.role === 'admin' || currentUser.can_share !== false) ? `
-                                                <button onclick="shareAlbum('${albumName.replace(new RegExp("'", "g"), "\\'")}', '${selectedArtist.replace(new RegExp("'", "g"), "\\'")}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-indigo-500/30 cursor-pointer">
-                                                    <i data-lucide="share-2" class="w-3 h-3"></i> Compartilhar
-                                                </button>` : ''}
-                                            </div>
-                                            <div class="${currentUser.role === 'admin' ? 'flex gap-2' : 'hidden'}">
-                                                <button onclick="document.getElementById('album-cover-input-${albumIdSafe}').click()" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap">
-                                                    <i data-lucide="image" class="w-3.5 h-3.5 text-sky-400"></i> Capa
+                                    <!-- Right side: Track table list, matching left side height -->
+                                    <div class="flex-1 min-w-0 flex flex-col justify-between h-full min-h-[260px]">
+                                        <div class="overflow-x-auto overflow-y-auto custom-scroll w-full flex-1 max-h-[360px] sm:max-h-none">
+                                            <table class="w-full text-left text-xs text-slate-300">
+                                                <thead>
+                                                    <tr class="border-b border-slate-900/60 text-slate-500 font-mono tracking-wider text-[9px] uppercase sticky top-0 bg-[#070c18] z-10">
+                                                        <th class="py-2 px-3 w-10 text-center">#</th>
+                                                        <th class="py-2 px-3">Faixa</th>
+                                                        <th class="py-2 px-3 text-center w-16">Duração</th>
+                                                        <th class="py-2 px-3 text-right w-12">Fav</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-slate-900/40">
+                        `;
+
+                        albumTracks.forEach((track, index) => {
+                            const isFav = allFavorites.includes(String(track.id));
+                            const highlight = activeQueue[activeQueueIdx] && String(activeQueue[activeQueueIdx].id) === String(track.id);
+                            
+                            html += `
+                                <tr class="hover:bg-slate-900/30 group/row transition duration-150">
+                                    <td class="py-2 px-3 text-center font-mono text-slate-600 text-xs w-10 ${highlight ? 'text-sky-450 font-black' : ''}">${index + 1}</td>
+                                    <td class="py-2 px-3 font-semibold">
+                                        <div class="flex items-center gap-2 max-w-full">
+                                            <button class="font-bold text-white hover:text-sky-400 text-left truncate hover:underline cursor-pointer ${highlight ? 'text-sky-450' : ''}" onclick="playImmediateFromAlbum('${track.id}')">
+                                                ${track.title}
+                                            </button>
+                                            ${currentUser.role === 'admin' ? `
+                                                <button onclick="editTrackTitlePrompt(event, '${track.id}', ${JSON.stringify(track.title).replace(/"/g, '&quot;')})" class="p-1 rounded opacity-0 group-hover/row:opacity-100 hover:bg-slate-800 text-slate-500 hover:text-sky-400 transition cursor-pointer shrink-0" title="Editar nome da música">
+                                                    <i data-lucide="edit-3" class="w-3 h-3"></i>
                                                 </button>
-                                                <button onclick="window.openAlbumBulkEditByElement(this, event)" data-track-ids="${albumTrackIds}" data-album-name="${albumName.replace(/"/g, '&quot;')}" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap" title="Editar ID3 de todo este álbum">
-                                                    <i data-lucide="edit-3" class="w-3.5 h-3.5 text-indigo-400"></i> Editar ID3
+                                            ` : ''}
+                                        </div>
+                                    </td>
+                                    <td class="py-2 px-3 text-center text-slate-400 font-mono text-[11px]">
+                                        ${formatSecs(track.duration || 180)}
+                                    </td>
+                                    <td class="py-2 px-3 text-right w-20">
+                                        <div class="flex items-center justify-end gap-1">
+                                            ${currentUser.role === 'admin' ? `
+                                                <button onclick="downloadTrack(event, '${track.id}')" class="p-1 text-slate-500 hover:text-sky-400 hover:bg-slate-900 rounded-lg transition cursor-pointer" title="Fazer Download da Faixa">
+                                                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
                                                 </button>
-                                            </div>
-                                            <input id="album-cover-input-${albumIdSafe}" type="file" accept="image/*" class="hidden" data-artist="${(firstTrack.artist || 'Artista Desconhecido').replace(/"/g, '&quot;')}" data-album="${albumName.replace(/"/g, '&quot;')}" onchange="uploadAlbumCover(this)">
+                                            ` : ''}
+                                            <button onclick="toggleFav(event, '${track.id}')" class="p-1 rounded-lg border border-transparent hover:bg-slate-900 transition ${isFav ? 'text-[#f43f5e]' : 'text-slate-500 hover:text-white'} cursor-pointer" title="${isFav ? 'Remover dos Favoritos' : 'Marcar como Favorito'}">
+                                                <i data-lucide="heart" class="w-3 h-3 ${isFav ? 'fill-current' : ''}"></i>
+                                            </button>
+                                            <button onclick="addToPlaylistDropdown(event, '${track.id}')" class="p-1 text-slate-500 hover:text-sky-400 hover:bg-slate-900 rounded-lg transition cursor-pointer" title="Adicionar à Playlist">
+                                                <i data-lucide="list-plus" class="w-3.5 h-3.5"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+
+                        html += `
+                                                </tbody>
+                                            </table>
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <!-- Right side: Track table list -->
-                                <div class="sm:col-span-2 relative min-h-[300px] sm:min-h-0">
-                                    <div class="sm:absolute sm:inset-0 overflow-x-auto overflow-y-auto custom-scroll w-full h-full">
-                                        <table class="w-full text-left text-xs text-slate-300">
-                                            <thead>
-                                                <tr class="border-b border-slate-900/60 text-slate-500 font-mono tracking-wider text-[9px] uppercase">
-                                                    <th class="py-2 px-3 w-10 text-center">#</th>
-                                                    <th class="py-2 px-3">Faixa</th>
-                                                    <th class="py-2 px-3 text-center w-16">Duração</th>
-                                                    <th class="py-2 px-3 text-right w-12">Fav</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody class="divide-y divide-slate-900/40">
-                    `;
-                    
-                    albumTracks.forEach((track, index) => {
-                        const isFav = allFavorites.includes(String(track.id));
-                        const highlight = activeQueue[activeQueueIdx] && String(activeQueue[activeQueueIdx].id) === String(track.id);
-                        
-                        html += `
-                            <tr class="hover:bg-slate-900/30 group/row transition duration-150">
-                                <td class="py-2 px-3 text-center font-mono text-slate-600 text-xs w-10 ${highlight ? 'text-sky-450 font-black' : ''}">${index + 1}</td>
-                                <td class="py-2 px-3 font-semibold">
-                                    <div class="flex items-center gap-2 max-w-full">
-                                        <button class="font-bold text-white hover:text-sky-400 text-left truncate hover:underline cursor-pointer ${highlight ? 'text-sky-450' : ''}" onclick="playImmediateFromAlbum('${track.id}')">
-                                            ${track.title}
-                                        </button>
-                                        ${currentUser.role === 'admin' ? `
-                                            <button onclick="editTrackTitlePrompt(event, '${track.id}', ${JSON.stringify(track.title).replace(/"/g, '&quot;')})" class="p-1 rounded opacity-0 group-hover/row:opacity-100 hover:bg-slate-800 text-slate-500 hover:text-sky-400 transition cursor-pointer shrink-0" title="Editar nome da música">
-                                                <i data-lucide="edit-3" class="w-3 h-3"></i>
-                                            </button>
-                                        ` : ''}
-                                    </div>
-                                </td>
-                                <td class="py-2 px-3 text-center text-slate-400 font-mono text-[11px]">
-                                    ${formatSecs(track.duration || 180)}
-                                </td>
-                                <td class="py-2 px-3 text-right w-20">
-                                    <div class="flex items-center justify-end gap-1">
-                                        ${currentUser.role === 'admin' ? `
-                                            <button onclick="downloadTrack(event, '${track.id}')" class="p-1 text-slate-500 hover:text-sky-400 hover:bg-slate-900 rounded-lg transition cursor-pointer" title="Fazer Download da Faixa">
-                                                <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                                            </button>
-                                        ` : ''}
-                                        <button onclick="toggleFav(event, '${track.id}')" class="p-1 rounded-lg border border-transparent hover:bg-slate-900 transition ${isFav ? 'text-[#f43f5e]' : 'text-slate-500 hover:text-white'} cursor-pointer" title="${isFav ? 'Remover dos Favoritos' : 'Marcar como Favorito'}">
-                                            <i data-lucide="heart" class="w-3 h-3 ${isFav ? 'fill-current' : ''}"></i>
-                                        </button>
-                                        <button onclick="addToPlaylistDropdown(event, '${track.id}')" class="p-1 text-slate-500 hover:text-sky-400 hover:bg-slate-900 rounded-lg transition cursor-pointer" title="Adicionar à Playlist">
-                                            <i data-lucide="list-plus" class="w-3.5 h-3.5"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
+                            </div>
                         `;
                     });
-                    
+
                     html += `
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     `;
@@ -8355,7 +8544,7 @@ document.addEventListener('fullscreenchange', (event) => {
                     const btn = document.getElementById('share-modal-copy-btn');
                     
                     // Reset button state
-                    btn.innerHTML = `<i data-lucide="copy" class="w-3.5 h-3.5"></i> <span>Copiar</span>`;
+                    btn.innerHTML = `<i data-lucide="copy" class="w-3.5 h-3.5"></i> <span>Copiar Link</span>`;
                     btn.className = "px-3 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer";
                     
                     input.value = url;

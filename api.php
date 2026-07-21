@@ -198,9 +198,13 @@ try {
                 $pdo->exec("ALTER TABLE songs ADD COLUMN album_year VARCHAR(10) DEFAULT NULL");
             } catch (Exception $col_ex) {}
             try {
+                $pdo->exec("ALTER TABLE songs ADD COLUMN album_type VARCHAR(50) DEFAULT 'album'");
+            } catch (Exception $col_ex) {}
+            try {
                 if (function_exists('get_songs_tables')) {
                     foreach (get_songs_tables($pdo) as $st) {
                         try { $pdo->exec("ALTER TABLE `" . $st . "` ADD COLUMN album_year VARCHAR(10) DEFAULT NULL"); } catch (Exception $ex) {}
+                        try { $pdo->exec("ALTER TABLE `" . $st . "` ADD COLUMN album_type VARCHAR(50) DEFAULT 'album'"); } catch (Exception $ex) {}
                     }
                 }
             } catch (Exception $col_ex) {}
@@ -1712,6 +1716,7 @@ Accept: */*
         $album = trim($input['album'] ?? '');
         $genre = trim($input['genre'] ?? '');
         $album_year = trim($input['album_year'] ?? '');
+        $album_type = trim($input['album_type'] ?? '');
         
         if (!$id || empty($title)) {
             http_response_code(400);
@@ -1739,6 +1744,10 @@ Accept: */*
             $setClauses[] = "album_year = ?";
             $params[] = $album_year;
         }
+        if (array_key_exists('album_type', $input) && $album_type !== '') {
+            $setClauses[] = "album_type = ?";
+            $params[] = $album_type;
+        }
         $params[] = $id;
 
         $sql = "UPDATE `" . $table . "` SET " . implode(", ", $setClauses) . " WHERE id = ?";
@@ -1762,6 +1771,7 @@ Accept: */*
         $newArtist = isset($global['artist']) ? trim($global['artist']) : null;
         $newGenre = isset($global['genre']) ? trim($global['genre']) : null;
         $newYear = isset($global['album_year']) ? trim($global['album_year']) : null;
+        $newType = isset($global['album_type']) ? trim($global['album_type']) : null;
 
         $affected = 0;
         if (is_array($tracks)) {
@@ -1794,6 +1804,10 @@ Accept: */*
                     $setClauses[] = "album_year = ?";
                     $params[] = $newYear;
                 }
+                if ($newType !== null && $newType !== '') {
+                    $setClauses[] = "album_type = ?";
+                    $params[] = $newType;
+                }
 
                 if (!empty($setClauses)) {
                     $params[] = $id;
@@ -1823,6 +1837,8 @@ Accept: */*
         $artist = trim($input['artist'] ?? '');
         $updateGenre = !empty($input['update_genre']);
         $genre = trim($input['genre'] ?? '');
+        $updateType = !empty($input['update_album_type']);
+        $albumType = trim($input['album_type'] ?? '');
 
         if (empty($ids) || !is_array($ids)) {
             echo json_encode(['error' => 'Nenhuma música selecionada.', 'success' => false]);
@@ -1851,6 +1867,10 @@ Accept: */*
             if ($updateGenre) {
                 $setClauses[] = "genre = ?";
                 $params[] = $genre;
+            }
+            if ($updateType) {
+                $setClauses[] = "album_type = ?";
+                $params[] = $albumType;
             }
 
             if (!empty($setClauses)) {
