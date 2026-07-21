@@ -187,24 +187,19 @@ try {
                 // Ignora se já existir
             }
 
-            // Garantir colunas de estatísticas e metadados adicionais
-            try {
-                $pdo->exec("ALTER TABLE songs ADD COLUMN play_count INT DEFAULT 0");
-            } catch (Exception $col_ex) {}
-            try {
-                $pdo->exec("ALTER TABLE songs ADD COLUMN last_played DATETIME DEFAULT NULL");
-            } catch (Exception $col_ex) {}
-            try {
-                $pdo->exec("ALTER TABLE songs ADD COLUMN album_year VARCHAR(10) DEFAULT NULL");
-            } catch (Exception $col_ex) {}
-            try {
-                $pdo->exec("ALTER TABLE songs ADD COLUMN album_type VARCHAR(50) DEFAULT 'album'");
-            } catch (Exception $col_ex) {}
+            // Garantir colunas de estatísticas e metadados adicionais em TODAS as tabelas de músicas
             try {
                 if (function_exists('get_songs_tables')) {
+                    $songColsToEnsure = [
+                        "play_count INT DEFAULT 0",
+                        "last_played DATETIME DEFAULT NULL",
+                        "album_year VARCHAR(10) DEFAULT NULL",
+                        "album_type VARCHAR(50) DEFAULT 'album'"
+                    ];
                     foreach (get_songs_tables($pdo) as $st) {
-                        try { $pdo->exec("ALTER TABLE `" . $st . "` ADD COLUMN album_year VARCHAR(10) DEFAULT NULL"); } catch (Exception $ex) {}
-                        try { $pdo->exec("ALTER TABLE `" . $st . "` ADD COLUMN album_type VARCHAR(50) DEFAULT 'album'"); } catch (Exception $ex) {}
+                        foreach ($songColsToEnsure as $colDef) {
+                            try { $pdo->exec("ALTER TABLE `" . $st . "` ADD COLUMN " . $colDef); } catch (Exception $ex) {}
+                        }
                     }
                 }
             } catch (Exception $col_ex) {}
@@ -353,6 +348,8 @@ try {
                       `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
                       `play_count` INT DEFAULT 0,
                       `last_played` DATETIME DEFAULT NULL,
+                      `album_year` VARCHAR(10) DEFAULT NULL,
+                      `album_type` VARCHAR(50) DEFAULT 'album',
                       PRIMARY KEY (id)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=" . $nextAutoInc . ";");
                     
@@ -1469,30 +1466,44 @@ Accept: */*
                     throw new Exception("Falha de infraestrutura: Conexão PDO com o Banco de Dados não foi iniciada. Verifique suas credenciais de acesso no arquivo config.php.");
                 }
                 $tables = get_songs_tables($pdo);
+
+                // Garantir alinhamento de colunas em todas as tabelas
+                $songColsToEnsure = [
+                    "play_count INT DEFAULT 0",
+                    "last_played DATETIME DEFAULT NULL",
+                    "album_year VARCHAR(10) DEFAULT NULL",
+                    "album_type VARCHAR(50) DEFAULT 'album'"
+                ];
+                foreach ($tables as $st) {
+                    foreach ($songColsToEnsure as $colDef) {
+                        try { $pdo->exec("ALTER TABLE `" . $st . "` ADD COLUMN " . $colDef); } catch (Exception $ex) {}
+                    }
+                }
+
+                $cols = "id, title, artist, album, genre, file_name, file_size, duration, cover_url, created_at, play_count, last_played, album_year, album_type";
                 $query = null;
+                $songs = null;
                 
                 if (count($tables) === 1) {
                     $t = $tables[0];
-                    $unionSql = "SELECT * FROM `" . $t . "` ORDER BY created_at DESC";
+                    $unionSql = "SELECT " . $cols . " FROM `" . $t . "` ORDER BY created_at DESC";
                     try {
                         $query = $pdo->query($unionSql);
                     } catch (Throwable $queryExc) {
-                        $unionSqlFallback1 = "SELECT * FROM `" . $t . "` ORDER BY id DESC";
+                        $unionSqlFallback1 = "SELECT " . $cols . " FROM `" . $t . "` ORDER BY id DESC";
                         try {
                             $query = $pdo->query($unionSqlFallback1);
                         } catch (Throwable $fExc1) {
-                            $unionSqlFallback2 = "SELECT * FROM `" . $t . "`";
+                            $unionSqlFallback2 = "SELECT " . $cols . " FROM `" . $t . "`";
                             try {
                                 $query = $pdo->query($unionSqlFallback2);
-                            } catch (Throwable $fExc2) {
-                                throw new Exception("Erro de Consulta: " . $queryExc->getMessage() . " (Falha também nos fallbacks de ordenação)");
-                            }
+                            } catch (Throwable $fExc2) {}
                         }
                     }
                 } else {
                     $parts = [];
                     foreach ($tables as $t) {
-                        $parts[] = "SELECT * FROM `" . $t . "`";
+                        $parts[] = "SELECT " . $cols . " FROM `" . $t . "`";
                     }
                     $unionSql = "SELECT * FROM (" . implode(" UNION ALL ", $parts) . ") AS union_songs ORDER BY created_at DESC";
                     try {
@@ -1505,17 +1516,38 @@ Accept: */*
                             $unionSqlFallback2 = "SELECT * FROM (" . implode(" UNION ALL ", $parts) . ") AS union_songs";
                             try {
                                 $query = $pdo->query($unionSqlFallback2);
-                            } catch (Throwable $fExc2) {
-                                throw new Exception("Erro de Consulta: " . $queryExc->getMessage() . " (Falha também nos fallbacks de ordenação)");
-                            }
+                            } catch (Throwable $fExc2) {}
                         }
                     }
                 }
 
-                if ($query === false || !$query) {
-                    throw new Exception("Erro de Consulta: Falha ao consultar as tabelas de 'songs'. Se o banco de dados for novo, verifique se as tabelas foram criadas corretamente ou execute uma varredura completa das músicas.");
+                if ($query && $query !== false) {
+                    $songs = $query->fetchAll();
+                } else {
+                    // Fallback definitivo em PHP caso a instrução SQL UNION falhe
+                    $songs = [];
+                    foreach ($tables as $t) {
+                        try {
+                            $st = $pdo->query("SELECT * FROM `" . $t . "`");
+                            if ($st) {
+                                $rows = $st->fetchAll();
+                                if ($rows && is_array($rows)) {
+                                    $songs = array_merge($songs, $rows);
+                                }
+                            }
+                        } catch (Throwable $tblEx) {}
+                    }
+                    // Ordenar por created_at / id em PHP
+                    usort($songs, function($a, $b) {
+                        $ta = strtotime($a['created_at'] ?? '1970-01-01');
+                        $tb = strtotime($b['created_at'] ?? '1970-01-01');
+                        if ($ta == $tb) {
+                            return intval($b['id'] ?? 0) - intval($a['id'] ?? 0);
+                        }
+                        return $tb - $ta;
+                    });
                 }
-                $songs = $query->fetchAll();
+
                 echo json_encode($songs ?: []);
             } catch (Throwable $e) {
                 // Não usamos http_response_code 500 para evitar que servidores Nginx/Apache interceptem e descartem o JSON de erro em favor de páginas HTML nativas
