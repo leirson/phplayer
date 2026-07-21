@@ -187,12 +187,22 @@ try {
                 // Ignora se já existir
             }
 
-            // Garantir colunas de estatísticas (Reproduções)
+            // Garantir colunas de estatísticas e metadados adicionais
             try {
                 $pdo->exec("ALTER TABLE songs ADD COLUMN play_count INT DEFAULT 0");
             } catch (Exception $col_ex) {}
             try {
                 $pdo->exec("ALTER TABLE songs ADD COLUMN last_played DATETIME DEFAULT NULL");
+            } catch (Exception $col_ex) {}
+            try {
+                $pdo->exec("ALTER TABLE songs ADD COLUMN album_year VARCHAR(10) DEFAULT NULL");
+            } catch (Exception $col_ex) {}
+            try {
+                if (function_exists('get_songs_tables')) {
+                    foreach (get_songs_tables($pdo) as $st) {
+                        try { $pdo->exec("ALTER TABLE `" . $st . "` ADD COLUMN album_year VARCHAR(10) DEFAULT NULL"); } catch (Exception $ex) {}
+                    }
+                }
             } catch (Exception $col_ex) {}
 
             // Inserir usuários padrão se tabela users estiver vazia
@@ -547,7 +557,8 @@ try {
     $admin_only_routes = [
         'scan_log', 'repair_db', 'export_backup', 'import_backup', 'scan',
         'delete_track', 'music_folders', 'delete_music_folder',
-        'update_track_title', 'upload_album_cover', 'upload_artist_banner',
+        'update_track_title', 'update_album_tracks_metadata', 'update_tracks_bulk',
+        'upload_album_cover', 'upload_artist_banner',
         'dlna_status', 'toggle_dlna', 'search_images', 'search_artist_logo',
         'update_album_cover_url', 'update_artist_banner_url',
         'get_settings', 'save_settings', 'lastfm_sync', 'deezer_sync',
@@ -1691,49 +1702,166 @@ Accept: */*
     case 'update_track_title':
         if ($method !== 'POST' && $method !== 'PUT') {
             http_response_code(405);
-            echo json_encode(['error' => 'Method not allowed']);
+            echo json_encode(['error' => 'Method not allowed', 'success' => false]);
             break;
         }
         $input = json_decode(file_get_contents('php://input'), true);
-        $id = intval($input['id'] ?? 0);
+        $id = $input['id'] ?? 0;
         $title = trim($input['title'] ?? '');
         $artist = trim($input['artist'] ?? '');
         $album = trim($input['album'] ?? '');
         $genre = trim($input['genre'] ?? '');
+        $album_year = trim($input['album_year'] ?? '');
         
         if (!$id || empty($title)) {
             http_response_code(400);
-            echo json_encode(['error' => 'Id e título são obrigatórios.']);
+            echo json_encode(['error' => 'Id e título são obrigatórios.', 'success' => false]);
             break;
         }
-        
-        if (!empty($artist) || !empty($album) || !empty($genre)) {
-            $table = get_song_table_by_id($pdo, $id);
-            $sql = "UPDATE `" . $table . "` SET title = ?";
-            $params = [$title];
-            if (!empty($artist)) {
-                $sql .= ", artist = ?";
-                $params[] = $artist;
+
+        $table = get_song_table_by_id($pdo, $id);
+        $setClauses = ["title = ?"];
+        $params = [$title];
+
+        if (array_key_exists('artist', $input) && $artist !== '') {
+            $setClauses[] = "artist = ?";
+            $params[] = $artist;
+        }
+        if (array_key_exists('album', $input) && $album !== '') {
+            $setClauses[] = "album = ?";
+            $params[] = $album;
+        }
+        if (array_key_exists('genre', $input) && $genre !== '') {
+            $setClauses[] = "genre = ?";
+            $params[] = $genre;
+        }
+        if (array_key_exists('album_year', $input) && $album_year !== '') {
+            $setClauses[] = "album_year = ?";
+            $params[] = $album_year;
+        }
+        $params[] = $id;
+
+        $sql = "UPDATE `" . $table . "` SET " . implode(", ", $setClauses) . " WHERE id = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+
+        echo json_encode(['success' => true]);
+        break;
+
+    case 'update_album_tracks_metadata':
+        if ($method !== 'POST' && $method !== 'PUT') {
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed', 'success' => false]);
+            break;
+        }
+        $input = json_decode(file_get_contents('php://input'), true);
+        $global = $input['global'] ?? [];
+        $tracks = $input['tracks'] ?? [];
+
+        $newAlbum = isset($global['album']) ? trim($global['album']) : null;
+        $newArtist = isset($global['artist']) ? trim($global['artist']) : null;
+        $newGenre = isset($global['genre']) ? trim($global['genre']) : null;
+        $newYear = isset($global['album_year']) ? trim($global['album_year']) : null;
+
+        $affected = 0;
+        if (is_array($tracks)) {
+            foreach ($tracks as $t) {
+                $id = $t['id'] ?? null;
+                $title = isset($t['title']) ? trim($t['title']) : '';
+                if (!$id) continue;
+
+                $table = get_song_table_by_id($pdo, $id);
+                $setClauses = [];
+                $params = [];
+
+                if ($title !== '') {
+                    $setClauses[] = "title = ?";
+                    $params[] = $title;
+                }
+                if ($newAlbum !== null && $newAlbum !== '') {
+                    $setClauses[] = "album = ?";
+                    $params[] = $newAlbum;
+                }
+                if ($newArtist !== null && $newArtist !== '') {
+                    $setClauses[] = "artist = ?";
+                    $params[] = $newArtist;
+                }
+                if ($newGenre !== null && $newGenre !== '') {
+                    $setClauses[] = "genre = ?";
+                    $params[] = $newGenre;
+                }
+                if ($newYear !== null && $newYear !== '') {
+                    $setClauses[] = "album_year = ?";
+                    $params[] = $newYear;
+                }
+
+                if (!empty($setClauses)) {
+                    $params[] = $id;
+                    $sql = "UPDATE `" . $table . "` SET " . implode(", ", $setClauses) . " WHERE id = ?";
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute($params);
+                    $affected++;
+                }
             }
-            if (!empty($album)) {
-                $sql .= ", album = ?";
+        }
+        echo json_encode(['success' => true, 'affected' => $affected]);
+        break;
+
+    case 'update_tracks_bulk':
+        if ($method !== 'POST' && $method !== 'PUT') {
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed', 'success' => false]);
+            break;
+        }
+        $input = json_decode(file_get_contents('php://input'), true);
+        $ids = $input['ids'] ?? [];
+        $updateAlbum = !empty($input['update_album']);
+        $album = trim($input['album'] ?? '');
+        $updateYear = !empty($input['update_album_year']);
+        $albumYear = trim($input['album_year'] ?? '');
+        $updateArtist = !empty($input['update_artist']);
+        $artist = trim($input['artist'] ?? '');
+        $updateGenre = !empty($input['update_genre']);
+        $genre = trim($input['genre'] ?? '');
+
+        if (empty($ids) || !is_array($ids)) {
+            echo json_encode(['error' => 'Nenhuma música selecionada.', 'success' => false]);
+            break;
+        }
+
+        $affected = 0;
+        foreach ($ids as $id) {
+            if (!$id) continue;
+            $table = get_song_table_by_id($pdo, $id);
+            $setClauses = [];
+            $params = [];
+
+            if ($updateAlbum) {
+                $setClauses[] = "album = ?";
                 $params[] = $album;
             }
-            if (!empty($genre)) {
-                $sql .= ", genre = ?";
+            if ($updateYear) {
+                $setClauses[] = "album_year = ?";
+                $params[] = $albumYear;
+            }
+            if ($updateArtist) {
+                $setClauses[] = "artist = ?";
+                $params[] = $artist;
+            }
+            if ($updateGenre) {
+                $setClauses[] = "genre = ?";
                 $params[] = $genre;
             }
-            $sql .= " WHERE id = ?";
-            $params[] = $id;
-            
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
-        } else {
-            $table = get_song_table_by_id($pdo, $id);
-            $stmt = $pdo->prepare("UPDATE `" . $table . "` SET title = ? WHERE id = ?");
-            $stmt->execute([$title, $id]);
+
+            if (!empty($setClauses)) {
+                $params[] = $id;
+                $sql = "UPDATE `" . $table . "` SET " . implode(", ", $setClauses) . " WHERE id = ?";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($params);
+                $affected++;
+            }
         }
-        echo json_encode(['success' => true]);
+        echo json_encode(['success' => true, 'affected' => $affected]);
         break;
 
     case 'upload_album_cover':

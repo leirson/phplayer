@@ -2123,6 +2123,29 @@ define('DONT_EXIT_ON_DB_ERROR', true);
     </div>
 
 
+    <!-- SHARE MODAL -->
+    <div id="share-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-[70] p-4 backdrop-blur-sm hidden font-sans">
+        <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl max-w-sm w-full flex flex-col overflow-hidden shadow-2xl animate-fade-in text-left">
+            <div class="p-5 border-b border-slate-900 flex items-center justify-between">
+                <h3 class="text-xs font-black uppercase text-white tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="share-2" class="w-4 h-4 text-sky-400"></i> Link Compartilhado
+                </h3>
+                <button onclick="document.getElementById('share-modal').classList.add('hidden')" class="text-slate-500 hover:text-white transition cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="p-5 flex flex-col gap-4">
+                <p class="text-xs text-slate-400">Link gerado com sucesso! Qualquer pessoa com este link poderá acessar o item externamente.</p>
+                <div class="flex items-center gap-2">
+                    <input type="text" id="share-modal-url" readonly class="w-full bg-slate-900 border border-slate-800 text-slate-300 text-xs rounded-xl p-2.5 outline-none selection:bg-sky-500/30">
+                    <button id="share-modal-copy-btn" onclick="copyShareModalLink()" class="px-3 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> <span>Copiar</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ID3 TAGS EDITOR MODAL (Admin Only) -->
     <div id="id3-edit-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-[60] p-4 backdrop-blur-sm hidden">
         <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl max-w-md w-full flex flex-col overflow-hidden shadow-2xl font-sans animate-fade-in">
@@ -5231,6 +5254,9 @@ const updPane = document.getElementById('subtab-pane-updates');
                             <button onclick="playAlbumQueueShuffled(event, ${JSON.stringify(alb.tracks).replace(/"/g, '&quot;')})" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full shadow-lg border border-slate-800 cursor-pointer transform hover:scale-105 transition" title="Reproduzir em Modo Aleatório">
                                 <i data-lucide="shuffle" class="w-3.5 h-3.5 text-slate-300"></i>
                             </button>
+                            <button onclick="appendAlbumToQueue(event, ${JSON.stringify(alb.tracks).replace(/"/g, '&quot;')})" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full shadow-lg border border-slate-800 cursor-pointer transform hover:scale-105 transition" title="Adicionar Álbum à Fila">
+                                <i data-lucide="list-plus" class="w-3.5 h-3.5 text-slate-300"></i>
+                            </button>
                         </div>
                     </div>
                     <div class="mt-2 text-left">
@@ -5338,6 +5364,20 @@ const updPane = document.getElementById('subtab-pane-updates');
             activeQueueIdx = 0;
             loadTrack(activeQueue[0]);
         }
+
+        window.appendAlbumToQueue = function(e, trackList) {
+            e.stopPropagation();
+            if (trackList.length === 0) return;
+            if (!activeQueue || activeQueue.length === 0) {
+                activeQueue = [...trackList];
+                activeQueueIdx = 0;
+                loadTrack(activeQueue[0]);
+            } else {
+                activeQueue = activeQueue.concat(trackList);
+                if (typeof renderPlayerMiniQueue === 'function') renderPlayerMiniQueue();
+                if (typeof renderReprodutorQueueList === 'function') renderReprodutorQueueList();
+            }
+        };
 
         let sleepTimerSecs = null;
         let sleepTimerInterval = null;
@@ -6659,11 +6699,22 @@ document.addEventListener('fullscreenchange', (event) => {
                         <div class="bg-slate-950/40 border border-slate-900 rounded-2xl overflow-hidden p-5 shadow-xl">
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
                                 <!-- Left side: Cover Art, info and buttons -->
-                                <div class="sm:col-span-1 space-y-4">
-                                    <div class="aspect-square bg-slate-900/40 rounded-2xl overflow-hidden border border-slate-900 flex items-center justify-center relative shadow-lg">
-                                        <img id="album-cover-img-${albumIdSafe}" src="${albumCover}" referrerpolicy="no-referrer" class="w-full h-full object-cover shadow-md border border-slate-800/40">
+                                <div class="sm:col-span-1 flex flex-col h-full">
+                                    <div class="relative rounded-2xl overflow-hidden aspect-square bg-slate-900/40 flex items-center justify-center border border-slate-905/60 shadow-inner group">
+                                        <img id="album-cover-img-${albumIdSafe}" src="${albumCover}" referrerpolicy="no-referrer" class="w-full h-full object-cover shadow-md border border-slate-800/40 group-hover:scale-105 duration-300 transition">
+                                        <div class="absolute inset-0 bg-black/60 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition duration-300">
+                                            <button onclick="playAlbumByName(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="p-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-full shadow-lg cursor-pointer transform hover:scale-105 transition" title="Reproduzir Álbum em Ordem">
+                                                <i data-lucide="play" class="w-3.5 h-3.5 fill-current text-white"></i>
+                                            </button>
+                                            <button onclick="playAlbumByNameShuffled(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full shadow-lg border border-slate-800 cursor-pointer transform hover:scale-105 transition" title="Reproduzir em Modo Aleatório">
+                                                <i data-lucide="shuffle" class="w-3.5 h-3.5 text-slate-300"></i>
+                                            </button>
+                                            <button onclick="appendAlbumToQueue(event, ${JSON.stringify(albumTracks).replace(/"/g, '&quot;')})" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full shadow-lg border border-slate-800 cursor-pointer transform hover:scale-105 transition" title="Adicionar Álbum à Fila">
+                                                <i data-lucide="list-plus" class="w-3.5 h-3.5 text-slate-300"></i>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div class="text-center">
+                                    <div class="text-center mt-4 mb-2">
                                         <h3 class="font-extrabold text-[#ffffff] text-lg leading-tight line-clamp-2">${albumName}</h3>
                                         <p class="text-[12px] text-sky-450 font-semibold mt-1.5 mb-1">${firstTrack.artist || 'Artista Desconhecido'}</p>
                                         <p class="text-[10px] text-slate-500 font-mono mt-1 uppercase tracking-wide flex items-center justify-center gap-1">
@@ -6673,17 +6724,9 @@ document.addEventListener('fullscreenchange', (event) => {
                                     </div>
                                     
                                     <!-- Action buttons stack -->
-                                    <div class="flex flex-col gap-2 pt-2">
-                                        <div class="flex gap-2">
-                                            <button onclick="playAlbumByName(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="flex-grow py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer shadow-lg shadow-sky-500/15 whitespace-nowrap">
-                                                <i data-lucide="play" class="w-3 h-3 text-white fill-white"></i> Tocar todas
-                                            </button>
-                                            <button onclick="playAlbumByNameShuffled(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="flex-grow py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap">
-                                                <i data-lucide="shuffle" class="w-3 h-3"></i> Aleatório
-                                            </button>
-                                        </div>
+                                    <div class="flex flex-col gap-2 mt-auto">
                                         ${(currentUser.role === 'admin' || currentUser.can_download !== false || currentUser.can_share !== false) ? `
-    <div class="flex gap-2 w-full mt-1.5">
+    <div class="flex gap-2 w-full">
         ${(currentUser.role === 'admin' || currentUser.can_download !== false) ? `
         <button onclick="downloadAlbum(event, '${albumName.replace(/'/g, "\\\\\\\\'")}')" class="flex-1 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-emerald-500/30 cursor-pointer">
             <i data-lucide="download" class="w-3 h-3"></i> Baixar Álbum
@@ -6698,8 +6741,8 @@ document.addEventListener('fullscreenchange', (event) => {
                                 </div>
                                 
                                 <!-- Right side: Track table list -->
-                                <div class="sm:col-span-2">
-                                    <div class="overflow-x-auto ${albumTracks.length > 15 ? 'max-h-[480px] overflow-y-auto' : 'max-h-[2000px]'} custom-scroll">
+                                <div class="sm:col-span-2 relative min-h-[300px] sm:min-h-0">
+                                    <div class="sm:absolute sm:inset-0 overflow-x-auto overflow-y-auto custom-scroll w-full h-full">
                                         <table class="w-full text-left text-xs text-slate-300">
                                             <thead>
                                                 <tr class="border-b border-slate-900/60 text-slate-500 font-mono tracking-wider text-[9px] uppercase">
@@ -6899,14 +6942,22 @@ document.addEventListener('fullscreenchange', (event) => {
                         <div class="bg-slate-950/40 border border-slate-900 rounded-2xl overflow-hidden hover:border-slate-850 transition duration-150 p-5 shadow-xl">
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
                                 <!-- Left side: Big Cover Art, info and buttons -->
-                                <div class="sm:col-span-1 space-y-4">
-                                    <div class="aspect-square bg-slate-900/40 rounded-2xl overflow-hidden border border-slate-900 flex items-center justify-center relative group shadow-lg">
-                                        <img id="album-cover-img-${albumIdSafe}" src="${albumCover}" referrerpolicy="no-referrer" class="w-full h-full object-cover shadow-md border border-slate-800/40 group-hover:scale-102 duration-300 transition">
-                                        <div class="absolute inset-0 bg-black/45 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-200">
-                                            <i data-lucide="disc" class="w-8 h-8 text-white animate-spin"></i>
+                                <div class="sm:col-span-1 flex flex-col h-full">
+                                    <div class="relative rounded-2xl overflow-hidden aspect-square bg-slate-900/40 flex items-center justify-center border border-slate-905/60 shadow-inner group">
+                                        <img id="album-cover-img-${albumIdSafe}" src="${albumCover}" referrerpolicy="no-referrer" class="w-full h-full object-cover shadow-md border border-slate-800/40 group-hover:scale-105 duration-300 transition">
+                                        <div class="absolute inset-0 bg-black/60 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition duration-300">
+                                            <button onclick="playAlbumByName(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="p-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-full shadow-lg cursor-pointer transform hover:scale-105 transition" title="Reproduzir Álbum em Ordem">
+                                                <i data-lucide="play" class="w-3.5 h-3.5 fill-current text-white"></i>
+                                            </button>
+                                            <button onclick="playAlbumByNameShuffled(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full shadow-lg border border-slate-800 cursor-pointer transform hover:scale-105 transition" title="Reproduzir em Modo Aleatório">
+                                                <i data-lucide="shuffle" class="w-3.5 h-3.5 text-slate-300"></i>
+                                            </button>
+                                            <button onclick="appendAlbumToQueue(event, ${JSON.stringify(albumTracks).replace(/"/g, '&quot;')})" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full shadow-lg border border-slate-800 cursor-pointer transform hover:scale-105 transition" title="Adicionar Álbum à Fila">
+                                                <i data-lucide="list-plus" class="w-3.5 h-3.5 text-slate-300"></i>
+                                            </button>
                                         </div>
                                     </div>
-                                    <div>
+                                    <div class="mt-4 mb-2">
                                         <h3 class="font-extrabold text-[#ffffff] text-sm leading-tight line-clamp-2">${albumName}</h3>
                                         <p class="text-[11px] text-slate-500 font-mono mt-1 uppercase tracking-wide flex items-center gap-1">
                                             ${albumYear ? `<span class="bg-sky-500/15 text-sky-400 px-1.5 py-0.5 rounded font-black mr-1">${albumYear}</span>` : ''}
@@ -6915,16 +6966,7 @@ document.addEventListener('fullscreenchange', (event) => {
                                     </div>
                                     
                                     <!-- Action buttons stack -->
-                                    <div class="flex flex-col gap-2 pt-2">
-                                        <div class="flex gap-2">
-                                            <button onclick="playAlbumByName(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="flex-1 py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer shadow-lg shadow-sky-500/15 whitespace-nowrap">
-                                                <i data-lucide="play" class="w-3 h-3 text-white fill-white"></i> Tocar
-                                            </button>
-                                            <button onclick="playAlbumByNameShuffled(event, '${albumName.replace(new RegExp("'", "g"), "\\'")}')" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 border border-slate-800 cursor-pointer whitespace-nowrap">
-                                                <i data-lucide="shuffle" class="w-3 h-3"></i> Aleatório
-                                            </button>
-                                        </div>
-                                        
+                                    <div class="flex flex-col gap-2 mt-auto">
                                         <div class="${(currentUser.role === 'admin' || currentUser.can_download !== false || currentUser.can_share !== false) ? 'space-y-1.5' : 'hidden'}">
                                             <div class="flex gap-2">
                                                 ${(currentUser.role === 'admin' || currentUser.can_download !== false) ? `
@@ -6950,8 +6992,8 @@ document.addEventListener('fullscreenchange', (event) => {
                                 </div>
                                 
                                 <!-- Right side: Track table list -->
-                                <div class="sm:col-span-2">
-                                    <div class="overflow-x-auto ${albumTracks.length > 15 ? 'max-h-[480px] overflow-y-auto' : 'max-h-[2000px]'} custom-scroll">
+                                <div class="sm:col-span-2 relative min-h-[300px] sm:min-h-0">
+                                    <div class="sm:absolute sm:inset-0 overflow-x-auto overflow-y-auto custom-scroll w-full h-full">
                                         <table class="w-full text-left text-xs text-slate-300">
                                             <thead>
                                                 <tr class="border-b border-slate-900/60 text-slate-500 font-mono tracking-wider text-[9px] uppercase">
@@ -8308,13 +8350,50 @@ document.addEventListener('fullscreenchange', (event) => {
                 const data = await res.json();
                 if (data.success) {
                     const url = window.location.href.split('?')[0] + data.url;
-                    copyToClipboard(url);
-                    alert("Link copiado para a área de transferência!\n" + url);
+                    const modal = document.getElementById('share-modal');
+                    const input = document.getElementById('share-modal-url');
+                    const btn = document.getElementById('share-modal-copy-btn');
+                    
+                    // Reset button state
+                    btn.innerHTML = `<i data-lucide="copy" class="w-3.5 h-3.5"></i> <span>Copiar</span>`;
+                    btn.className = "px-3 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer";
+                    
+                    input.value = url;
+                    modal.classList.remove('hidden');
+                    lucide.createIcons();
                 } else {
                     alert(data.error || 'Erro ao criar compartilhamento');
                 }
             } catch (e) {
                 console.error(e);
+            }
+        }
+        
+        window.copyShareModalLink = async function() {
+            const urlInput = document.getElementById('share-modal-url');
+            const btn = document.getElementById('share-modal-copy-btn');
+            
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(urlInput.value);
+                } else {
+                    urlInput.select();
+                    document.execCommand('copy');
+                }
+                
+                // Visual feedback
+                const origHtml = btn.innerHTML;
+                btn.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5"></i> <span>Copiado!</span>`;
+                btn.className = "px-3 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer";
+                lucide.createIcons();
+                
+                setTimeout(() => {
+                    btn.innerHTML = origHtml;
+                    btn.className = "px-3 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer";
+                    lucide.createIcons();
+                }, 2000);
+            } catch (err) {
+                console.error("Failed to copy", err);
             }
         }
         
