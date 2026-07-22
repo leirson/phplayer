@@ -5431,15 +5431,25 @@ const updPane = document.getElementById('subtab-pane-updates');
         };
 
         function playAlbumQueue(e, trackList) {
-            e.stopPropagation();
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
             if (trackList.length === 0) return;
-            activeQueue = trackList;
+            const hasMultipleAlbums = new Set(trackList.map(t => t.album)).size > 1;
+            const sortedTracks = [...trackList].sort((a,b) => {
+                if (hasMultipleAlbums) {
+                    const albCompare = (a.album || '').localeCompare(b.album || '');
+                    if (albCompare !== 0) return albCompare;
+                }
+                const aNum = a.track_number ? parseInt(a.track_number) : 9999;
+                const bNum = b.track_number ? parseInt(b.track_number) : 9999;
+                return aNum !== bNum ? aNum - bNum : (a.title || '').localeCompare(b.title || '');
+            });
+            activeQueue = sortedTracks;
             activeQueueIdx = 0;
             loadTrack(activeQueue[0]);
         }
 
         function playAlbumQueueShuffled(e, trackList) {
-            e.stopPropagation();
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
             if (trackList.length === 0) return;
             const shuffled = [...trackList].sort(() => Math.random() - 0.5);
             activeQueue = shuffled;
@@ -5450,12 +5460,22 @@ const updPane = document.getElementById('subtab-pane-updates');
         window.appendAlbumToQueue = function(e, trackList) {
             if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
             if (!trackList || trackList.length === 0) return;
+            const hasMultipleAlbums = new Set(trackList.map(t => t.album)).size > 1;
+            const sortedTracks = [...trackList].sort((a,b) => {
+                if (hasMultipleAlbums) {
+                    const albCompare = (a.album || '').localeCompare(b.album || '');
+                    if (albCompare !== 0) return albCompare;
+                }
+                const aNum = a.track_number ? parseInt(a.track_number) : 9999;
+                const bNum = b.track_number ? parseInt(b.track_number) : 9999;
+                return aNum !== bNum ? aNum - bNum : (a.title || '').localeCompare(b.title || '');
+            });
             if (!activeQueue || activeQueue.length === 0) {
-                activeQueue = [...trackList];
+                activeQueue = [...sortedTracks];
                 activeQueueIdx = 0;
                 loadTrack(activeQueue[0]);
             } else {
-                activeQueue = activeQueue.concat(trackList);
+                activeQueue = activeQueue.concat(sortedTracks);
                 if (typeof renderPlayerMiniQueue === 'function') renderPlayerMiniQueue();
                 if (typeof renderReprodutorQueueList === 'function') renderReprodutorQueueList();
             }
@@ -7056,12 +7076,21 @@ document.addEventListener('fullscreenchange', (event) => {
                     const categoryAlbums = groupedAlbums[cat.key];
                     if (!categoryAlbums || categoryAlbums.length === 0) return;
 
+                    window.__categoryTracks = window.__categoryTracks || {};
+                    window.__categoryTracks[cat.key] = categoryAlbums.flatMap(a => a.tracks);
+
                     html += `
                         <div class="space-y-4 pt-2 pb-6">
                             <div class="flex items-center gap-2 border-b border-slate-900 pb-2.5">
                                 <i data-lucide="${cat.icon}" class="w-4 h-4 text-sky-400"></i>
-                                <h2 class="text-sm font-black text-white uppercase tracking-wider">${cat.title}</h2>
-                                <span class="text-[10px] font-extrabold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-full font-mono">${categoryAlbums.length}</span>
+                                <h2 class="text-sm font-black text-white uppercase tracking-wider flex-1">${cat.title}</h2>
+                                <span class="text-[10px] font-extrabold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-full font-mono mr-1">${categoryAlbums.length}</span>
+                                <button onclick="playCategoryFromCache(event, '${cat.key}')" class="p-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-full cursor-pointer transition shadow-lg" title="Reproduzir todos">
+                                    <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+                                </button>
+                                <button onclick="playCategoryFromCacheShuffled(event, '${cat.key}')" class="p-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full cursor-pointer border border-slate-800 transition shadow-lg" title="Reproduzir todos aleatoriamente">
+                                    <i data-lucide="shuffle" class="w-3.5 h-3.5"></i>
+                                </button>
                             </div>
                             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     `;
@@ -7493,9 +7522,7 @@ document.addEventListener('fullscreenchange', (event) => {
                 return alb === albumName;
             });
             if (albumTracks.length > 0) {
-                activeQueue = albumTracks;
-                activeQueueIdx = 0;
-                loadTrack(activeQueue[0]);
+                playAlbumQueue(null, albumTracks);
             }
         };
 
@@ -7523,6 +7550,13 @@ document.addEventListener('fullscreenchange', (event) => {
             const track = allTracks.find(t => String(t.id) === String(trackId));
             if (!track) return;
             const queue = allTracks.filter(t => (t.album || 'Single') === (track.album || 'Single'));
+            
+            queue.sort((a,b) => {
+                const aNum = a.track_number ? parseInt(a.track_number) : 9999;
+                const bNum = b.track_number ? parseInt(b.track_number) : 9999;
+                return aNum !== bNum ? aNum - bNum : (a.title || '').localeCompare(b.title || '');
+            });
+            
             activeQueue = queue;
             activeQueueIdx = activeQueue.findIndex(t => String(t.id) === String(track.id));
             if (activeQueueIdx === -1) {
@@ -7563,6 +7597,20 @@ document.addEventListener('fullscreenchange', (event) => {
             if (e) e.stopPropagation();
             const tracks = allTracks.filter(t => (t.album || 'Single') === albumName);
             playAlbumQueue(e, tracks);
+        };
+
+        window.playCategoryFromCache = function(e, catKey) {
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            if (window.__categoryTracks && window.__categoryTracks[catKey]) {
+                playAlbumQueue(e, window.__categoryTracks[catKey]);
+            }
+        };
+
+        window.playCategoryFromCacheShuffled = function(e, catKey) {
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            if (window.__categoryTracks && window.__categoryTracks[catKey]) {
+                playAlbumQueueShuffled(e, window.__categoryTracks[catKey]);
+            }
         };
 
         window.playAlbumByNameShuffled = function(e, albumName) {
