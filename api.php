@@ -2664,6 +2664,9 @@ Accept: */*
             break;
         }
         
+        $cleanArtistParams = trim(preg_replace('/\s+/', ' ', preg_replace('/\b(logo|band|png|hd|headshot|icon|avatar|music|oficial|official|ultra|wide|wallpaper|banner|background)\b/i', '', $artist)));
+        if (empty($cleanArtistParams)) $cleanArtistParams = $artist;
+        
         $images = [];
         
         if ($source === 'lastfm') {
@@ -2672,7 +2675,7 @@ Accept: */*
             $customKey = $stmt->fetchColumn();
             $apiKey = $customKey ?: '4cb074e4b8ec4ee9b6eb6caae250ec4b';
             
-            $lastfmUrl = 'http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=' . urlencode($artist) . '&api_key=' . $apiKey . '&format=json';
+            $lastfmUrl = 'http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=' . urlencode($cleanArtistParams) . '&api_key=' . $apiKey . '&format=json';
             $ch = curl_init($lastfmUrl);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_TIMEOUT, 5);
@@ -2703,7 +2706,7 @@ Accept: */*
                 }
             }
         } else if ($source === 'deezer') {
-            $deezerUrl = 'https://api.deezer.com/search/artist?q=' . urlencode($artist);
+            $deezerUrl = 'https://api.deezer.com/search/artist?q=' . urlencode($cleanArtistParams);
             $ch = curl_init($deezerUrl);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0');
@@ -2724,7 +2727,7 @@ Accept: */*
         } else {
             $query = $artist;
             // Clean noise terms
-            $cleanArtist = preg_replace('/\b(logo|band|png|hd|headshot|icon|avatar|music|oficial|official)\b/i', '', $query);
+            $cleanArtist = preg_replace('/\b(logo|band|png|hd|headshot|icon|avatar|music|oficial|official|ultra|wide|wallpaper|banner|background)\b/i', '', $query);
             $cleanArtist = trim(preg_replace('/\s+/', ' ', $cleanArtist));
             if (empty($cleanArtist)) {
                 $cleanArtist = $query;
