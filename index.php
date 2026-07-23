@@ -953,6 +953,30 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                             </button>
                         </div>
 
+                        <!-- Movies scan -->
+                        <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left">
+                            <div class="space-y-1.5">
+                                <span class="bg-amber-500/10 text-amber-400 border border-amber-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Movies Library</span>
+                                <h3 class="text-sm font-bold text-white">Sincronizar Pasta /movies</h3>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">Varre o diretório de filmes no disco do servidor para listar arquivos por gênero (.mp4, .mkv, .webm, .avi, .mov).</p>
+                            </div>
+                            <button onclick="runMoviesDirectoryScan(this)" class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 font-extrabold text-white rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                                <i data-lucide="film" class="w-3.5 h-3.5"></i> Sincronizar Filmes
+                            </button>
+                        </div>
+
+                        <!-- Series scan -->
+                        <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left">
+                            <div class="space-y-1.5">
+                                <span class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Series Library</span>
+                                <h3 class="text-sm font-bold text-white">Sincronizar Pasta /series</h3>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">Varre o diretório de séries no disco do servidor para listar séries, temporadas e episódios (.mp4, .mkv, .webm, .avi, .mov).</p>
+                            </div>
+                            <button onclick="runSeriesDirectoryScan(this)" class="w-full py-2.5 bg-indigo-500 hover:bg-indigo-600 font-extrabold text-white rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                                <i data-lucide="tv" class="w-3.5 h-3.5"></i> Sincronizar Séries
+                            </button>
+                        </div>
+
                         <!-- Last.fm Sync Card -->
                         <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left">
                             <div class="space-y-1.5 font-sans">
@@ -5003,6 +5027,54 @@ const updPane = document.getElementById('subtab-pane-updates');
             } catch (err) {
                 console.error(err);
                 showToast('Erro de rede ao escanear pasta /videos.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+                lucide.createIcons();
+            }
+        }
+
+        async function runMoviesDirectoryScan(btn) {
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Sincronizando...';
+            lucide.createIcons();
+            try {
+                const res = await fetch('api.php?route=movies_scan', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showToast(data.message || ('Sincronização de filmes concluída com sucesso! ' + (data.count || 0) + ' filme(s) encontrado(s).'));
+                    if (typeof loadMovies === 'function') loadMovies();
+                } else {
+                    showToast('Erro: ' + (data.error || 'Falha ao sincronizar filmes.'));
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Erro de rede ao escanear pasta /movies.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+                lucide.createIcons();
+            }
+        }
+
+        async function runSeriesDirectoryScan(btn) {
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Sincronizando...';
+            lucide.createIcons();
+            try {
+                const res = await fetch('api.php?route=series_scan', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showToast(data.message || ('Sincronização de séries concluída com sucesso! ' + (data.count || 0) + ' episódio(s) encontrado(s).'));
+                    if (typeof loadSeries === 'function') loadSeries();
+                } else {
+                    showToast('Erro: ' + (data.error || 'Falha ao sincronizar séries.'));
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Erro de rede ao escanear pasta /series.');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origText;

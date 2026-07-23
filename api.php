@@ -605,7 +605,7 @@ try {
         'dlna_status', 'toggle_dlna', 'search_images', 'search_artist_logo',
         'update_album_cover_url', 'update_artist_banner_url',
         'get_settings', 'save_settings', 'lastfm_sync', 'deezer_sync',
-        'google_images_sync', 'videos_scan', 'videos_upload_cover',
+        'google_images_sync', 'videos_scan', 'videos_upload_cover', 'movies_scan', 'series_scan',
         'files_list', 'files_create_dir', 'files_delete', 'files_rename', 'files_upload',
         'podcasts_sync'
     ];
@@ -4070,6 +4070,58 @@ Accept: */*
             }
         }
         echo json_encode(['success' => true, 'count' => $newVideos, 'total' => $totalVideos]);
+        break;
+
+    case 'movies_scan':
+        $moviesDir = MOVIES_DIR;
+        if (!file_exists($moviesDir)) {
+            @mkdir($moviesDir, 0755, true);
+        }
+        $count = 0;
+        if (file_exists($moviesDir)) {
+            $directory = new RecursiveDirectoryIterator($moviesDir);
+            $iterator = new RecursiveIteratorIterator($directory);
+            foreach ($iterator as $fileinfo) {
+                if ($fileinfo->isFile()) {
+                    $ext = strtolower(pathinfo($fileinfo->getFilename(), PATHINFO_EXTENSION));
+                    if (in_array($ext, ['mp4', 'mkv', 'webm', 'avi', 'mov'])) {
+                        $count++;
+                    }
+                }
+            }
+        }
+        echo json_encode([
+            'success' => true,
+            'count' => $count,
+            'total' => $count,
+            'message' => "Sincronização de filmes concluída! {$count} filme(s) encontrado(s) na pasta /movies."
+        ]);
+        break;
+
+    case 'series_scan':
+        $seriesDir = SERIES_DIR;
+        if (!file_exists($seriesDir)) {
+            @mkdir($seriesDir, 0755, true);
+        }
+        $count = 0;
+        if (file_exists($seriesDir)) {
+            $directory = new RecursiveDirectoryIterator($seriesDir);
+            $iterator = new RecursiveIteratorIterator($directory);
+            foreach ($iterator as $fileinfo) {
+                if ($fileinfo->isFile()) {
+                    $ext = strtolower(pathinfo($fileinfo->getFilename(), PATHINFO_EXTENSION));
+                    if (in_array($ext, ['mp4', 'mkv', 'webm', 'avi', 'mov'])) {
+                        $count++;
+                    }
+                }
+            }
+        }
+        echo json_encode([
+            'success' => true,
+            'count' => $count,
+            'total' => $count,
+            'message' => "Sincronização de séries concluída! {$count} episódio(s) encontrado(s) na pasta /series."
+        ]);
         break;
 
     case 'videos_upload_cover':

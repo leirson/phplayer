@@ -1,5 +1,8 @@
 <?php
 $changelog = <<<EOT
+v1.1.2
+- Adicionados botões de escaneamento para as pastas 'movies' e 'series' na aba Sincronização e Mídia das Configurações.
+
 v1.1.1
 - Adicionadas as pastas 'movies' e 'series' na lista da raiz do Gerenciador de Arquivos (Aba de Arquivos nas Configurações).
 
