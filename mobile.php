@@ -12,7 +12,57 @@ if (!file_exists('config.php')) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>PHPlayer Mobile</title>
     <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com">
+        // TOAST NOTIFICATIONS
+        window.showToast = function(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            
+            const toast = document.createElement('div');
+            
+            // Base styles
+            toast.className = 'w-full p-4 rounded-2xl shadow-2xl backdrop-blur-md border text-sm font-bold flex items-center gap-3 transform transition-all duration-300 translate-y-8 opacity-0 pointer-events-auto';
+            
+            // Icons & Colors
+            let iconStr = '<i data-lucide="info" class="w-5 h-5 shrink-0"></i>';
+            if (type === 'success') {
+                toast.classList.add('bg-emerald-950/95', 'border-emerald-800', 'text-emerald-400');
+                iconStr = '<i data-lucide="check-circle" class="w-5 h-5 shrink-0"></i>';
+            } else if (type === 'error') {
+                toast.classList.add('bg-red-950/95', 'border-red-800', 'text-red-400');
+                iconStr = '<i data-lucide="alert-circle" class="w-5 h-5 shrink-0"></i>';
+            } else if (type === 'warning') {
+                toast.classList.add('bg-amber-950/95', 'border-amber-800', 'text-amber-400');
+                iconStr = '<i data-lucide="alert-triangle" class="w-5 h-5 shrink-0"></i>';
+            } else {
+                toast.classList.add('bg-sky-950/95', 'border-sky-800', 'text-sky-400');
+            }
+            
+            toast.innerHTML = `
+                ${iconStr}
+                <div class="flex-1 break-words whitespace-pre-wrap">${message}</div>
+            `;
+            
+            container.appendChild(toast);
+            if (window.lucide) lucide.createIcons();
+            
+            // Animate in
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-8', 'opacity-0');
+            });
+            
+            // Remove after 3.5s
+            setTimeout(() => {
+                toast.classList.add('translate-y-8', 'opacity-0');
+                setTimeout(() => {
+                    if (toast.parentNode === container) {
+                        container.removeChild(toast);
+                    }
+                }, 300);
+            }, 3500);
+        };
+
+    </script>
     <script>
         tailwind.config = {
             theme: {
@@ -1548,7 +1598,7 @@ if (!file_exists('config.php')) {
                     
                     const data = await response.json();
                     if (data.error) {
-                        alert(data.error);
+                        showToast(data.error);
                         return;
                     }
                     if (data.username) {
@@ -1566,7 +1616,7 @@ if (!file_exists('config.php')) {
                         loginError.classList.remove('hidden');
                     }
                 } catch (err) {
-                    alert('Erro de rede ao logar: ' + err.message);
+                    showToast('Erro de rede ao logar: ' + err.message);
                 }
             });
         }
@@ -2659,16 +2709,16 @@ if (!file_exists('config.php')) {
                 btn.classList.remove('animate-spin');
                 
                 if (result.status === 'ok' || result.success) {
-                    alert('Varredura completa com sucesso! Encontradas novas faixas.');
+                    showToast('Varredura completa com sucesso! Encontradas novas faixas.', 'success');
                 } else {
-                    alert('Resultado da Varredura: ' + JSON.stringify(result));
+                    showToast('Resultado da Varredura: ' + JSON.stringify(result));
                 }
 
                 // Reload current lists
                 await loadCatalogData();
             } catch (err) {
                 btn.classList.remove('animate-spin');
-                alert('Erro ao varrer diretório de músicas: ' + err.message);
+                showToast('Erro ao varrer diretório de músicas: ' + err.message);
             }
         }
 
@@ -3086,7 +3136,7 @@ if (!file_exists('config.php')) {
 
         window.runPodcastSync = async function(feedUrlOverride = null, maxEpisodesOverride = null, customBtn = null) {
             if (currentUser.role !== 'admin') {
-                alert("Apenas administradores podem gerenciar sincronização de Podcast.");
+                showToast("Apenas administradores podem gerenciar sincronização de Podcast.");
                 return;
             }
 
@@ -3240,7 +3290,7 @@ if (!file_exists('config.php')) {
         window.handleAddRadioPhp = async function(e) {
             if (e) e.preventDefault();
             if (currentUser.role !== 'admin') {
-                alert("Apenas administradores podem gerenciar canais de rádio.");
+                showToast("Apenas administradores podem gerenciar canais de rádio.");
                 return;
             }
 
@@ -3318,11 +3368,11 @@ if (!file_exists('config.php')) {
                     loadRadiosPhp();
                 } else {
                     const data = await res.json();
-                    alert(data.error || 'Falha ao remover rádio.');
+                    showToast(data.error || 'Falha ao remover rádio.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de comunicação.');
+                showToast('Erro de comunicação.');
             }
         };
 
@@ -3588,11 +3638,11 @@ if (!file_exists('config.php')) {
                     await cache.delete(req);
                 }
                 localStorage.setItem('mobile_cached_tracks_meta', '[]');
-                alert('Cache limpo com sucesso!');
+                showToast('Cache limpo com sucesso!', 'success');
                 window.updateCacheSettingsUI();
             } catch (e) {
                 console.error(e);
-                alert('Erro ao limpar cache.');
+                showToast('Erro ao limpar cache.');
             }
         };
 
@@ -3665,11 +3715,11 @@ if (!file_exists('config.php')) {
                 if (res.ok) {
                     await window.loadMobileDlnaSetting();
                 } else {
-                    alert("Erro ao alterar configuração DLNA.");
+                    showToast("Erro ao alterar configuração DLNA.");
                 }
             } catch (err) {
                 console.error("Erro operacional ao atualizar DLNA:", err);
-                alert("Erro operacional ao atualizar DLNA.");
+                showToast("Erro operacional ao atualizar DLNA.");
             }
         };
 
@@ -3789,13 +3839,13 @@ if (!file_exists('config.php')) {
                 const res = await response.json();
                 if (res.success) {
                     localStorage.setItem('music_user_profile', JSON.stringify(currentUser));
-                    alert('Cor do layout salva com sucesso!');
+                    showToast('Cor do layout salva com sucesso!', 'success');
                 } else {
-                    alert('Erro ao salvar cor do layout.');
+                    showToast('Erro ao salvar cor do layout.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de conexão ao salvar cor.');
+                showToast('Erro de conexão ao salvar cor.');
             }
         };
 
@@ -3813,11 +3863,11 @@ if (!file_exists('config.php')) {
 
         window.openAddActiveSongToPlaylistSheet = async function() {
             if (activeQueue.length === 0 || activeQueueIdx < 0) {
-                alert('Nenhuma música sendo reproduzida no momento.');
+                showToast('Nenhuma música sendo reproduzida no momento.');
                 return;
             }
             if (!currentUser) {
-                alert('Faça login para gerenciar suas playlists.');
+                showToast('Faça login para gerenciar suas playlists.');
                 return;
             }
             
@@ -3883,7 +3933,7 @@ if (!file_exists('config.php')) {
         window.createPlaylistFromMobilePlayer = async function() {
             const input = document.getElementById('mobile-new-playlist-input');
             if (!input || !input.value.trim()) {
-                alert('Digite o nome da playlist.');
+                showToast('Digite o nome da playlist.');
                 return;
             }
             const name = input.value.trim();
@@ -3899,11 +3949,11 @@ if (!file_exists('config.php')) {
                     input.value = '';
                     await loadAndRenderPlaylistPicker();
                 } else {
-                    alert('Erro ao criar playlist no servidor.');
+                    showToast('Erro ao criar playlist no servidor.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de rede ao criar playlist.');
+                showToast('Erro de rede ao criar playlist.');
             }
         };
 
@@ -3935,11 +3985,11 @@ if (!file_exists('config.php')) {
                 if (response.ok) {
                     await loadAndRenderPlaylistPicker();
                 } else {
-                    alert('Erro ao atualizar playlist no servidor.');
+                    showToast('Erro ao atualizar playlist no servidor.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de rede ao salvar faixa na playlist.');
+                showToast('Erro de rede ao salvar faixa na playlist.');
             }
         };
  
@@ -3969,11 +4019,11 @@ if (!file_exists('config.php')) {
                     closeConfigSheet();
                     window.location.reload();
                 } else {
-                    alert('Erro ao atualizar seu tema.');
+                    showToast('Erro ao atualizar seu tema.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro na conexão.');
+                showToast('Erro na conexão.');
             }
         };
  
@@ -4102,7 +4152,7 @@ if (!file_exists('config.php')) {
             const passInput = document.getElementById('mobile-new-password');
             const passVal = passInput.value.trim();
             if (!passVal) {
-                alert('Nova senha inválida.');
+                showToast('Nova senha inválida.');
                 return;
             }
             try {
@@ -4112,15 +4162,15 @@ if (!file_exists('config.php')) {
                     body: JSON.stringify({ password: passVal })
                 });
                 if (res.ok) {
-                    alert('Sua senha foi alterada com sucesso!');
+                    showToast('Sua senha foi alterada com sucesso!', 'success');
                     passInput.value = '';
                     closeConfigSheet();
                 } else {
-                    alert('Erro ao alterar senha.');
+                    showToast('Erro ao alterar senha.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de rede.');
+                showToast('Erro de rede.');
             }
         };
  
@@ -4790,6 +4840,10 @@ if (!file_exists('config.php')) {
             });
         };
     </script>
+
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-2 pointer-events-none w-full max-w-[90%]"></div>
 
 </body>
 </html>

@@ -142,6 +142,14 @@ try {
               song_id int(11) NOT NULL,
               PRIMARY KEY (username,song_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+            
+            $pdo->exec("CREATE TABLE IF NOT EXISTS play_logs (
+              id int(11) NOT NULL AUTO_INCREMENT,
+              username varchar(50) NOT NULL,
+              song_id int(11) NOT NULL,
+              played_at datetime DEFAULT CURRENT_TIMESTAMP,
+              PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
             $pdo->exec("CREATE TABLE IF NOT EXISTS videos (
               id varchar(50) NOT NULL,
@@ -3725,6 +3733,96 @@ Accept: */*
             exit("A extensão ZipArchive do PHP não está instalada neste servidor.");
         }
 
+    
+    case 'stream_media':
+        $path = $_GET['path'] ?? '';
+        if (empty($path)) {
+            http_response_code(400);
+            exit("Path inválido");
+        }
+        
+        // Decode
+        $path = rawurldecode($path);
+        
+        $filePath = '';
+        if (strpos($path, 'movies/') === 0) {
+            $filePath = __DIR__ . '/' . $path;
+        } elseif (strpos($path, 'series/') === 0) {
+            $filePath = __DIR__ . '/' . $path;
+        } else {
+            http_response_code(400);
+            exit("Path restrito");
+        }
+        
+        // Security check
+        if (strpos($filePath, '..') !== false || !file_exists($filePath)) {
+            http_response_code(404);
+            exit("Arquivo não encontrado");
+        }
+
+        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $contentType = 'video/mp4';
+        if ($ext === 'webm') $contentType = 'video/webm';
+        elseif ($ext === 'mkv') $contentType = 'video/x-matroska';
+        elseif ($ext === 'avi') $contentType = 'video/x-msvideo';
+        
+        $size = filesize($filePath);
+        $time = filemtime($filePath);
+        
+        $fp = @fopen($filePath, 'rb');
+        if (!$fp) {
+            http_response_code(500);
+            exit("Erro ao ler o arquivo");
+        }
+
+        $start = 0;
+        $end = $size - 1;
+        
+        if (isset($_SERVER['HTTP_RANGE'])) {
+            $c_start = $start;
+            $c_end = $end;
+            list(, $range) = explode('=', $_SERVER['HTTP_RANGE'], 2);
+            if (strpos($range, ',') !== false) {
+                http_response_code(416);
+                exit("Range inválido");
+            }
+            if ($range == '-') {
+                $c_start = $size - substr($range, 1);
+            } else {
+                $range = explode('-', $range);
+                $c_start = $range[0];
+                $c_end = (isset($range[1]) && is_numeric($range[1])) ? $range[1] : $size - 1;
+            }
+            $c_end = ($c_end > $end) ? $end : $c_end;
+            if ($c_start > $c_end || $c_start > $size - 1 || $c_end >= $size) {
+                http_response_code(416);
+                exit("Range inválido");
+            }
+            $start = $c_start;
+            $end = $c_end;
+            $length = $end - $start + 1;
+            fseek($fp, $start);
+            http_response_code(206);
+            header("Content-Length: " . $length);
+            header("Content-Range: bytes $start-$end/$size");
+        } else {
+            header("Content-Length: " . $size);
+        }
+
+        header("Content-Type: " . $contentType);
+        header("Accept-Ranges: bytes");
+        header("Last-Modified: " . gmdate('D, d M Y H:i:s', $time) . ' GMT');
+        
+        $buffer = 1024 * 8;
+        while (!feof($fp) && ($p = ftell($fp)) <= $end) {
+            if (connection_aborted()) break;
+            $chunk = min($buffer, $end - $p + 1);
+            echo fread($fp, $chunk);
+            flush();
+        }
+        fclose($fp);
+        exit;
+
     case 'stream_video':
         $id = $_GET['id'] ?? '';
         if (empty($id)) {
@@ -3810,6 +3908,80 @@ Accept: */*
         }
         fclose($fp);
         exit;
+
+    
+    case 'movies':
+        $movies = [];
+        if (file_exists(MOVIES_DIR)) {
+            $genres = array_diff(scandir(MOVIES_DIR), array('..', '.'));
+            foreach ($genres as $genre) {
+                if (is_dir(MOVIES_DIR . $genre)) {
+                    $files = array_diff(scandir(MOVIES_DIR . $genre), array('..', '.'));
+                    foreach ($files as $file) {
+                        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+                        if (in_array($ext, ['mp4', 'mkv', 'webm', 'avi', 'mov'])) {
+                            $movies[] = [
+                                'title' => pathinfo($file, PATHINFO_FILENAME),
+                                'genre' => $genre,
+                                'file_name' => 'movies/' . rawurlencode($genre) . '/' . rawurlencode($file),
+                                'type' => 'movie'
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+        echo json_encode(['success' => true, 'movies' => $movies]);
+        break;
+
+    case 'series':
+        $series = [];
+        if (file_exists(SERIES_DIR)) {
+            $seriesNames = array_diff(scandir(SERIES_DIR), array('..', '.'));
+            foreach ($seriesNames as $serie) {
+                if (is_dir(SERIES_DIR . $serie)) {
+                    $seasonsList = [];
+                    $seasons = array_diff(scandir(SERIES_DIR . $serie), array('..', '.'));
+                    foreach ($seasons as $season) {
+                        if (is_dir(SERIES_DIR . $serie . '/' . $season)) {
+                            $episodesList = [];
+                            $episodes = array_diff(scandir(SERIES_DIR . $serie . '/' . $season), array('..', '.'));
+                            foreach ($episodes as $episode) {
+                                $ext = strtolower(pathinfo($episode, PATHINFO_EXTENSION));
+                                if (in_array($ext, ['mp4', 'mkv', 'webm', 'avi', 'mov'])) {
+                                    $episodesList[] = [
+                                        'title' => pathinfo($episode, PATHINFO_FILENAME),
+                                        'file_name' => 'series/' . rawurlencode($serie) . '/' . rawurlencode($season) . '/' . rawurlencode($episode)
+                                    ];
+                                }
+                            }
+                            if (count($episodesList) > 0) {
+                                // Sort episodes alphabetically (01 - episode, 02 - episode)
+                                usort($episodesList, function($a, $b) {
+                                    return strnatcasecmp($a['title'], $b['title']);
+                                });
+                                $seasonsList[] = [
+                                    'name' => $season,
+                                    'episodes' => $episodesList
+                                ];
+                            }
+                        }
+                    }
+                    if (count($seasonsList) > 0) {
+                        // Sort seasons (Season 1, Season 2...)
+                        usort($seasonsList, function($a, $b) {
+                            return strnatcasecmp($a['name'], $b['name']);
+                        });
+                        $series[] = [
+                            'name' => $serie,
+                            'seasons' => $seasonsList
+                        ];
+                    }
+                }
+            }
+        }
+        echo json_encode(['success' => true, 'series' => $series]);
+        break;
 
     case 'videos':
         if ($method === 'GET') {
@@ -3944,26 +4116,32 @@ Accept: */*
                 return 'root';
             }
             $musicDir = $realBase . '/music';
-            if (!file_exists($musicDir)) {
-                @mkdir($musicDir, 0777, true);
-            }
+            if (!file_exists($musicDir)) { @mkdir($musicDir, 0777, true); }
             $videosDir = $realBase . '/videos';
-            if (!file_exists($videosDir)) {
-                @mkdir($videosDir, 0777, true);
-            }
+            if (!file_exists($videosDir)) { @mkdir($videosDir, 0777, true); }
+            $moviesDir = $realBase . '/movies';
+            if (!file_exists($moviesDir)) { @mkdir($moviesDir, 0777, true); }
+            $seriesDir = $realBase . '/series';
+            if (!file_exists($seriesDir)) { @mkdir($seriesDir, 0777, true); }
             
             $targetPath = realpath($realBase . '/' . $subpath);
-            if ($targetPath === false) {
-                return false;
-            }
+            if ($targetPath === false) { return false; }
             
             $allowedMusic = realpath($musicDir);
             $allowedVideos = realpath($videosDir);
+            $allowedMovies = realpath($moviesDir);
+            $allowedSeries = realpath($seriesDir);
             
             if ($allowedMusic !== false && ($targetPath === $allowedMusic || strpos($targetPath, $allowedMusic . '/') === 0 || strpos($targetPath, $allowedMusic . '\\') === 0)) {
                 return $targetPath;
             }
             if ($allowedVideos !== false && ($targetPath === $allowedVideos || strpos($targetPath, $allowedVideos . '/') === 0 || strpos($targetPath, $allowedVideos . '\\') === 0)) {
+                return $targetPath;
+            }
+            if ($allowedMovies !== false && ($targetPath === $allowedMovies || strpos($targetPath, $allowedMovies . '/') === 0 || strpos($targetPath, $allowedMovies . '\\') === 0)) {
+                return $targetPath;
+            }
+            if ($allowedSeries !== false && ($targetPath === $allowedSeries || strpos($targetPath, $allowedSeries . '/') === 0 || strpos($targetPath, $allowedSeries . '\\') === 0)) {
                 return $targetPath;
             }
             return false;
@@ -3972,7 +4150,7 @@ Accept: */*
         $resolved = $is_valid_file_path($subpath, $realBase);
         if ($resolved === false) {
             http_response_code(403);
-            exit(json_encode(['error' => 'Acesso negado ou diretório fora do escopo (/music ou /videos).']));
+            exit(json_encode(['error' => 'Acesso negado ou diretório fora do escopo (/music, /videos, /movies ou /series).']));
         }
         
         if ($resolved === 'root') {
@@ -4052,26 +4230,32 @@ Accept: */*
                 return 'root';
             }
             $musicDir = $realBase . '/music';
-            if (!file_exists($musicDir)) {
-                @mkdir($musicDir, 0777, true);
-            }
+            if (!file_exists($musicDir)) { @mkdir($musicDir, 0777, true); }
             $videosDir = $realBase . '/videos';
-            if (!file_exists($videosDir)) {
-                @mkdir($videosDir, 0777, true);
-            }
+            if (!file_exists($videosDir)) { @mkdir($videosDir, 0777, true); }
+            $moviesDir = $realBase . '/movies';
+            if (!file_exists($moviesDir)) { @mkdir($moviesDir, 0777, true); }
+            $seriesDir = $realBase . '/series';
+            if (!file_exists($seriesDir)) { @mkdir($seriesDir, 0777, true); }
             
             $targetPath = realpath($realBase . '/' . $subpath);
-            if ($targetPath === false) {
-                return false;
-            }
+            if ($targetPath === false) { return false; }
             
             $allowedMusic = realpath($musicDir);
             $allowedVideos = realpath($videosDir);
+            $allowedMovies = realpath($moviesDir);
+            $allowedSeries = realpath($seriesDir);
             
             if ($allowedMusic !== false && ($targetPath === $allowedMusic || strpos($targetPath, $allowedMusic . '/') === 0 || strpos($targetPath, $allowedMusic . '\\') === 0)) {
                 return $targetPath;
             }
             if ($allowedVideos !== false && ($targetPath === $allowedVideos || strpos($targetPath, $allowedVideos . '/') === 0 || strpos($targetPath, $allowedVideos . '\\') === 0)) {
+                return $targetPath;
+            }
+            if ($allowedMovies !== false && ($targetPath === $allowedMovies || strpos($targetPath, $allowedMovies . '/') === 0 || strpos($targetPath, $allowedMovies . '\\') === 0)) {
+                return $targetPath;
+            }
+            if ($allowedSeries !== false && ($targetPath === $allowedSeries || strpos($targetPath, $allowedSeries . '/') === 0 || strpos($targetPath, $allowedSeries . '\\') === 0)) {
                 return $targetPath;
             }
             return false;
@@ -4112,21 +4296,21 @@ Accept: */*
                 return 'root';
             }
             $musicDir = $realBase . '/music';
-            if (!file_exists($musicDir)) {
-                @mkdir($musicDir, 0777, true);
-            }
+            if (!file_exists($musicDir)) { @mkdir($musicDir, 0777, true); }
             $videosDir = $realBase . '/videos';
-            if (!file_exists($videosDir)) {
-                @mkdir($videosDir, 0777, true);
-            }
+            if (!file_exists($videosDir)) { @mkdir($videosDir, 0777, true); }
+            $moviesDir = $realBase . '/movies';
+            if (!file_exists($moviesDir)) { @mkdir($moviesDir, 0777, true); }
+            $seriesDir = $realBase . '/series';
+            if (!file_exists($seriesDir)) { @mkdir($seriesDir, 0777, true); }
             
             $targetPath = realpath($realBase . '/' . $subpath);
-            if ($targetPath === false) {
-                return false;
-            }
+            if ($targetPath === false) { return false; }
             
             $allowedMusic = realpath($musicDir);
             $allowedVideos = realpath($videosDir);
+            $allowedMovies = realpath($moviesDir);
+            $allowedSeries = realpath($seriesDir);
             
             if ($allowedMusic !== false && ($targetPath === $allowedMusic || strpos($targetPath, $allowedMusic . '/') === 0 || strpos($targetPath, $allowedMusic . '\\') === 0)) {
                 return $targetPath;
@@ -4134,11 +4318,17 @@ Accept: */*
             if ($allowedVideos !== false && ($targetPath === $allowedVideos || strpos($targetPath, $allowedVideos . '/') === 0 || strpos($targetPath, $allowedVideos . '\\') === 0)) {
                 return $targetPath;
             }
+            if ($allowedMovies !== false && ($targetPath === $allowedMovies || strpos($targetPath, $allowedMovies . '/') === 0 || strpos($targetPath, $allowedMovies . '\\') === 0)) {
+                return $targetPath;
+            }
+            if ($allowedSeries !== false && ($targetPath === $allowedSeries || strpos($targetPath, $allowedSeries . '/') === 0 || strpos($targetPath, $allowedSeries . '\\') === 0)) {
+                return $targetPath;
+            }
             return false;
         };
 
         $resolved = $is_valid_file_path($subpath, $realBase);
-        if ($resolved === false || $resolved === 'root' || $resolved === realpath($realBase . '/music') || $resolved === realpath($realBase . '/videos')) {
+        if ($resolved === false || $resolved === 'root' || $resolved === realpath($realBase . '/music') || $resolved === realpath($realBase . '/videos') || $resolved === realpath($realBase . '/movies') || $resolved === realpath($realBase . '/series')) {
             http_response_code(403);
             exit(json_encode(['error' => 'Acesso negado: pasta raiz do sistema ou protegida.']));
         }
@@ -4198,21 +4388,21 @@ Accept: */*
                 return 'root';
             }
             $musicDir = $realBase . '/music';
-            if (!file_exists($musicDir)) {
-                @mkdir($musicDir, 0777, true);
-            }
+            if (!file_exists($musicDir)) { @mkdir($musicDir, 0777, true); }
             $videosDir = $realBase . '/videos';
-            if (!file_exists($videosDir)) {
-                @mkdir($videosDir, 0777, true);
-            }
+            if (!file_exists($videosDir)) { @mkdir($videosDir, 0777, true); }
+            $moviesDir = $realBase . '/movies';
+            if (!file_exists($moviesDir)) { @mkdir($moviesDir, 0777, true); }
+            $seriesDir = $realBase . '/series';
+            if (!file_exists($seriesDir)) { @mkdir($seriesDir, 0777, true); }
             
             $targetPath = realpath($realBase . '/' . $subpath);
-            if ($targetPath === false) {
-                return false;
-            }
+            if ($targetPath === false) { return false; }
             
             $allowedMusic = realpath($musicDir);
             $allowedVideos = realpath($videosDir);
+            $allowedMovies = realpath($moviesDir);
+            $allowedSeries = realpath($seriesDir);
             
             if ($allowedMusic !== false && ($targetPath === $allowedMusic || strpos($targetPath, $allowedMusic . '/') === 0 || strpos($targetPath, $allowedMusic . '\\') === 0)) {
                 return $targetPath;
@@ -4220,11 +4410,17 @@ Accept: */*
             if ($allowedVideos !== false && ($targetPath === $allowedVideos || strpos($targetPath, $allowedVideos . '/') === 0 || strpos($targetPath, $allowedVideos . '\\') === 0)) {
                 return $targetPath;
             }
+            if ($allowedMovies !== false && ($targetPath === $allowedMovies || strpos($targetPath, $allowedMovies . '/') === 0 || strpos($targetPath, $allowedMovies . '\\') === 0)) {
+                return $targetPath;
+            }
+            if ($allowedSeries !== false && ($targetPath === $allowedSeries || strpos($targetPath, $allowedSeries . '/') === 0 || strpos($targetPath, $allowedSeries . '\\') === 0)) {
+                return $targetPath;
+            }
             return false;
         };
 
         $resolvedOld = $is_valid_file_path($oldSubpath, $realBase);
-        if ($resolvedOld === false || $resolvedOld === 'root' || $resolvedOld === realpath($realBase . '/music') || $resolvedOld === realpath($realBase . '/videos')) {
+        if ($resolvedOld === false || $resolvedOld === 'root' || $resolvedOld === realpath($realBase . '/music') || $resolvedOld === realpath($realBase . '/videos') || $resolvedOld === realpath($realBase . '/movies') || $resolvedOld === realpath($realBase . '/series')) {
             http_response_code(403);
             exit(json_encode(['error' => 'Acesso negado à pasta de origem ou protegida.']));
         }
@@ -4237,7 +4433,7 @@ Accept: */*
         $resolvedNewParent = $is_valid_file_path($newParentSub, $realBase);
         if ($resolvedNewParent === false || $resolvedNewParent === 'root') {
             http_response_code(403);
-            exit(json_encode(['error' => 'Destino inválido ou fora dos limites (/music ou /videos).']));
+            exit(json_encode(['error' => 'Destino inválido ou fora dos limites (/music, /videos, /movies ou /series).']));
         }
         
         $oldPath = $resolvedOld;
@@ -4271,21 +4467,21 @@ Accept: */*
                 return 'root';
             }
             $musicDir = $realBase . '/music';
-            if (!file_exists($musicDir)) {
-                @mkdir($musicDir, 0777, true);
-            }
+            if (!file_exists($musicDir)) { @mkdir($musicDir, 0777, true); }
             $videosDir = $realBase . '/videos';
-            if (!file_exists($videosDir)) {
-                @mkdir($videosDir, 0777, true);
-            }
+            if (!file_exists($videosDir)) { @mkdir($videosDir, 0777, true); }
+            $moviesDir = $realBase . '/movies';
+            if (!file_exists($moviesDir)) { @mkdir($moviesDir, 0777, true); }
+            $seriesDir = $realBase . '/series';
+            if (!file_exists($seriesDir)) { @mkdir($seriesDir, 0777, true); }
             
             $targetPath = realpath($realBase . '/' . $subpath);
-            if ($targetPath === false) {
-                return false;
-            }
+            if ($targetPath === false) { return false; }
             
             $allowedMusic = realpath($musicDir);
             $allowedVideos = realpath($videosDir);
+            $allowedMovies = realpath($moviesDir);
+            $allowedSeries = realpath($seriesDir);
             
             if ($allowedMusic !== false && ($targetPath === $allowedMusic || strpos($targetPath, $allowedMusic . '/') === 0 || strpos($targetPath, $allowedMusic . '\\') === 0)) {
                 return $targetPath;
@@ -4293,16 +4489,19 @@ Accept: */*
             if ($allowedVideos !== false && ($targetPath === $allowedVideos || strpos($targetPath, $allowedVideos . '/') === 0 || strpos($targetPath, $allowedVideos . '\\') === 0)) {
                 return $targetPath;
             }
+            if ($allowedMovies !== false && ($targetPath === $allowedMovies || strpos($targetPath, $allowedMovies . '/') === 0 || strpos($targetPath, $allowedMovies . '\\') === 0)) {
+                return $targetPath;
+            }
+            if ($allowedSeries !== false && ($targetPath === $allowedSeries || strpos($targetPath, $allowedSeries . '/') === 0 || strpos($targetPath, $allowedSeries . '\\') === 0)) {
+                return $targetPath;
+            }
             return false;
         };
 
         $resolved = $is_valid_file_path($subpath, $realBase);
         if ($resolved === 'root' || $resolved === false) {
-            $musicDir = $realBase . '/music';
-            if (!file_exists($musicDir)) {
-                @mkdir($musicDir, 0777, true);
-            }
-            $resolved = realpath($musicDir);
+            http_response_code(400);
+            exit(json_encode(['error' => 'Acesso negado: Selecione uma pasta específica (music, videos, movies, series) para enviar os arquivos.']));
         }
         if ($resolved === false) {
             http_response_code(403);
@@ -4750,6 +4949,130 @@ Accept: */*
             'success' => false, 
             'lyrics' => "Letras não encontradas nos servidores (Lyrics.ovh) para:
 \"" . htmlspecialchars($title) . "\" - \"" . htmlspecialchars($artist) . "\""
+        ]);
+        break;
+
+    case 'log_play':
+        $input = json_decode(file_get_contents('php://input'), true) ?: [];
+        $username = trim($input['username'] ?? '');
+        $song_id = intval($input['song_id'] ?? 0);
+        
+        if (empty($username) || empty($song_id)) {
+            echo json_encode(['error' => 'Parâmetros inválidos']);
+            break;
+        }
+        
+        $stmt = $pdo->prepare("INSERT INTO play_logs (username, song_id) VALUES (?, ?)");
+        $stmt->execute([$username, $song_id]);
+        
+        echo json_encode(['success' => true]);
+        break;
+
+    case 'get_play_stats':
+        $username = trim($_GET['username'] ?? '');
+        if (empty($username)) {
+            echo json_encode(['error' => 'Parâmetro username ausente']);
+            break;
+        }
+        
+        // Obter as 5 músicas mais tocadas
+        $stmtTop = $pdo->prepare("
+            SELECT s.title, s.artist, s.cover_url, COUNT(p.id) as play_count 
+            FROM play_logs p 
+            JOIN songs s ON p.song_id = s.id 
+            WHERE p.username = ? 
+            GROUP BY p.song_id 
+            ORDER BY play_count DESC 
+            LIMIT 5
+        ");
+        $stmtTop->execute([$username]);
+        $topSongs = $stmtTop->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Obter o tempo total de audição (em segundos)
+        $stmtTime = $pdo->prepare("
+            SELECT SUM(s.duration) as total_seconds 
+            FROM play_logs p 
+            JOIN songs s ON p.song_id = s.id 
+            WHERE p.username = ?
+        ");
+        $stmtTime->execute([$username]);
+        $totalSeconds = (int) $stmtTime->fetchColumn();
+        
+        echo json_encode([
+            'success' => true,
+            'topSongs' => $topSongs,
+            'totalSeconds' => $totalSeconds
+        ]);
+        break;
+
+    case 'get_recommendations':
+        $username = trim($_GET['username'] ?? '');
+        if (empty($username)) {
+            echo json_encode(['error' => 'Parâmetro username ausente']);
+            break;
+        }
+        
+        // Obter os 5 artistas mais tocados
+        $stmtTopArtists = $pdo->prepare("
+            SELECT s.artist, COUNT(p.id) as play_count 
+            FROM play_logs p 
+            JOIN songs s ON p.song_id = s.id 
+            WHERE p.username = ? 
+            GROUP BY s.artist 
+            ORDER BY play_count DESC 
+            LIMIT 5
+        ");
+        $stmtTopArtists->execute([$username]);
+        $topArtists = $stmtTopArtists->fetchAll(PDO::FETCH_COLUMN);
+        
+        // Obter os 5 gêneros mais tocados
+        $stmtTopGenres = $pdo->prepare("
+            SELECT s.genre, COUNT(p.id) as play_count 
+            FROM play_logs p 
+            JOIN songs s ON p.song_id = s.id 
+            WHERE p.username = ? AND s.genre != '' AND s.genre != 'Desconhecido'
+            GROUP BY s.genre 
+            ORDER BY play_count DESC 
+            LIMIT 5
+        ");
+        $stmtTopGenres->execute([$username]);
+        $topGenres = $stmtTopGenres->fetchAll(PDO::FETCH_COLUMN);
+        
+        // Encontrar músicas recomendadas baseadas nos artistas e gêneros, que o usuário ainda não tocou (ou tocou pouco), ordenado aleatoriamente
+        // Se não houver top artistas/gêneros, retorna algo aleatório.
+        
+        $recommendations = [];
+        if (!empty($topArtists) || !empty($topGenres)) {
+            $artistPlaceholders = implode(',', array_fill(0, count($topArtists), '?'));
+            $genrePlaceholders = implode(',', array_fill(0, count($topGenres), '?'));
+            
+            $query = "SELECT * FROM songs WHERE 1=0 ";
+            $params = [];
+            
+            if (!empty($topArtists)) {
+                $query .= " OR artist IN ($artistPlaceholders) ";
+                $params = array_merge($params, $topArtists);
+            }
+            if (!empty($topGenres)) {
+                $query .= " OR genre IN ($genrePlaceholders) ";
+                $params = array_merge($params, $topGenres);
+            }
+            
+            // Exclude already played heavily? Let's just fetch random from those
+            $query .= " ORDER BY RAND() LIMIT 10";
+            
+            $stmtRec = $pdo->prepare($query);
+            $stmtRec->execute($params);
+            $recommendations = $stmtRec->fetchAll(PDO::FETCH_ASSOC);
+        } else {
+            // Random tracks if no history
+            $stmtRec = $pdo->query("SELECT * FROM songs ORDER BY RAND() LIMIT 10");
+            $recommendations = $stmtRec->fetchAll(PDO::FETCH_ASSOC);
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'recommendations' => $recommendations
         ]);
         break;
 

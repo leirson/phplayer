@@ -1,2 +1,2 @@
 <?php
-define('PHPLAYER_VERSION', '1.0.14');
+define('PHPLAYER_VERSION', '1.0.23');

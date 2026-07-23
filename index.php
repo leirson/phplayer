@@ -181,9 +181,40 @@ define('DONT_EXIT_ON_DB_ERROR', true);
     .no-download a[data-download-bot] { display: none !important; }
     .no-download [data-lucide="download"] { display: none !important; }
     .no-download .only-downloaders { display: none !important; }
+
+        @keyframes fadeInSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .tab-transition {
+            animation: fadeInSlideUp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
 </style>
 </head>
 <body class="h-screen overflow-hidden flex flex-col antialiased">
+
+    <!-- SPLASH SCREEN -->
+    <div id="global-splash" class="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center transition-opacity duration-500">
+        <h1 class="text-4xl font-black text-white tracking-tighter mb-6"><span class="text-sky-500">PHP</span>Layer</h1>
+        <div class="w-64 h-1.5 bg-slate-900 rounded-full overflow-hidden shadow-inner">
+            <div id="splash-progress" class="h-full bg-gradient-to-r from-sky-400 to-indigo-500 w-0 transition-all duration-300"></div>
+        </div>
+        <p id="splash-text" class="text-[10px] text-slate-500 mt-4 uppercase tracking-widest font-mono font-bold animate-pulse">Iniciando sistema...</p>
+    </div>
+
 
     <!-- DIAGNOSTIC ERROR MODAL -->
     <div id="error-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md hidden">
@@ -358,9 +389,17 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     <button id="tab-btn-playlists" onclick="setTab('playlists')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-playlists">
                         <i data-lucide="list-music" class="w-4 h-4 text-emerald-450"></i> Playlists
                     </button>
+                    
                     <button id="tab-btn-videos" onclick="setTab('videos')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-videos">
                         <i data-lucide="film" class="w-4 h-4 text-sky-450"></i> Galeria de Vídeos
                     </button>
+                    <button id="tab-btn-movies" onclick="setTab('movies')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition hidden">
+                        <i data-lucide="clapperboard" class="w-4 h-4 text-purple-450"></i> Filmes
+                    </button>
+                    <button id="tab-btn-series" onclick="setTab('series')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition hidden">
+                        <i data-lucide="tv" class="w-4 h-4 text-indigo-450"></i> Séries
+                    </button>
+
                     <button id="tab-btn-podcast" onclick="setTab('podcast')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition">
                         <i data-lucide="podcast" class="w-4 h-4 text-orange-400"></i> Podcast
                     </button>
@@ -416,7 +455,7 @@ define('DONT_EXIT_ON_DB_ERROR', true);
         <main class="flex-1 overflow-y-auto p-6 flex flex-col" style="background-color: var(--theme-bg, #070b13);">
             
             <!-- VIEW: DASHBOARD -->
-            <section id="pane-dashboard" class="space-y-6 flex-1">
+            <section id="pane-dashboard" class="space-y-6 flex-1 tab-transition">
                 <div class="flex justify-between items-center bg-slate-950/40 border border-slate-900 p-6 rounded-2xl">
                     <div>
                         <h2 id="dashboard-welcome-title" class="text-xl font-black text-white" data-i18n="welcome-title">Bem-vindo de volta!</h2>
@@ -445,6 +484,19 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     <div class="p-4 bg-slate-950/60 border border-slate-900 rounded-2xl">
                         <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest" data-i18n="stat-favorites">Favoritos</span>
                         <h3 id="stat-favs" class="text-2xl font-black text-white mt-1">0</h3>
+                    </div>
+                </div>
+
+                <!-- RECOMMENDED FOR YOU -->
+                <div id="dashboard-recommended-section" class="hidden">
+                    <div class="flex items-center gap-2 mb-4">
+                        <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+                        <h3 class="text-xs font-black text-slate-400 tracking-wider uppercase">Recomendados para Você</h3>
+                    </div>
+                    <div class="relative group">
+                        <div id="dashboard-recommended-container" class="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory hide-scrollbar">
+                            <!-- JS will populate -->
+                        </div>
                     </div>
                 </div>
 
@@ -493,7 +545,7 @@ define('DONT_EXIT_ON_DB_ERROR', true);
             </section>
 
             <!-- VIEW: MUSIC TABLE & PLAYLIST -->
-            <section id="pane-tracks" class="space-y-6 flex-1 hidden">
+            <section id="pane-tracks" class="space-y-6 flex-1 hidden tab-transition">
                 <div id="tracks-header-block" class="flex justify-between items-center gap-4">
                     <div>
                         <h2 id="table-view-title" class="text-xl font-black text-white" data-i18n="title-library">Minha Biblioteca</h2>
@@ -573,7 +625,7 @@ define('DONT_EXIT_ON_DB_ERROR', true);
             </section>
 
             <!-- VIEW: CONFIGURATION PANEL -->
-            <section id="pane-config" class="space-y-6 flex-1 hidden">
+            <section id="pane-config" class="space-y-6 flex-1 hidden tab-transition">
                 <div class="border-b border-slate-900 pb-5">
                     <h2 class="text-xl font-black text-white flex items-center gap-2">
                         <i data-lucide="settings" class="text-sky-400 w-5 h-5"></i> <span data-i18n="config-panel-title">Painel de Configurações</span>
@@ -585,6 +637,9 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                 <div class="flex border-b border-slate-900/60 pb-1 gap-4" id="config-subtabs-nav">
                     <button onclick="setConfigSubTab('theme')" id="subtab-btn-theme" class="pb-2 text-xs font-bold border-b-2 border-sky-500 text-white cursor-pointer select-none" data-i18n="subnav-themes">
                         Coloração & Temas
+                    </button>
+                    <button onclick="setConfigSubTab('stats')" id="subtab-btn-stats" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none">
+                        Estatísticas
                     </button>
                     <button onclick="setConfigSubTab('media')" id="subtab-btn-media" class="pb-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300 cursor-pointer select-none hidden admin-only" data-i18n="subnav-sync">
                         Sincronização e Mídia
@@ -814,6 +869,28 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                                 <i data-lucide="check" class="w-3.5 h-3.5"></i>
                             </div>
                         </button>
+                    </div>
+                </div>
+
+                <!-- SUBTAB: ESTATÍSTICAS -->
+                <div id="subtab-pane-stats" class="space-y-6 hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl md:col-span-1 flex flex-col justify-center items-center text-center">
+                            <div class="w-16 h-16 rounded-full bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 mb-4">
+                                <i data-lucide="clock" class="w-8 h-8"></i>
+                            </div>
+                            <h3 class="text-xs font-black uppercase text-slate-500 tracking-widest mb-1">Tempo Total de Audição</h3>
+                            <div id="stats-total-time" class="text-3xl font-black text-white">0h 0m</div>
+                        </div>
+                        <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl md:col-span-2">
+                            <h3 class="text-xs font-black uppercase text-slate-400 tracking-widest mb-4 flex items-center gap-2">
+                                <i data-lucide="trophy" class="w-4 h-4 text-yellow-400"></i> Top 5 Mais Tocadas
+                            </h3>
+                            <div id="stats-top-songs" class="space-y-3">
+                                <!-- list generated by JS -->
+                                <div class="text-xs text-slate-500 italic">Carregando estatísticas...</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -1172,6 +1249,23 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                            <input type="number" id="dashboard-rotate-time" placeholder="8" class="w-full bg-slate-900 border border-slate-800 text-white text-sm rounded-lg py-2 px-3 focus:outline-none focus:border-sky-500 transition">
                            <button onclick="saveDashboardSettings()" class="bg-sky-500 hover:bg-sky-600 focus:scale-95 text-white px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap">Salvar Todos</button>
                         </div>
+                        <hr class="border-slate-900 my-4">
+                        <h3 class="text-xs font-black uppercase text-white mb-4">Menus Adicionais (Vídeos)</h3>
+                        <div class="flex items-center justify-between bg-slate-900/50 p-3 rounded-lg border border-slate-800 mb-2">
+                            <span class="text-xs text-white font-bold">Habilitar Galeria de Filmes</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="feature-enable-movies" class="sr-only peer" onchange="toggleFeature('movies', this.checked)">
+                                <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
+                            </label>
+                        </div>
+                        <div class="flex items-center justify-between bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+                            <span class="text-xs text-white font-bold">Habilitar Galeria de Séries</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="feature-enable-series" class="sr-only peer" onchange="toggleFeature('series', this.checked)">
+                                <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
+                            </label>
+                        </div>
+
                     </div>
                 </div>
 
@@ -1375,8 +1469,43 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                 </div>
             </section>
 
+            
+            <!-- VIEW: MOVIES -->
+            <section id="pane-movies" class="space-y-6 flex-1 hidden tab-transition">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-900 pb-5">
+                    <div>
+                        <h2 class="text-xl font-black text-white flex items-center gap-2">
+                            <i data-lucide="clapperboard" class="text-purple-400 w-5 h-5"></i> Filmes
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Coleção de Filmes organizados por Gênero</p>
+                    </div>
+                </div>
+                <div id="movies-container" class="space-y-8">
+                    <div class="flex items-center justify-center p-12 text-slate-500">
+                        <i data-lucide="loader" class="w-6 h-6 animate-spin"></i>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: SERIES -->
+            <section id="pane-series" class="space-y-6 flex-1 hidden tab-transition">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-900 pb-5">
+                    <div>
+                        <h2 class="text-xl font-black text-white flex items-center gap-2">
+                            <i data-lucide="tv" class="text-indigo-400 w-5 h-5"></i> Séries
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Sua coleção de séries e episódios</p>
+                    </div>
+                </div>
+                <div id="series-container" class="space-y-8">
+                    <div class="flex items-center justify-center p-12 text-slate-500">
+                        <i data-lucide="loader" class="w-6 h-6 animate-spin"></i>
+                    </div>
+                </div>
+            </section>
+
             <!-- VIEW: VIDEO GALLERY -->
-            <section id="pane-videos" class="space-y-6 flex-1 hidden">
+            <section id="pane-videos" class="space-y-6 flex-1 hidden tab-transition">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-900 pb-5">
                     <div>
                         <h2 class="text-xl font-black text-white flex items-center gap-2">
@@ -1407,7 +1536,7 @@ define('DONT_EXIT_ON_DB_ERROR', true);
             </section>
 
             <!-- VIEW: PLAYLISTS -->
-            <section id="pane-playlists" class="space-y-6 flex-1 hidden">
+            <section id="pane-playlists" class="space-y-6 flex-1 hidden tab-transition">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-900 pb-5">
                     <div>
                         <h2 class="text-xl font-black text-white flex items-center gap-2">
@@ -1431,7 +1560,7 @@ define('DONT_EXIT_ON_DB_ERROR', true);
             </section>
 
             <!-- VIEW: PODCASTS -->
-            <section id="pane-podcast" class="space-y-6 flex-1 hidden">
+            <section id="pane-podcast" class="space-y-6 flex-1 hidden tab-transition">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-slate-950 via-[#0b101b] to-slate-950 p-6 rounded-3xl border border-slate-900/50 shadow-xl">
                     <div class="flex items-center gap-4">
                         <div class="p-3 bg-orange-500/10 rounded-2xl text-orange-400">
@@ -1535,7 +1664,7 @@ define('DONT_EXIT_ON_DB_ERROR', true);
             </section>
 
             <!-- VIEW: RADIOS -->
-            <section id="pane-radios" class="space-y-6 flex-1 hidden">
+            <section id="pane-radios" class="space-y-6 flex-1 hidden tab-transition">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-slate-950 via-[#0b101b] to-slate-950 p-6 rounded-3xl border border-slate-900/50 shadow-xl">
                     <div class="flex items-center gap-4">
                         <div class="p-3 bg-emerald-500/10 rounded-2xl text-emerald-400">
@@ -1616,7 +1745,7 @@ define('DONT_EXIT_ON_DB_ERROR', true);
             </section>
 
             <!-- VIEW: REPRODUTOR -->
-            <section id="pane-reprodutor" class="space-y-6 flex-1 hidden text-left font-sans">
+            <section id="pane-reprodutor" class="space-y-6 flex-1 hidden text-left font-sans tab-transition">
                 <!-- EMPTY STATE (WHEN NO MUSIC RUNNING) -->
                 <div id="reprodutor-empty-state" class="flex flex-col items-center justify-center py-20 bg-slate-950/20 border border-slate-900 rounded-3xl p-10 text-center space-y-4 max-w-lg mx-auto">
                     <div class="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400">
@@ -2743,9 +2872,15 @@ define('DONT_EXIT_ON_DB_ERROR', true);
             } else {
                 document.body.classList.remove('no-download');
             }
+            
             if (!currentUser || !currentUser.username) {
                 const lp = document.getElementById('login-panel');
                 if (lp) lp.classList.remove('hidden');
+                const splash = document.getElementById('global-splash');
+                if (splash) {
+                    splash.classList.add('hidden');
+                    splash.style.display = 'none';
+                }
                 return;
             }
             
@@ -2789,17 +2924,68 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                 }
             }
 
+            
             await loadData();
             updateRandomDashboardAlbums();
+            await loadRecommendations();
             setTab('dashboard');
+
 
             setupDashboardInterval();
         }
 
+        
+        
+        async function loadRecommendations() {
+            if (!currentUser || !currentUser.username) return;
+            const container = document.getElementById('dashboard-recommended-container');
+            const section = document.getElementById('dashboard-recommended-section');
+            if (!container || !section) return;
+
+            try {
+                const response = await fetch(API + '?route=get_recommendations&username=' + encodeURIComponent(currentUser.username));
+                const data = await response.json();
+                if (data.success && data.recommendations && data.recommendations.length > 0) {
+                    section.classList.remove('hidden');
+                    container.innerHTML = data.recommendations.map(track => {
+                        return `
+                            <div class="snap-start shrink-0 w-36 cursor-pointer group/item relative hover:-translate-y-1 transition-all duration-300" onclick='loadTrack(${JSON.stringify(track).replace(/'/g, "&#39;")})'>
+                                <div class="relative aspect-square rounded-2xl overflow-hidden shadow-lg border border-slate-800 group-hover/item:border-amber-500/50 transition-colors">
+                                    <img src="${track.cover_url || track.coverUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100'}" class="w-full h-full object-cover">
+                                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/item:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                                        <div class="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center transform scale-75 group-hover/item:scale-100 transition-transform">
+                                            <i data-lucide="play" class="w-5 h-5 ml-1 fill-current"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <div class="text-xs font-bold text-white truncate">${track.title}</div>
+                                    <div class="text-[10px] text-slate-400 truncate">${track.artist}</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    lucide.createIcons();
+                } else {
+                    section.classList.add('hidden');
+                }
+            } catch (e) {
+                console.error("Erro ao carregar recomendações", e);
+                section.classList.add('hidden');
+            }
+        }
+
         async function loadData() {
+            const splash = document.getElementById('global-splash');
+            const splashProgress = document.getElementById('splash-progress');
+            if (splash && !splash.classList.contains('hidden') && splash.style.display !== 'none') {
+                if (splashProgress) splashProgress.style.width = '30%';
+            }
             try {
                 const r1 = await fetch(API + '?route=tracks');
                 const t1 = await r1.text();
+                if (splashProgress) splashProgress.style.width = '60%';
+
                 let parsedTracks;
                 try {
                     parsedTracks = JSON.parse(t1);
@@ -2852,18 +3038,32 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                 }
                 allFavorites = parsedFavorites;
 
+                
                 if (activeTab === 'playlists' && window.renderPlaylistsGrid) {
                     window.renderPlaylistsGrid();
                 }
             } catch (err) {
                 console.error(err);
                 showErrorModal("Erro de conexão com o banco de dados PHP: " + err.message);
+            } finally {
+                const splash = document.getElementById('global-splash');
+                const splashProgress = document.getElementById('splash-progress');
+                if (splash && !splash.classList.contains('hidden') && splash.style.display !== 'none') {
+                    if (splashProgress) splashProgress.style.width = '100%';
+                    setTimeout(() => {
+                        splash.classList.add('opacity-0');
+                        setTimeout(() => {
+                            splash.classList.add('hidden');
+                            splash.style.display = 'none';
+                        }, 500);
+                    }, 400);
+                }
             }
         }
 
         function selectArtist(art) {
             if (isPartyMode) {
-                alert("O Modo Festa está ativo! A navegação está bloqueada para manter a diversão focada no player.");
+                showToast("O Modo Festa está ativo! A navegação está bloqueada para manter a diversão focada no player.");
                 return;
             }
             selectedArtist = art;
@@ -2992,7 +3192,7 @@ const updPane = document.getElementById('subtab-pane-updates');
             if (id3Pane) id3Pane.classList.add('hidden');
             
             // Hide all nav button markers
-            const subBtns = ['theme', 'media', 'dashboard_cfg', 'shares', 'users', 'password', 'files', 'shortcuts', 'id3', 'updates'];
+            const subBtns = ['theme', 'stats', 'media', 'dashboard_cfg', 'shares', 'users', 'password', 'files', 'shortcuts', 'id3', 'updates'];
             subBtns.forEach(sb => {
                 const el = document.getElementById('subtab-btn-' + sb);
                 if (el) {
@@ -3008,6 +3208,9 @@ const updPane = document.getElementById('subtab-pane-updates');
                 activeSubBtn.className = "pb-2 text-xs font-bold border-b-2 border-sky-500 text-white cursor-pointer select-none";
             }
             
+            if (subTabName === 'stats') {
+                loadPlayStats();
+            }
             if (subTabName === 'users') {
                 renderUsersTable();
             }
@@ -3183,7 +3386,7 @@ const updPane = document.getElementById('subtab-pane-updates');
 
         function openId3BulkModal() {
             if (selectedId3SongIds.length === 0) {
-                alert('Selecione ao menos uma música primeiro.');
+                showToast('Selecione ao menos uma música primeiro.');
                 return;
             }
             
@@ -3214,7 +3417,7 @@ const updPane = document.getElementById('subtab-pane-updates');
             event.preventDefault();
             
             if (selectedId3SongIds.length === 0) {
-                alert('Nenhuma música selecionada.');
+                showToast('Nenhuma música selecionada.');
                 return;
             }
             
@@ -3225,7 +3428,7 @@ const updPane = document.getElementById('subtab-pane-updates');
             const useType = document.getElementById('bulk-use-type').checked;
             
             if (!useAlbum && !useYear && !useArtist && !useGenre && !useType) {
-                alert('Selecione e ative ao menos um campo para realizar a alteração em massa.');
+                showToast('Selecione e ative ao menos um campo para realizar a alteração em massa.');
                 return;
             }
             
@@ -3264,13 +3467,13 @@ const updPane = document.getElementById('subtab-pane-updates');
                         selectArtist(selectedArtist);
                     }
                     
-                    alert('Alteração em massa aplicada com sucesso em Músicas.');
+                    showToast('Alteração em massa aplicada com sucesso em Músicas.', 'success');
                 } else {
-                    alert('Erro ao atualizar em massa: ' + (result.error || 'Erro desconhecido'));
+                    showToast('Erro ao atualizar em massa: ' + (result.error || 'Erro desconhecido'));
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de conexão ao salvar alterações em massa.');
+                showToast('Erro de conexão ao salvar alterações em massa.');
             }
         }
 
@@ -3353,13 +3556,13 @@ const updPane = document.getElementById('subtab-pane-updates');
             try {
                 const baseTrack = allTracks.find(t => String(t.id) === String(trackId));
                 if (!baseTrack) {
-                    alert('Música base não encontrada para edição.');
+                    showToast('Música base não encontrada para edição.');
                     return;
                 }
                 openAlbumBulkEditByName(baseTrack.album || 'Álbum Desconhecido');
             } catch (err) {
                 console.error("Erro em openAlbumBulkEdit:", err);
-                alert("Ocorreu um erro ao abrir: " + err.message);
+                showToast("Ocorreu um erro ao abrir: ", 'error' + err.message);
             }
         }
 
@@ -3422,7 +3625,7 @@ const updPane = document.getElementById('subtab-pane-updates');
                 }
                 
                 if (albumTracks.length === 0) {
-                    alert('Nenhuma música encontrada para este álbum: ' + albumName);
+                    showToast('Nenhuma música encontrada para este álbum: ' + albumName);
                     return;
                 }
                 
@@ -3508,7 +3711,7 @@ const updPane = document.getElementById('subtab-pane-updates');
             const newType = document.getElementById('id3-album-type') ? document.getElementById('id3-album-type').value.trim() : 'album';
 
             if (!newAlbumName) {
-                alert('O Nome do Álbum é obrigatório.');
+                showToast('O Nome do Álbum é obrigatório.');
                 return;
             }
 
@@ -3527,7 +3730,7 @@ const updPane = document.getElementById('subtab-pane-updates');
             });
 
             if (hasEmptyTitle) {
-                alert('O título de todas as músicas deve ser preenchido.');
+                showToast('O título de todas as músicas deve ser preenchido.');
                 return;
             }
 
@@ -3567,13 +3770,13 @@ const updPane = document.getElementById('subtab-pane-updates');
                         selectArtist(selectedArtist);
                     }
                     
-                    alert('Álbum e músicas alterados com sucesso (' + result.affected + ' músicas atualizadas).');
+                    showToast('Álbum e músicas alterados com sucesso (' + result.affected + ' músicas atualizadas).');
                 } else {
-                    alert('Erro ao atualizar o álbum: ' + (result.error || 'Erro desconhecido'));
+                    showToast('Erro ao atualizar o álbum: ' + (result.error || 'Erro desconhecido'));
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de conexão ao salvar alterações do álbum.');
+                showToast('Erro de conexão ao salvar alterações do álbum.');
             }
         }
 
@@ -3617,7 +3820,7 @@ const updPane = document.getElementById('subtab-pane-updates');
             const album_type = document.getElementById('id3-edit-type') ? document.getElementById('id3-edit-type').value.trim() : 'album';
 
             if (!id || !title) {
-                alert('O ID e o Título são obrigatórios.');
+                showToast('O ID e o Título são obrigatórios.');
                 return;
             }
 
@@ -3645,11 +3848,11 @@ const updPane = document.getElementById('subtab-pane-updates');
                         selectArtist(selectedArtist);
                     }
                 } else {
-                    alert('Erro ao atualizar ID3: ' + (result.error || 'Erro desconhecido'));
+                    showToast('Erro ao atualizar ID3: ' + (result.error || 'Erro desconhecido'));
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de conexão ao salvar tags ID3.');
+                showToast('Erro de conexão ao salvar tags ID3.');
             }
         }
 
@@ -3665,11 +3868,11 @@ const updPane = document.getElementById('subtab-pane-updates');
                     fileManagerCurrentPath = data.current_path;
                     renderFileManager(data);
                 } else {
-                    alert(data.error || 'Erro ao carregar arquivos');
+                    showToast(data.error || 'Erro ao carregar arquivos');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de rede ao carregar o gerenciador de arquivos.');
+                showToast('Erro de rede ao carregar o gerenciador de arquivos.');
             }
         }
 
@@ -3859,11 +4062,11 @@ const updPane = document.getElementById('subtab-pane-updates');
                 if (data.success) {
                     loadFileManager(fileManagerCurrentPath);
                 } else {
-                    alert(data.error || "Erro ao criar pasta");
+                    showToast(data.error || "Erro ao criar pasta");
                 }
             } catch (err) {
                 console.error(err);
-                alert("Erro de rede ao criar pasta.");
+                showToast("Erro de rede ao criar pasta.");
             }
         }
 
@@ -3892,11 +4095,11 @@ const updPane = document.getElementById('subtab-pane-updates');
                 if (data.success) {
                     loadFileManager(fileManagerCurrentPath);
                 } else {
-                    alert(data.error || "Erro ao renomear");
+                    showToast(data.error || "Erro ao renomear");
                 }
             } catch (err) {
                 console.error(err);
-                alert("Erro de rede ao renomear.");
+                showToast("Erro de rede ao renomear.");
             }
         }
 
@@ -3918,17 +4121,17 @@ const updPane = document.getElementById('subtab-pane-updates');
                 if (data.success) {
                     loadFileManager(fileManagerCurrentPath);
                 } else {
-                    alert(data.error || "Erro ao excluir");
+                    showToast(data.error || "Erro ao excluir");
                 }
             } catch (err) {
                 console.error(err);
-                alert("Erro de rede ao excluir.");
+                showToast("Erro de rede ao excluir.");
             }
         }
 
         function handleFileManagerUpload(files) {
             if (fileManagerCurrentPath === '') {
-                alert('Não é permitido enviar arquivos diretamente na pasta raiz virtual. Entre em /music ou /videos primeiro.');
+                showToast('Não é permitido enviar arquivos diretamente na pasta raiz virtual. Entre em /music, /videos, /movies ou /series primeiro.');
                 return;
             }
             if (!files || files.length === 0) return;
@@ -3989,7 +4192,7 @@ const updPane = document.getElementById('subtab-pane-updates');
                         try {
                             const resObj = JSON.parse(xhr.responseText);
                             if (!resObj.success) {
-                                alert(`Falha ao enviar ${file.name}: ` + (resObj.error || 'Erro desconhecido'));
+                                showToast(`Falha ao enviar ${file.name}: ` + (resObj.error || 'Erro desconhecido'));
                             }
                         } catch(e) {
                             console.error(e);
@@ -4002,7 +4205,7 @@ const updPane = document.getElementById('subtab-pane-updates');
                                 errDetail += `: ${errObj.error}`;
                             }
                         } catch(e) {}
-                        alert(`${errDetail} ao enviar ${file.name}`);
+                        showToast(`${errDetail} ao enviar ${file.name}`);
                     }
 
                     loadFileManager(fileManagerCurrentPath);
@@ -4011,7 +4214,7 @@ const updPane = document.getElementById('subtab-pane-updates');
 
                 xhr.onerror = function() {
                     currentlyUploading = false;
-                    alert(`Falha na rede para ${file.name}`);
+                    showToast(`Falha na rede para ${file.name}`);
                     processNextUpload();
                 };
 
@@ -4055,6 +4258,45 @@ const updPane = document.getElementById('subtab-pane-updates');
 
             const files = e.dataTransfer.files;
             handleFileManagerUpload(files);
+        }
+
+        async function loadPlayStats() {
+            if (!currentUser || !currentUser.username) return;
+            const topSongsEl = document.getElementById('stats-top-songs');
+            const totalTimeEl = document.getElementById('stats-total-time');
+            if (!topSongsEl || !totalTimeEl) return;
+            
+            try {
+                const response = await fetch(API + '?route=get_play_stats&username=' + encodeURIComponent(currentUser.username));
+                const data = await response.json();
+                if (data.success) {
+                    const secs = data.totalSeconds || 0;
+                    const hours = Math.floor(secs / 3600);
+                    const mins = Math.floor((secs % 3600) / 60);
+                    totalTimeEl.textContent = hours + "h " + mins + "m";
+                    
+                    if (data.topSongs && data.topSongs.length > 0) {
+                        topSongsEl.innerHTML = data.topSongs.map((song, i) => `
+                            <div class="flex items-center gap-3 bg-slate-900/50 p-2 rounded-xl border border-slate-800">
+                                <div class="w-6 text-center text-xs font-black text-slate-500">#${i+1}</div>
+                                <img src="${song.cover_url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100'}" class="w-10 h-10 rounded-lg object-cover">
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm font-bold text-white truncate">${song.title}</div>
+                                    <div class="text-xs text-slate-400 truncate">${song.artist}</div>
+                                </div>
+                                <div class="text-xs font-black text-sky-400 px-3">${song.play_count} plays</div>
+                            </div>
+                        `).join('');
+                    } else {
+                        topSongsEl.innerHTML = '<div class="text-xs text-slate-500 italic py-4 text-center">Nenhuma música tocada ainda.</div>';
+                    }
+                } else {
+                    topSongsEl.innerHTML = '<div class="text-xs text-red-400 py-4">Erro ao carregar estatísticas.</div>';
+                }
+            } catch (err) {
+                console.error(err);
+                topSongsEl.innerHTML = '<div class="text-xs text-red-400 py-4">Erro de conexão.</div>';
+            }
         }
 
         async function loadMusicFolders() {
@@ -4111,15 +4353,15 @@ const updPane = document.getElementById('subtab-pane-updates');
                 const res = await fetch('api.php?route=delete_music_folder&name=' + folderName, { method: 'POST' });
                 const data = await res.json();
                 if (res.ok) {
-                    alert(data.message || 'Pasta excluída com sucesso!');
+                    showToast(data.message || 'Pasta excluída com sucesso!');
                     await loadData();
                     await loadMusicFolders();
                 } else {
-                    alert(data.error || 'Erro ao excluir pasta.');
+                    showToast(data.error || 'Erro ao excluir pasta.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro na requisição ao api.php?route=delete_music_folder.');
+                showToast('Erro na requisição ao api.php?route=delete_music_folder.');
             }
         }
 
@@ -4128,7 +4370,7 @@ const updPane = document.getElementById('subtab-pane-updates');
             const passInput = document.getElementById('my-new-password');
             const passVal = passInput.value.trim();
             if (!passVal) {
-                alert('A nova senha não pode ser vazia.');
+                showToast('A nova senha não pode ser vazia.');
                 return;
             }
             try {
@@ -4138,14 +4380,14 @@ const updPane = document.getElementById('subtab-pane-updates');
                     body: JSON.stringify({ password: passVal })
                 });
                 if (res.ok) {
-                    alert('Sua senha foi atualizada com sucesso!');
+                    showToast('Sua senha foi atualizada com sucesso!', 'success');
                     passInput.value = '';
                 } else {
-                    alert('Erro ao atualizar sua senha no servidor.');
+                    showToast('Erro ao atualizar sua senha no servidor.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro na conexão com o servidor ao alterar senha.');
+                showToast('Erro na conexão com o servidor ao alterar senha.');
             }
         };
 
@@ -4158,15 +4400,15 @@ const updPane = document.getElementById('subtab-pane-updates');
                 const res = await fetch(API + '?route=repair_db');
                 const data = await res.json();
                 if (data.status === 'ok') {
-                    alert(data.message);
+                    showToast(data.message);
                     await loadData(); // Reload catalog to reflect changes!
                     renderAlbumGrid();
                 } else {
-                    alert(data.message);
+                    showToast(data.message);
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro na conexão para reparação do banco.');
+                showToast('Erro na conexão para reparação do banco.');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origText;
@@ -4463,11 +4705,11 @@ const updPane = document.getElementById('subtab-pane-updates');
                     localStorage.setItem('phplayer_user', JSON.stringify(currentUser));
                     window.location.reload();
                 } else {
-                    alert('Erro ao atualizar seu tema de cores no banco de dados.');
+                    showToast('Erro ao atualizar seu tema de cores no banco de dados.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro na conexão para trocar de tema.');
+                showToast('Erro na conexão para trocar de tema.');
             }
         }
 
@@ -4567,13 +4809,13 @@ const updPane = document.getElementById('subtab-pane-updates');
                 const res = await response.json();
                 if (res.success) {
                     localStorage.setItem('phplayer_user', JSON.stringify(currentUser));
-                    alert('Cor do layout salva com sucesso!');
+                    showToast('Cor do layout salva com sucesso!', 'success');
                 } else {
-                    alert('Erro ao salvar cor do layout.');
+                    showToast('Erro ao salvar cor do layout.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de conexão ao salvar cor.');
+                showToast('Erro de conexão ao salvar cor.');
             }
         };
 
@@ -4631,17 +4873,17 @@ const updPane = document.getElementById('subtab-pane-updates');
             try {
                 const res = await fetch('api.php?route=scan', { method: 'POST' });
                 if (res.ok) {
-                    alert('Sincronização de músicas concluída com sucesso!');
+                    showToast('Sincronização de músicas concluída com sucesso!', 'success');
                     await loadData();
                     if (typeof loadMusicFolders === 'function') {
                         await loadMusicFolders();
                     }
                 } else {
-                    alert('Falha na varredura recursiva de músicas.');
+                    showToast('Falha na varredura recursiva de músicas.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de rede ao escanear pasta /music.');
+                showToast('Erro de rede ao escanear pasta /music.');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origText;
@@ -4694,10 +4936,10 @@ const updPane = document.getElementById('subtab-pane-updates');
                 if (res.ok) {
                     await refreshMusicScanLog();
                 } else {
-                    alert("Falha ao limpar logs no servidor.");
+                    showToast("Falha ao limpar logs no servidor.");
                 }
             } catch (err) {
-                alert("Erro ao enviar solicitação: " + err.message);
+                showToast("Erro ao enviar solicitação: " + err.message);
             }
         }
         window.clearMusicScanLog = clearMusicScanLog;
@@ -4711,13 +4953,13 @@ const updPane = document.getElementById('subtab-pane-updates');
                 const res = await fetch('api.php?route=videos_scan', { method: 'POST' });
                 const data = await res.json();
                 if (res.ok) {
-                    alert('Sincronização de vídeos concluída com sucesso! Encontrados ' + (data.count || 0) + ' novos vídeos ou capas sincronizados.');
+                    showToast('Sincronização de vídeos concluída com sucesso! Encontrados ' + (data.count || 0) + ' novos vídeos ou capas sincronizados.');
                 } else {
-                    alert('Erro ao varrer diretório de vídeos.');
+                    showToast('Erro ao varrer diretório de vídeos.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de rede ao escanear pasta /videos.');
+                showToast('Erro de rede ao escanear pasta /videos.');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origText;
@@ -4740,7 +4982,7 @@ const updPane = document.getElementById('subtab-pane-updates');
                     const data = await res.json();
                     
                     if (!res.ok || data.error) {
-                        alert(data.error || 'Erro ao sincronizar lote com o Last.fm.');
+                        showToast(data.error || 'Erro ao sincronizar lote com o Last.fm.');
                         break;
                     }
                     
@@ -4761,11 +5003,11 @@ const updPane = document.getElementById('subtab-pane-updates');
                     await new Promise(resolve => setTimeout(resolve, 300));
                 }
                 
-                alert('Sincronização com Last.fm efetuada com sucesso! Catálogo 100% atualizado.');
+                showToast('Sincronização com Last.fm efetuada com sucesso! Catálogo 100% atualizado.', 'success');
                 await loadData();
             } catch (err) {
                 console.error(err);
-                alert('Erro de rede ao conectar com a API de sincronização.');
+                showToast('Erro de rede ao conectar com a API de sincronização.');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origText;
@@ -4789,7 +5031,7 @@ const updPane = document.getElementById('subtab-pane-updates');
                     const data = await res.json();
                     
                     if (!res.ok || data.error) {
-                        alert(data.error || 'Erro ao sincronizar lote com o Deezer.');
+                        showToast(data.error || 'Erro ao sincronizar lote com o Deezer.');
                         break;
                     }
                     
@@ -4810,11 +5052,11 @@ const updPane = document.getElementById('subtab-pane-updates');
                     await new Promise(resolve => setTimeout(resolve, 300));
                 }
                 
-                alert('Sincronização com Deezer concluída com sucesso! Capas de álbuns e logos de artistas atualizados.');
+                showToast('Sincronização com Deezer concluída com sucesso! Capas de álbuns e logos de artistas atualizados.', 'success');
                 await loadData();
             } catch (err) {
                 console.error(err);
-                alert('Erro de rede ao conectar com a API de sincronização do Deezer.');
+                showToast('Erro de rede ao conectar com a API de sincronização do Deezer.');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origText;
@@ -4838,7 +5080,7 @@ const updPane = document.getElementById('subtab-pane-updates');
                     const data = await res.json();
                     
                     if (!res.ok || data.error) {
-                        alert(data.error || 'Erro ao sincronizar lote com o Google Images.');
+                        showToast(data.error || 'Erro ao sincronizar lote com o Google Images.');
                         break;
                     }
                     
@@ -4859,11 +5101,11 @@ const updPane = document.getElementById('subtab-pane-updates');
                     await new Promise(resolve => setTimeout(resolve, 500));
                 }
                 
-                alert('Sincronização com Google Images concluída com sucesso! Capas de álbuns e logos de artistas atualizados.');
+                showToast('Sincronização com Google Images concluída com sucesso! Capas de álbuns e logos de artistas atualizados.', 'success');
                 await loadData();
             } catch (err) {
                 console.error(err);
-                alert('Erro de rede ao conectar com a API de sincronização do Google Images.');
+                showToast('Erro de rede ao conectar com a API de sincronização do Google Images.');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origText;
@@ -4874,7 +5116,7 @@ const updPane = document.getElementById('subtab-pane-updates');
 
         function setTab(tabName) {
             if (isPartyMode) {
-                alert("O Modo Festa está ativo! A navegação está bloqueada para manter a diversão focada no player.");
+                showToast("O Modo Festa está ativo! A navegação está bloqueada para manter a diversão focada no player.");
                 return;
             }
             activeTab = tabName;
@@ -4882,13 +5124,16 @@ const updPane = document.getElementById('subtab-pane-updates');
             document.getElementById('pane-tracks').classList.add('hidden');
             if (document.getElementById('pane-config')) document.getElementById('pane-config').classList.add('hidden');
             document.getElementById('pane-videos').classList.add('hidden');
+            if (document.getElementById('pane-movies')) document.getElementById('pane-movies').classList.add('hidden');
+            if (document.getElementById('pane-series')) document.getElementById('pane-series').classList.add('hidden');
+
             if (document.getElementById('pane-playlists')) document.getElementById('pane-playlists').classList.add('hidden');
             if (document.getElementById('pane-podcast')) document.getElementById('pane-podcast').classList.add('hidden');
             if (document.getElementById('pane-radios')) document.getElementById('pane-radios').classList.add('hidden');
             if (document.getElementById('pane-reprodutor')) document.getElementById('pane-reprodutor').classList.add('hidden');
             
             // Clear navigation classes
-            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'playlists', 'podcast', 'radios', 'reprodutor'];
+            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'movies', 'series', 'playlists', 'podcast', 'radios', 'reprodutor'];
             btns.forEach(b => {
                 const el = document.getElementById('tab-btn-' + b);
                 if (el) {
@@ -4950,7 +5195,15 @@ const updPane = document.getElementById('subtab-pane-updates');
                     if (text) text.value = currentBg;
                 }
                 if (window.loadLastfmKeyForUI) window.loadLastfmKeyForUI();
+            } else 
+            if (tabName === 'movies') {
+                if(document.getElementById('pane-movies')) document.getElementById('pane-movies').classList.remove('hidden');
+                loadMovies();
+            } else if (tabName === 'series') {
+                if(document.getElementById('pane-series')) document.getElementById('pane-series').classList.remove('hidden');
+                loadSeries();
             } else if (tabName === 'videos') {
+
                 renderVideoGallery();
                 document.getElementById('pane-videos').classList.remove('hidden');
             } else if (tabName === 'podcast') {
@@ -5808,7 +6061,7 @@ const updPane = document.getElementById('subtab-pane-updates');
             const title = titleInput.value.trim();
             
             if (!artist || !title) {
-                alert("Por favor, preencha o Artista e o nome da Música.");
+                showToast("Por favor, preencha o Artista e o nome da Música.");
                 return;
             }
             
@@ -6362,6 +6615,15 @@ document.addEventListener('fullscreenchange', (event) => {
             document.getElementById('player-play-btn').innerHTML = `<i data-lucide="pause" class="w-4 h-4 fill-current"></i>`;
             lucide.createIcons();
             
+            // Log play to database
+            if (!isRadio && !isLocal && currentUser && currentUser.username) {
+                fetch(API + '?route=log_play', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: currentUser.username, song_id: track.id })
+                }).catch(e => console.error("Erro ao registrar reprodução:", e));
+            }
+            
             // update highlighting on tables
             renderTracksTable();
             renderPlayerMiniQueue();
@@ -6405,7 +6667,7 @@ document.addEventListener('fullscreenchange', (event) => {
 
         function togglePlay() {
             if (isPartyMode) {
-                alert("O Modo Festa está ativo! A pausa manual está desativada para manter a reprodução contínua.");
+                showToast("O Modo Festa está ativo! A pausa manual está desativada para manter a reprodução contínua.");
                 return;
             }
             if (activeQueue.length === 0 && allTracks.length > 0) {
@@ -7591,11 +7853,11 @@ document.addEventListener('fullscreenchange', (event) => {
                     await loadData();
                     renderTracksTable();
                 } else {
-                    alert(d.error || "Erro ao salvar novo título");
+                    showToast(d.error || "Erro ao salvar novo título");
                 }
             } catch (err) {
                 console.error(err);
-                alert("Erro ao conectar e salvar novo título.");
+                showToast("Erro ao conectar e salvar novo título.");
             }
         }
 
@@ -7662,16 +7924,16 @@ document.addEventListener('fullscreenchange', (event) => {
                 });
                 const d = await res.json();
                 if (d.success) {
-                    alert('Capa do álbum atualizada com sucesso!');
+                    showToast('Capa do álbum atualizada com sucesso!', 'success');
                     await loadData();
                     renderLeftSidebar();
                     renderTracksTable();
                 } else {
-                    alert(d.error || 'Erro ao enviar capa.');
+                    showToast(d.error || 'Erro ao enviar capa.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de rede ao enviar capa de imagem.');
+                showToast('Erro de rede ao enviar capa de imagem.');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
@@ -7747,11 +8009,11 @@ document.addEventListener('fullscreenchange', (event) => {
                     artistPhotoUrl = d.artist_photo;
                     renderTracksTable();
                 } else {
-                    alert(d.error || 'Erro ao enviar banner do artista.');
+                    showToast(d.error || 'Erro ao enviar banner do artista.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de rede ao enviar banner do artista.');
+                showToast('Erro de rede ao enviar banner do artista.');
             } finally {
                 input.value = '';
             }
@@ -7898,7 +8160,7 @@ document.addEventListener('fullscreenchange', (event) => {
                         closeImageSearchModal();
                         renderTracksTable();
                     } else {
-                        alert('Falha ao salvar banner do artista no servidor PHP');
+                        showToast('Falha ao salvar banner do artista no servidor PHP');
                     }
                 } else {
                     const res = await fetch(API + '?route=update_album_cover_url', {
@@ -7915,12 +8177,12 @@ document.addEventListener('fullscreenchange', (event) => {
                         closeImageSearchModal();
                         renderTracksTable();
                     } else {
-                        alert('Falha ao salvar capa do álbum no servidor PHP');
+                        showToast('Falha ao salvar capa do álbum no servidor PHP');
                     }
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro na comunicação com o servidor ao selecionar imagem.');
+                showToast('Erro na comunicação com o servidor ao selecionar imagem.');
             }
         };
 
@@ -7961,12 +8223,12 @@ document.addEventListener('fullscreenchange', (event) => {
                 if (res.ok) {
                     if (window.loadDlnaSettingForUI) await window.loadDlnaSettingForUI();
                 } else {
-                    alert("Erro ao alterar configuração DLNA.");
+                    showToast("Erro ao alterar configuração DLNA.");
                     checkbox.checked = !isChecked;
                 }
             } catch (err) {
                 console.error(err);
-                alert("Erro operacional ao atualizar DLNA.");
+                showToast("Erro operacional ao atualizar DLNA.");
                 checkbox.checked = !isChecked;
             }
         };
@@ -8054,7 +8316,7 @@ document.addEventListener('fullscreenchange', (event) => {
 
         window.viewPlaylistTracks = function(playlistId, playlistName) {
             if (isPartyMode) {
-                alert("O Modo Festa está ativo! A navegação está bloqueada para manter a diversão focada no player.");
+                showToast("O Modo Festa está ativo! A navegação está bloqueada para manter a diversão focada no player.");
                 return;
             }
             selectedPlaylistId = playlistId;
@@ -8092,23 +8354,23 @@ document.addEventListener('fullscreenchange', (event) => {
                     window.renderPlaylistsGrid();
                     renderLeftSidebar();
                 } else {
-                    alert("Erro ao remover playlist.");
+                    showToast("Erro ao remover playlist.");
                 }
             } catch (err) {
                 console.error(err);
-                alert("Erro de rede ao remover playlist.");
+                showToast("Erro de rede ao remover playlist.");
             }
         };
 
         window.playPlaylistTracks = function(playlistId, isShuffle) {
             const pl = allPlaylists.find(p => String(p.id) === String(playlistId));
             if (!pl || !pl.trackIds || pl.trackIds.length === 0) {
-                alert("Esta playlist está vazia.");
+                showToast("Esta playlist está vazia.");
                 return;
             }
             const tracks = pl.trackIds.map(tid => allTracks.find(t => String(t.id) === String(tid))).filter(Boolean);
             if (tracks.length === 0) {
-                alert("Nenhuma música desta playlist foi encontrada no servidor.");
+                showToast("Nenhuma música desta playlist foi encontrada no servidor.");
                 return;
             }
             if (isShuffle) {
@@ -8161,13 +8423,13 @@ document.addEventListener('fullscreenchange', (event) => {
                     })
                 });
                 if (res.ok) {
-                    alert('Chave API do Last.fm salva com sucesso!');
+                    showToast('Chave API do Last.fm salva com sucesso!', 'success');
                 } else {
-                    alert('Erro ao salvar Chave API do Last.fm.');
+                    showToast('Erro ao salvar Chave API do Last.fm.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro operacional ao salvar chave.');
+                showToast('Erro operacional ao salvar chave.');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
@@ -8183,11 +8445,11 @@ document.addEventListener('fullscreenchange', (event) => {
             try {
                 const res = await fetch(API + '?route=scan');
                 const d = await res.json();
-                alert("Scan terminado! " + d.count + " novas faixas agregadas e " + (d.removed || 0) + " faixas de música órfãs removidas sob /music.");
+                showToast("Scan terminado! " + d.count + " novas faixas agregadas e " + (d.removed || 0) + " faixas de música órfãs removidas sob /music.");
                 await loadData();
                 renderDashboard();
             } catch (error) {
-                alert("Falha operacional ao ler disco.");
+                showToast("Falha operacional ao ler disco.");
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i data-lucide="scan" class="w-3.5 h-3.5"></i> Sincronizar Pasta /music';
@@ -8274,7 +8536,7 @@ document.addEventListener('fullscreenchange', (event) => {
         window.downloadTrack = function(e, trackId) {
             if (e) e.stopPropagation();
             if (!currentUser || currentUser.role !== 'admin') {
-                alert("Acesso restrito a administradores.");
+                showToast("Acesso restrito a administradores.");
                 return;
             }
             const url = API + '?route=download_track&id=' + trackId + '&admin_username=' + encodeURIComponent(currentUser.username);
@@ -8289,7 +8551,7 @@ document.addEventListener('fullscreenchange', (event) => {
         window.downloadAlbum = function(e, albumName, isMobile = false) {
             if (e) e.stopPropagation();
             if (!currentUser || currentUser.role !== 'admin') {
-                alert("Acesso restrito a administradores.");
+                showToast("Acesso restrito a administradores.");
                 return;
             }
             let decodedAlbumName = albumName;
@@ -8332,7 +8594,7 @@ document.addEventListener('fullscreenchange', (event) => {
         window.selectPlaylistForTrack = async function(playlistId, trackId) {
             const targetPl = allPlaylists.find(p => String(p.id) === String(playlistId));
             if (!targetPl) {
-                alert("Playlist inválida.");
+                showToast("Playlist inválida.");
                 return;
             }
 
@@ -8396,7 +8658,7 @@ document.addEventListener('fullscreenchange', (event) => {
         window.addToPlaylistDropdown = async function(e, trackId) {
             e.stopPropagation();
             if (allPlaylists.length === 0) {
-                alert("Crie ao menos uma playlist antes no painel do sidebar.");
+                showToast("Crie ao menos uma playlist antes no painel do sidebar.");
                 return;
             }
             
@@ -8406,7 +8668,7 @@ document.addEventListener('fullscreenchange', (event) => {
 
         window.editUser = function(username, can_dl) {
             if (username === 'admin') {
-                alert("O admin tem todas permissões ativadas por padrão.");
+                showToast("O admin tem todas permissões ativadas por padrão.");
                 return;
             }
             const htmlBlock = `
@@ -8436,7 +8698,7 @@ document.addEventListener('fullscreenchange', (event) => {
                     window.closeModalHTML();
                     renderUsersTable();
                 } else {
-                    alert('Erro ao salvar permissões');
+                    showToast('Erro ao salvar permissões');
                 }
             } catch(e) { }
         };
@@ -8569,7 +8831,7 @@ document.addEventListener('fullscreenchange', (event) => {
                     modal.classList.remove('hidden');
                     lucide.createIcons();
                 } else {
-                    alert(data.error || 'Erro ao criar compartilhamento');
+                    showToast(data.error || 'Erro ao criar compartilhamento');
                 }
             } catch (e) {
                 console.error(e);
@@ -8642,13 +8904,13 @@ document.addEventListener('fullscreenchange', (event) => {
                     body: JSON.stringify({ username, password, role })
                 });
                 if (res.ok) {
-                    alert("Usuário adicionado com sucesso!");
+                    showToast("Usuário adicionado com sucesso!", 'success');
                     document.getElementById('new-user-name').value = '';
                     document.getElementById('new-user-pass').value = '';
                     renderUsersTable();
                 } else {
                     const err = await res.json();
-                    alert(err.error || "Erro ao criar");
+                    showToast(err.error || "Erro ao criar");
                 }
             } catch (error) {
                 console.error(error);
@@ -8672,11 +8934,47 @@ async function loadDashSettings() {
         const elLimit = document.getElementById('dashboard-albums-count');
         if(elLimit) elLimit.value = globalSettings['dashboard_albums_count'] || 12;
         
-        const elTime = document.getElementById('dashboard-rotate-time');
+                const elTime = document.getElementById('dashboard-rotate-time');
         if(elTime) elTime.value = (globalSettings['dashboard_rotate_time'] !== undefined) ? globalSettings['dashboard_rotate_time'] : 8;
+        
+        
+        const elMovies = document.getElementById('feature-enable-movies');
+        if(elMovies) elMovies.checked = (globalSettings['feature_movies'] === '1');
+        
+        const elSeries = document.getElementById('feature-enable-series');
+        if(elSeries) elSeries.checked = (globalSettings['feature_series'] === '1');
+        
+        const btnMovies = document.getElementById('tab-btn-movies');
+        if(btnMovies) {
+            if(globalSettings['feature_movies'] === '1') btnMovies.classList.remove('hidden');
+            else btnMovies.classList.add('hidden');
+        }
+        
+        const btnSeries = document.getElementById('tab-btn-series');
+        if(btnSeries) {
+            if(globalSettings['feature_series'] === '1') btnSeries.classList.remove('hidden');
+            else btnSeries.classList.add('hidden');
+        }
+
         
     } catch(e) { console.error(e); }
 }
+
+
+window.toggleFeature = async function(feature, isEnabled) {
+    globalSettings['feature_' + feature] = isEnabled ? '1' : '0';
+    try {
+        await fetch(API + '?route=save_settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ setting_key: 'feature_' + feature, setting_value: isEnabled ? '1' : '0' })
+        });
+        showToast('Configuração salva. Recarregando menu...', 'success');
+        renderLeftSidebar();
+    } catch(err) {
+        showToast('Erro ao salvar configuração: ' + err.message, 'error');
+    }
+};
 
 async function saveDashboardSettings() {
     const elLimit = document.getElementById('dashboard-albums-count');
@@ -8706,7 +9004,7 @@ async function saveDashboardSettings() {
         renderAlbumGrid();
         setupDashboardInterval();
         
-        alert('Configurações do dashboard salvas com sucesso');
+        showToast('Configurações do dashboard salvas com sucesso');
     } catch(e) {
         console.error(e);
     }
@@ -8741,16 +9039,16 @@ async function deleteUser(username) {
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    alert(data.message || "Upload concluído! Verifique sob a biblioteca.");
+                    showToast(data.message || "Upload concluído! Verifique sob a biblioteca.");
                     form.reset();
                     await loadData();
                     setTab('dashboard');
                 } else {
                     const err = await res.json();
-                    alert(err.error || "Operação falhou");
+                    showToast(err.error || "Operação falhou");
                 }
             } catch (e) {
-                alert("Falha de limite de rede.");
+                showToast("Falha de limite de rede.");
             } finally {
                 btn.disabled = false;
                 btn.textContent = "Iniciar Upload";
@@ -8797,7 +9095,23 @@ async function deleteUser(username) {
                         footerBg: data.footerBg || '',
                         topBg: data.topBg || ''
                     };
+                    
+                    
                     localStorage.setItem('phplayer_user', JSON.stringify(currentUser));
+                    const splash = document.getElementById('global-splash');
+                    if (splash) {
+                        const splashProgress = document.getElementById('splash-progress');
+                        if (splashProgress) {
+                            splashProgress.style.transition = 'none';
+                            splashProgress.style.width = '0%';
+                            // force reflow
+                            void splashProgress.offsetWidth;
+                            splashProgress.style.transition = '';
+                        }
+                        splash.classList.remove('hidden');
+                        splash.style.display = 'flex';
+                        splash.classList.remove('opacity-0');
+                    }
                     bootPlayer();
                 } else {
                     showErrorModal(data.error || "Credenciais inválidas. Verifique se importou o arquivo database.sql com o usuário padrão.");
@@ -8897,6 +9211,63 @@ async function deleteUser(username) {
             }
         }
 
+        
+        
+        function playVideo(id) {
+            const vid = allVideos.find(v => v.id === id);
+            if (!vid) return;
+            
+            // stop audio player if playing
+            if (isPlaying) {
+                audio.pause();
+                isPlaying = false;
+                document.getElementById('player-play-btn').innerHTML = '<i data-lucide="play" class="w-4 h-4 fill-current"></i>';
+                lucide.createIcons();
+            }
+            
+            const player = document.getElementById('modal-video-player');
+            player.src = 'api.php?route=stream_video&id=' + encodeURIComponent(vid.id);
+            if (vid.coverUrl) {
+                player.poster = vid.coverUrl;
+            } else {
+                player.removeAttribute('poster');
+            }
+            
+            document.getElementById('video-modal-title').textContent = vid.title;
+            const modal = document.getElementById('video-modal');
+            modal.classList.remove('hidden');
+            modal.querySelector('> div').classList.remove('scale-95', 'opacity-0');
+            player.play().catch(e => console.log('Auto-play prevent', e));
+        }
+
+        function playMediaFile(path, title) {
+            // stop audio player if playing
+            if (isPlaying) {
+                audio.pause();
+                isPlaying = false;
+                const btn = document.getElementById('player-play-btn');
+                if (btn) btn.innerHTML = '<i data-lucide="play" class="w-4 h-4 fill-current"></i>';
+                lucide.createIcons();
+            }
+            
+            const player = document.getElementById('modal-video-player');
+            if (player) {
+                player.src = 'api.php?route=stream_media&path=' + encodeURIComponent(path);
+                player.removeAttribute('poster');
+            }
+            
+            const tEl = document.getElementById('video-modal-title');
+            if (tEl) tEl.textContent = title;
+            
+            const modal = document.getElementById('video-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.querySelector('> div').classList.remove('scale-95', 'opacity-0');
+            }
+            
+            if (player) player.play().catch(e => console.log('Auto-play prevent', e));
+        }
+
         function playVideo(id) {
             const vid = allVideos.find(v => v.id === id);
             if (!vid) return;
@@ -8978,10 +9349,10 @@ async function deleteUser(username) {
                     if (vid) vid.coverUrl = data.cover_url;
                 } else {
                     const err = await res.json();
-                    alert(err.error || 'Erro ao carregar capa');
+                    showToast(err.error || 'Erro ao carregar capa');
                 }
             } catch(e) {
-                alert('Falha de rede.');
+                showToast('Falha de rede.');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
@@ -9206,7 +9577,7 @@ async function deleteUser(username) {
 
         window.runPodcastSync = async function(feedUrlOverride = null, maxEpisodesOverride = null, customBtn = null) {
             if (currentUser.role !== 'admin') {
-                alert("Apenas administradores podem gerenciar sincronização de Podcast.");
+                showToast("Apenas administradores podem gerenciar sincronização de Podcast.");
                 return;
             }
 
@@ -9217,7 +9588,7 @@ async function deleteUser(username) {
 
             const val = feedUrlOverride || (input ? input.value.trim() : '');
             if (!val) {
-                alert("Insira a URL do feed RSS.");
+                showToast("Insira a URL do feed RSS.");
                 return;
             }
 
@@ -9362,7 +9733,7 @@ async function deleteUser(username) {
             if (e) e.preventDefault();
             
             if (currentUser.role !== 'admin') {
-                alert("Apenas administradores podem cadastrar rádios.");
+                showToast("Apenas administradores podem cadastrar rádios.");
                 return;
             }
 
@@ -9376,7 +9747,7 @@ async function deleteUser(username) {
             const url = urlInput.value.trim();
 
             if (!name || !url) {
-                alert("Por favor, preencha todos os campos.");
+                showToast("Por favor, preencha todos os campos.");
                 return;
             }
 
@@ -9398,11 +9769,11 @@ async function deleteUser(username) {
                     loadRadiosPhp();
                 } else {
                     const data = await res.json();
-                    alert(data.error || 'Erro ao cadastrar rádio.');
+                    showToast(data.error || 'Erro ao cadastrar rádio.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de comunicação.');
+                showToast('Erro de comunicação.');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origText;
@@ -9424,7 +9795,7 @@ async function deleteUser(username) {
             if (e) e.stopPropagation();
             
             if (currentUser.role !== 'admin') {
-                alert("Apenas administradores podem remover rádios.");
+                showToast("Apenas administradores podem remover rádios.");
                 return;
             }
 
@@ -9439,11 +9810,11 @@ async function deleteUser(username) {
                     loadRadiosPhp();
                 } else {
                     const data = await res.json();
-                    alert(data.error || 'Falha ao remover rádio.');
+                    showToast(data.error || 'Falha ao remover rádio.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de comunicação.');
+                showToast('Erro de comunicação.');
             }
         };
 
@@ -9611,14 +9982,14 @@ async function deleteUser(username) {
                         window.location.reload();
                     }, 1500);
                 } else {
-                    alert('Erro na atualização: ' + (data.error || 'Erro desconhecido.'));
+                    showToast('Erro na atualização: ' + (data.error || 'Erro desconhecido.'));
                     btn.disabled = false;
                     btn.innerHTML = origHtml;
                     if(window.lucide) lucide.createIcons();
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro na requisição da atualização.');
+                showToast('Erro na requisição da atualização.');
                 btn.disabled = false;
                 btn.innerHTML = origHtml;
                 if(window.lucide) lucide.createIcons();
@@ -9671,7 +10042,165 @@ async function deleteUser(username) {
             }
         }
 
+        
+        // TOAST NOTIFICATIONS
+        window.showToast = function(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            
+            const toast = document.createElement('div');
+            
+            // Base styles
+            toast.className = 'w-full p-4 rounded-2xl shadow-2xl backdrop-blur-md border text-sm font-bold flex items-center gap-3 transform transition-all duration-300 translate-y-8 opacity-0 pointer-events-auto';
+            
+            // Icons & Colors
+            let iconStr = '<i data-lucide="info" class="w-5 h-5 shrink-0"></i>';
+            if (type === 'success') {
+                toast.classList.add('bg-emerald-950/95', 'border-emerald-800', 'text-emerald-400');
+                iconStr = '<i data-lucide="check-circle" class="w-5 h-5 shrink-0"></i>';
+            } else if (type === 'error') {
+                toast.classList.add('bg-red-950/95', 'border-red-800', 'text-red-400');
+                iconStr = '<i data-lucide="alert-circle" class="w-5 h-5 shrink-0"></i>';
+            } else if (type === 'warning') {
+                toast.classList.add('bg-amber-950/95', 'border-amber-800', 'text-amber-400');
+                iconStr = '<i data-lucide="alert-triangle" class="w-5 h-5 shrink-0"></i>';
+            } else {
+                toast.classList.add('bg-sky-950/95', 'border-sky-800', 'text-sky-400');
+            }
+            
+            toast.innerHTML = `
+                ${iconStr}
+                <div class="flex-1 break-words whitespace-pre-wrap">${message}</div>
+            `;
+            
+            container.appendChild(toast);
+            if (window.lucide) lucide.createIcons();
+            
+            // Animate in
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-8', 'opacity-0');
+            });
+            
+            // Remove after 3.5s
+            setTimeout(() => {
+                toast.classList.add('translate-y-8', 'opacity-0');
+                setTimeout(() => {
+                    if (toast.parentNode === container) {
+                        container.removeChild(toast);
+                    }
+                }, 300);
+            }, 3500);
+        };
+
+        
+        async function loadMovies() {
+            const container = document.getElementById('movies-container');
+            if (!container) return;
+            try {
+                const res = await fetch(API + '?route=movies');
+                const data = await res.json();
+                if (data.success) {
+                    const movies = data.movies;
+                    if (movies.length === 0) {
+                        container.innerHTML = '<div class="text-center text-slate-500 py-12">Nenhum filme encontrado.</div>';
+                        return;
+                    }
+                    
+                    // Group by genre
+                    const byGenre = {};
+                    movies.forEach(m => {
+                        if (!byGenre[m.genre]) byGenre[m.genre] = [];
+                        byGenre[m.genre].push(m);
+                    });
+                    
+                    let html = '';
+                    for (const genre in byGenre) {
+                        html += `
+                            <div class="mb-8">
+                                <h3 class="text-lg font-bold text-white mb-4">${genre}</h3>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                    ${byGenre[genre].map(m => `
+                                        <div class="bg-slate-900/50 rounded-xl overflow-hidden border border-slate-800 hover:border-purple-500/50 transition cursor-pointer group" onclick="playMediaFile('${m.file_name}', '${m.title}')">
+                                            <div class="aspect-[2/3] bg-slate-800 flex items-center justify-center relative">
+                                                <i data-lucide="clapperboard" class="w-8 h-8 text-slate-600"></i>
+                                                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                                                    <div class="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center">
+                                                        <i data-lucide="play" class="w-5 h-5 text-white ml-1 fill-current"></i>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="p-3">
+                                                <div class="text-sm font-bold text-white truncate">${m.title}</div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                    container.innerHTML = html;
+                    if(window.lucide) lucide.createIcons();
+                }
+            } catch(e) {
+                container.innerHTML = '<div class="text-center text-red-500 py-12">Erro ao carregar filmes.</div>';
+            }
+        }
+
+        async function loadSeries() {
+            const container = document.getElementById('series-container');
+            if (!container) return;
+            try {
+                const res = await fetch(API + '?route=series');
+                const data = await res.json();
+                if (data.success) {
+                    const series = data.series;
+                    if (series.length === 0) {
+                        container.innerHTML = '<div class="text-center text-slate-500 py-12">Nenhuma série encontrada.</div>';
+                        return;
+                    }
+                    
+                    let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">';
+                    series.forEach((s, sIdx) => {
+                        html += `
+                            <div class="bg-slate-900/50 rounded-xl border border-slate-800 overflow-hidden">
+                                <div class="p-4 border-b border-slate-800 bg-slate-900">
+                                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                                        <i data-lucide="tv" class="w-5 h-5 text-indigo-400"></i> ${s.name}
+                                    </h3>
+                                </div>
+                                <div class="p-4 space-y-4 max-h-64 overflow-y-auto custom-scrollbar">
+                                    ${s.seasons.map((season, seasonIdx) => `
+                                        <div>
+                                            <h4 class="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-2">${season.name}</h4>
+                                            <div class="space-y-1">
+                                                ${season.episodes.map(ep => `
+                                                    <div class="flex items-center gap-2 p-2 hover:bg-slate-800 rounded-lg cursor-pointer transition group" onclick="playMediaFile('${ep.file_name}', '${ep.title}')">
+                                                        <i data-lucide="play-circle" class="w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition shrink-0"></i>
+                                                        <span class="text-sm text-slate-300 group-hover:text-white truncate">${ep.title}</span>
+                                                    </div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    
+                    container.innerHTML = html;
+                    if(window.lucide) lucide.createIcons();
+                }
+            } catch(e) {
+                container.innerHTML = '<div class="text-center text-red-500 py-12">Erro ao carregar séries.</div>';
+            }
+        }
+
         // =====================================================
     </script>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-2 pointer-events-none w-full max-w-sm px-4"></div>
+
 </body>
 </html>
