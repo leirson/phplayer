@@ -2088,6 +2088,11 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     <span id="video-modal-title" class="text-xs font-bold text-white max-w-sm sm:max-w-md truncate">Video</span>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
+                    <!-- Subtitle Toggle Button -->
+                    <button id="video-subtitle-btn" onclick="toggleSubtitles()" class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg text-xs font-semibold border border-slate-800 transition cursor-pointer hidden" title="Ativar / Desativar Legendas (SRT)">
+                        <i data-lucide="subtitles" class="w-3.5 h-3.5 text-sky-400"></i>
+                        <span id="video-subtitle-label">Legenda: ON</span>
+                    </button>
                     <!-- Dual Audio / Channel Selector -->
                     <div class="relative inline-block text-left" id="video-audio-selector-container">
                         <button id="video-audio-btn" onclick="toggleAudioTrackDropdown(event)" class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg text-xs font-semibold border border-slate-800 transition cursor-pointer" title="Selecionar Áudio / Canal (Dual Áudio)">
@@ -2128,7 +2133,7 @@ define('DONT_EXIT_ON_DB_ERROR', true);
 
             <!-- Video core viewport -->
             <div id="video-viewport-container" class="aspect-video bg-black flex items-center justify-center relative">
-                <video id="modal-video-player" controls class="w-full h-full object-contain" style="will-change: transform; transform: translate3d(0,0,0);"></video>
+                <video id="modal-video-player" controls crossorigin="anonymous" class="w-full h-full object-contain" style="will-change: transform; transform: translate3d(0,0,0);"></video>
             </div>
         </div>
     </div>
@@ -9482,6 +9487,10 @@ async function deleteUser(username) {
         let videoSourceNode = null;
         let videoSplitter = null;
         let videoMerger = null;
+        let gainL_L = null;
+        let gainL_R = null;
+        let gainR_L = null;
+        let gainR_R = null;
         let currentAudioChannel = 'stereo';
 
         function initVideoAudioNodes() {
@@ -9498,11 +9507,27 @@ async function deleteUser(username) {
                     videoSplitter = videoAudioCtx.createChannelSplitter(2);
                     videoMerger = videoAudioCtx.createChannelMerger(2);
 
+                    gainL_L = videoAudioCtx.createGain();
+                    gainL_R = videoAudioCtx.createGain();
+                    gainR_L = videoAudioCtx.createGain();
+                    gainR_R = videoAudioCtx.createGain();
+
                     videoSourceNode.connect(videoSplitter);
 
-                    // Default stereo routing: Left -> Left, Right -> Right
-                    videoSplitter.connect(videoMerger, 0, 0);
-                    videoSplitter.connect(videoMerger, 1, 1);
+                    // Left channel (output 0) -> gainL_L & gainL_R
+                    videoSplitter.connect(gainL_L, 0);
+                    videoSplitter.connect(gainL_R, 0);
+
+                    // Right channel (output 1) -> gainR_L & gainR_R
+                    videoSplitter.connect(gainR_L, 1);
+                    videoSplitter.connect(gainR_R, 1);
+
+                    // Connect Gains to Merger
+                    gainL_L.connect(videoMerger, 0, 0); // L -> L out
+                    gainR_L.connect(videoMerger, 0, 0); // R -> L out
+
+                    gainL_R.connect(videoMerger, 0, 1); // L -> R out
+                    gainR_R.connect(videoMerger, 0, 1); // R -> R out
 
                     videoMerger.connect(videoAudioCtx.destination);
                 } catch(e) {
@@ -9510,42 +9535,47 @@ async function deleteUser(username) {
                 }
             }
 
+            applyAudioGainMatrix(currentAudioChannel);
+
             if (videoAudioCtx && videoAudioCtx.state === 'suspended') {
                 videoAudioCtx.resume().catch(e => console.log('AudioCtx resume error', e));
             }
         }
 
-        window.selectVideoAudioChannel = function(mode) {
-            initVideoAudioNodes();
-
-            currentAudioChannel = mode;
-
-            if (videoSplitter && videoMerger) {
-                try {
-                    videoSplitter.disconnect();
-                    if (mode === 'left') {
-                        // Route Left channel (output 0) to both Left (0) and Right (1) outputs
-                        videoSplitter.connect(videoMerger, 0, 0);
-                        videoSplitter.connect(videoMerger, 0, 1);
-                    } else if (mode === 'right') {
-                        // Route Right channel (output 1) to both Left (0) and Right (1) outputs
-                        videoSplitter.connect(videoMerger, 1, 0);
-                        videoSplitter.connect(videoMerger, 1, 1);
-                    } else {
-                        // 'stereo': Left -> Left, Right -> Right
-                        videoSplitter.connect(videoMerger, 0, 0);
-                        videoSplitter.connect(videoMerger, 1, 1);
-                    }
-                } catch(e) {
-                    console.error("Channel routing error:", e);
-                }
+        function applyAudioGainMatrix(mode) {
+            if (!gainL_L || !gainL_R || !gainR_L || !gainR_R || !videoAudioCtx) return;
+            const now = videoAudioCtx.currentTime;
+            if (mode === 'left') {
+                // Route Left channel (Audio 1 / Dub) to BOTH speakers
+                gainL_L.gain.setValueAtTime(1, now);
+                gainL_R.gain.setValueAtTime(1, now);
+                gainR_L.gain.setValueAtTime(0, now);
+                gainR_R.gain.setValueAtTime(0, now);
+            } else if (mode === 'right') {
+                // Route Right channel (Audio 2 / Original) to BOTH speakers
+                gainL_L.gain.setValueAtTime(0, now);
+                gainL_R.gain.setValueAtTime(0, now);
+                gainR_L.gain.setValueAtTime(1, now);
+                gainR_R.gain.setValueAtTime(1, now);
+            } else {
+                // 'stereo': Left -> Left, Right -> Right
+                gainL_L.gain.setValueAtTime(1, now);
+                gainL_R.gain.setValueAtTime(0, now);
+                gainR_L.gain.setValueAtTime(0, now);
+                gainR_R.gain.setValueAtTime(1, now);
             }
+        }
+
+        window.selectVideoAudioChannel = function(mode) {
+            currentAudioChannel = mode;
+            initVideoAudioNodes();
+            applyAudioGainMatrix(mode);
 
             // Update UI
             const labelEl = document.getElementById('video-audio-label');
             if (labelEl) {
-                if (mode === 'left') labelEl.textContent = 'Áudio: Canal Esq';
-                else if (mode === 'right') labelEl.textContent = 'Áudio: Canal Dir';
+                if (mode === 'left') labelEl.textContent = 'Áudio: Canal Esq (Dub)';
+                else if (mode === 'right') labelEl.textContent = 'Áudio: Canal Dir (Leg)';
                 else labelEl.textContent = 'Áudio: Estéreo';
             }
 
@@ -9587,7 +9617,6 @@ async function deleteUser(username) {
                 if (nativeSection && nativeList) {
                     nativeSection.classList.remove('hidden');
                     nativeList.innerHTML = '';
-
                     for (let i = 0; i < player.audioTracks.length; i++) {
                         const track = player.audioTracks[i];
                         const btn = document.createElement('button');
@@ -9623,70 +9652,177 @@ async function deleteUser(username) {
             }
         });
 
+        
+        window.setupVideoSubtitle = function(params) {
+            const player = document.getElementById('modal-video-player');
+            if (!player) return;
+
+            const oldTracks = player.querySelectorAll('track');
+            oldTracks.forEach(tr => tr.remove());
+
+            let subUrl = 'api.php?route=stream_subtitle&';
+            if (params.id) {
+                subUrl += 'id=' + encodeURIComponent(params.id);
+            } else if (params.path) {
+                subUrl += 'path=' + encodeURIComponent(params.path);
+            } else {
+                updateSubtitleUI(false);
+                return;
+            }
+
+            const track = document.createElement('track');
+            track.kind = 'subtitles';
+            track.label = 'Português (SRT)';
+            track.srclang = 'pt';
+            track.src = subUrl;
+            track.default = true;
+
+            track.onload = function() {
+                try {
+                    if (player.textTracks && player.textTracks.length > 0) {
+                        player.textTracks[0].mode = 'showing';
+                    }
+                } catch(e) {}
+                updateSubtitleUI(true);
+            };
+
+            track.onerror = function() {
+                updateSubtitleUI(false);
+            };
+
+            player.appendChild(track);
+
+            setTimeout(() => {
+                if (player.textTracks && player.textTracks.length > 0) {
+                    try {
+                        const t = player.textTracks[0];
+                        if (t && t.mode !== 'disabled') {
+                            t.mode = 'showing';
+                            updateSubtitleUI(true);
+                        }
+                    } catch(e) {}
+                }
+            }, 600);
+        };
+
+        window.toggleSubtitles = function() {
+            const player = document.getElementById('modal-video-player');
+            if (!player) return;
+            const btnLabel = document.getElementById('video-subtitle-label');
+            const btn = document.getElementById('video-subtitle-btn');
+
+            if (player.textTracks && player.textTracks.length > 0) {
+                const t = player.textTracks[0];
+                if (t.mode === 'showing') {
+                    t.mode = 'disabled';
+                    if (btnLabel) btnLabel.textContent = 'Legenda: OFF';
+                    if (btn) btn.classList.add('opacity-60');
+                } else {
+                    t.mode = 'showing';
+                    if (btnLabel) btnLabel.textContent = 'Legenda: ON';
+                    if (btn) btn.classList.remove('opacity-60');
+                }
+            }
+        };
+
+        window.updateSubtitleUI = function(hasSub) {
+            const btn = document.getElementById('video-subtitle-btn');
+            const btnLabel = document.getElementById('video-subtitle-label');
+            if (!btn) return;
+            if (hasSub) {
+                btn.classList.remove('hidden');
+                if (btnLabel) btnLabel.textContent = 'Legenda: ON';
+                btn.classList.remove('opacity-60');
+            } else {
+                btn.classList.add('hidden');
+            }
+        };
+
         function playMediaFile(path, title) {
-            // stop audio player if playing
             if (isPlaying) {
                 audio.pause();
                 isPlaying = false;
                 const btn = document.getElementById('player-play-btn');
                 if (btn) btn.innerHTML = '<i data-lucide="play" class="w-4 h-4 fill-current"></i>';
-                lucide.createIcons();
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             }
-            
+
             const player = document.getElementById('modal-video-player');
             if (player) {
                 player.src = 'api.php?route=stream_media&path=' + encodeURIComponent(path);
                 player.removeAttribute('poster');
+                player.onplay = function() { initVideoAudioNodes(); };
+                setupVideoSubtitle({ path: path });
             }
-            
+
             const tEl = document.getElementById('video-modal-title');
             if (tEl) tEl.textContent = title;
-            
+
             const modal = document.getElementById('video-modal');
             if (modal) {
                 modal.classList.remove('hidden');
                 modal.querySelector('> div').classList.remove('scale-95', 'opacity-0');
             }
-            
+
             if (player) {
-                player.onplay = function() { initVideoAudioNodes(); };
-                player.play().then(() => { initVideoAudioNodes(); }).catch(e => console.log('Auto-play prevent', e));
+                player.play().then(() => {
+                    initVideoAudioNodes();
+                }).catch(e => console.log('Auto-play prevent', e));
             }
         }
 
         function playVideo(id) {
             const vid = allVideos.find(v => v.id === id);
             if (!vid) return;
-            
-            // stop audio player if playing
+
             if (isPlaying) {
                 audio.pause();
                 isPlaying = false;
-                document.getElementById('player-play-btn').innerHTML = '<i data-lucide="play" class="w-4 h-4 fill-current"></i>';
-                lucide.createIcons();
+                const btn = document.getElementById('player-play-btn');
+                if (btn) btn.innerHTML = '<i data-lucide="play" class="w-4 h-4 fill-current"></i>';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             }
-            
+
             const player = document.getElementById('modal-video-player');
-            player.src = 'api.php?route=stream_video&id=' + encodeURIComponent(vid.id);
-            if (vid.coverUrl) {
-                player.poster = vid.coverUrl;
-            } else {
-                player.removeAttribute('poster');
+            if (player) {
+                player.src = 'api.php?route=stream_video&id=' + encodeURIComponent(vid.id);
+                if (vid.coverUrl) {
+                    player.poster = vid.coverUrl;
+                } else {
+                    player.removeAttribute('poster');
+                }
+                player.onplay = function() { initVideoAudioNodes(); };
+                setupVideoSubtitle({ id: vid.id });
             }
-            
-            document.getElementById('video-modal-title').textContent = vid.title;
-            document.getElementById('video-modal').classList.remove('hidden');
-            player.play();
-            lucide.createIcons();
+
+            const tEl = document.getElementById('video-modal-title');
+            if (tEl) tEl.textContent = vid.title;
+
+            const modal = document.getElementById('video-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+            }
+
+            if (player) {
+                player.play().then(() => {
+                    initVideoAudioNodes();
+                }).catch(e => console.log('Auto-play prevent', e));
+            }
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
         function closeVideoModal() {
+            updateSubtitleUI(false);
             const player = document.getElementById('modal-video-player');
-            player.pause();
-            player.src = '';
+            if (player) {
+                player.pause();
+                player.src = '';
+            }
             const modal = document.getElementById('video-modal');
-            modal.classList.add('hidden');
-            modal.classList.remove('pseudo-fullscreen-active');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('pseudo-fullscreen-active');
+            }
             const btn = document.getElementById('video-maximize-btn');
             if (btn) btn.innerHTML = '<i data-lucide="maximize" class="w-4 h-4"></i>';
             if (typeof lucide !== 'undefined') {

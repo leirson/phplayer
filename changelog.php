@@ -1,5 +1,8 @@
 <?php
 $changelog = <<<EOT
+v1.1.7
+- Adicionado suporte a legendas SRT e WebVTT automáticas em filmes, séries e vídeos (detecção automática por arquivo com o mesmo nome do vídeo, conversão SRT -> WebVTT em tempo real e botão de controle ON/OFF no reprodutor).
+
 v1.1.6
 - Implementado seletor de canais de áudio e suporte a Dual Áudio nos reprodutores de filmes, séries e vídeos (Estéreo, Canal Esquerdo/Dublado e Canal Direito/Legendado via Web Audio API + faixas de áudio nativas).
 

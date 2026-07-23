@@ -3921,6 +3921,108 @@ Accept: */*
         exit;
 
     
+    case 'stream_subtitle':
+        $id = $_GET['id'] ?? '';
+        $path = $_GET['path'] ?? '';
+        $filePath = '';
+
+        if (!empty($id)) {
+            $stmt = $pdo->prepare("SELECT file_name FROM videos WHERE id = ?");
+            $stmt->execute([$id]);
+            $video = $stmt->fetch();
+            if ($video) {
+                $filePath = VIDEOS_DIR . $video['file_name'];
+            }
+        } elseif (!empty($path)) {
+            $pathDecoded = rawurldecode($path);
+            if (strpos($pathDecoded, 'movies/') === 0 || strpos($pathDecoded, 'series/') === 0 || strpos($pathDecoded, 'videos/') === 0) {
+                $filePath = __DIR__ . '/' . $pathDecoded;
+            }
+        }
+
+        if (empty($filePath) || strpos($filePath, '..') !== false) {
+            http_response_code(400);
+            exit("Path ou ID inválido");
+        }
+
+        $dir = pathinfo($filePath, PATHINFO_DIRNAME);
+        $filename = pathinfo($filePath, PATHINFO_FILENAME);
+        $basePath = $dir . '/' . $filename;
+
+        // Procurar arquivo de legenda (.srt, .vtt)
+        $possibleSubFiles = [
+            $basePath . '.srt',
+            $basePath . '.SRT',
+            $basePath . '.Srt',
+            $basePath . '.vtt',
+            $basePath . '.VTT',
+            $basePath . '.Vtt',
+        ];
+
+        $foundSubFile = null;
+        foreach ($possibleSubFiles as $pSub) {
+            if (file_exists($pSub)) {
+                $foundSubFile = $pSub;
+                break;
+            }
+        }
+
+        if (!$foundSubFile && is_dir($dir)) {
+            $dh = @opendir($dir);
+            if ($dh) {
+                while (($f = readdir($dh)) !== false) {
+                    if ($f === '.' || $f === '..') continue;
+                    $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+                    if ($ext === 'srt' || $ext === 'vtt') {
+                        $fNameWithoutExt = pathinfo($f, PATHINFO_FILENAME);
+                        if (strcasecmp($fNameWithoutExt, $filename) === 0) {
+                            $foundSubFile = $dir . '/' . $f;
+                            break;
+                        }
+                    }
+                }
+                closedir($dh);
+            }
+        }
+
+        if (!$foundSubFile || !file_exists($foundSubFile)) {
+            http_response_code(404);
+            exit("Legenda não encontrada");
+        }
+
+        $subExt = strtolower(pathinfo($foundSubFile, PATHINFO_EXTENSION));
+        $content = @file_get_contents($foundSubFile);
+        if ($content === false) {
+            http_response_code(500);
+            exit("Erro ao ler legenda");
+        }
+
+        header("Content-Type: text/vtt; charset=utf-8");
+        header("Access-Control-Allow-Origin: *");
+        header("Cache-Control: public, max-age=86400");
+
+        if ($subExt === 'vtt') {
+            echo $content;
+            exit;
+        }
+
+        // Converter SRT para WebVTT
+        if (!mb_check_encoding($content, 'UTF-8')) {
+            $content = mb_convert_encoding($content, 'UTF-8', 'ISO-8859-1, Windows-1252, auto');
+        }
+        $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+        $content = str_replace(["\r\n", "\r"], "\n", $content);
+        $content = preg_replace('/(\d{2}:\d{2}:\d{2}),(\d{3})/', '$1.$2', $content);
+
+        if (strpos(trim($content), 'WEBVTT') !== 0) {
+            $vttOutput = "WEBVTT\n\n" + trim($content) + "\n";
+        } else {
+            $vttOutput = $content;
+        }
+
+        echo $vttOutput;
+        exit;
+
     case 'movies':
         $movies = [];
         if (file_exists(MOVIES_DIR)) {
