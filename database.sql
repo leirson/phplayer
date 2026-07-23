@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS `users` (
   `password` varchar(255) NOT NULL,
   `role` varchar(20) DEFAULT 'ouvinte',
   `theme` varchar(30) DEFAULT 'default',
+  `can_share` tinyint(1) DEFAULT 1,
+  `can_download` tinyint(1) DEFAULT 1,
+  `dashboardLimit` int(11) DEFAULT 100,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -83,6 +86,17 @@ CREATE TABLE IF NOT EXISTS `radios` (
   `resolved_url` varchar(500) DEFAULT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `shares` (
+  `share_hash` varchar(100) NOT NULL,
+  `target_type` varchar(50) NOT NULL,
+  `target_id` varchar(500) NOT NULL,
+  `target_name` varchar(255) NOT NULL,
+  `created_by` varchar(50) DEFAULT NULL,
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+  `expires_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`share_hash`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Admin: admin  Ouvinte: ouvinte
