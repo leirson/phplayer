@@ -1,5 +1,10 @@
 <?php
 $changelog = <<<EOT
+v1.2.0
+- Suporte a leitura e carregamento automático de legendas SRT/WebVTT para vídeos (com detecção do arquivo pelo nome do vídeo e botão LIGA/DESLIGA).
+- Verificação dinâmica e seletor de canais de áudio para vídeos com múltiplos canais (Estéreo, Canal Esquerdo/Dublado, Canal Direito/Legendado, Mono L+R e Inversão L ↔ R).
+- Adicionados cabeçalhos de controle CORS (Cross-Origin Resource Sharing) no api.php para streaming de mídia e suporte a legendas externas.
+
 v1.1.9
 - Verificação dinâmica e seleção de canais de áudio em vídeos (Estéreo, Canal Esquerdo/Dublado, Canal Direito/Legendado, Mistura Mono L+R e Inversão L ↔ R) com indicador de contagem de canais detectados no reprodutor.
 
