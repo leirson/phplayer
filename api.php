@@ -4450,6 +4450,28 @@ Accept: */*
             exit(json_encode(['error' => 'Um arquivo ou pasta com este nome de destino já existe.']));
         }
         if (rename($oldPath, $newPath)) {
+            // Update database records if renaming music or video files/folders
+            try {
+                $oldRelMusic = preg_replace('#^music/#i', '', $oldSubpath);
+                $newRelMusic = preg_replace('#^music/#i', '', $newSubpath);
+                if ($oldSubpath !== $oldRelMusic) {
+                    if (function_exists('get_songs_tables')) {
+                        $tables = get_songs_tables($pdo);
+                        foreach ($tables as $t) {
+                            $stmt = $pdo->prepare("UPDATE `$t` SET file_name = REPLACE(file_name, ?, ?) WHERE file_name = ? OR file_name LIKE ?");
+                            $stmt->execute([$oldRelMusic, $newRelMusic, $oldRelMusic, $oldRelMusic . '/%']);
+                        }
+                    }
+                }
+                $oldRelVideo = preg_replace('#^videos/#i', '', $oldSubpath);
+                $newRelVideo = preg_replace('#^videos/#i', '', $newSubpath);
+                if ($oldSubpath !== $oldRelVideo) {
+                    $stmt = $pdo->prepare("UPDATE videos SET file_name = REPLACE(file_name, ?, ?) WHERE file_name = ? OR file_name LIKE ?");
+                    $stmt->execute([$oldRelVideo, $newRelVideo, $oldRelVideo, $oldRelVideo . '/%']);
+                }
+            } catch (Exception $dbErr) {
+                // Ignore DB update errors if tables do not exist
+            }
             echo json_encode(['success' => true]);
         } else {
             http_response_code(500);

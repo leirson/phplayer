@@ -217,6 +217,33 @@ define('DONT_EXIT_ON_DB_ERROR', true);
 
 
     <!-- DIAGNOSTIC ERROR MODAL -->
+    
+    <!-- FILE RENAME MODAL -->
+    <div id="file-rename-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
+        <div class="w-full max-w-md bg-slate-950 border border-slate-900 rounded-2xl p-6 shadow-2xl space-y-4 text-left">
+            <div class="flex items-center justify-between border-b border-slate-900 pb-3">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i data-lucide="edit-3" class="w-4 h-4 text-sky-400"></i> Renomear Arquivo ou Pasta
+                </h3>
+                <button onclick="closeRenameModal()" class="p-1 text-slate-400 hover:text-white rounded-lg transition cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs font-medium text-slate-400">Novo Nome:</label>
+                <input type="text" id="file-rename-input" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none focus:border-sky-500 transition" placeholder="Digite o novo nome...">
+            </div>
+            <div class="flex items-center justify-end gap-2 pt-2">
+                <button onclick="closeRenameModal()" class="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold rounded-xl transition cursor-pointer">
+                    Cancelar
+                </button>
+                <button id="file-rename-confirm-btn" onclick="submitRenameModal()" class="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-lg shadow-sky-500/10">
+                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Renomear
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="error-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md hidden">
         <div class="w-full max-w-2xl bg-slate-950 border border-slate-900 rounded-3xl p-8 shadow-2xl space-y-6 text-left">
             <div class="flex items-center gap-4 border-b border-slate-900 pb-5">
@@ -3856,6 +3883,22 @@ const updPane = document.getElementById('subtab-pane-updates');
             }
         }
 
+        
+        // Rename modal key listener
+        window.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('file-rename-input');
+            if (input) {
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        submitRenameModal();
+                    } else if (e.key === 'Escape') {
+                        closeRenameModal();
+                    }
+                });
+            }
+        }); // file-rename-input-listener-added
+    
         let fileManagerCurrentPath = '';
         let fileUploadQueue = [];
         let currentlyUploading = false;
