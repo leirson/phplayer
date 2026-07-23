@@ -2100,10 +2100,14 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                             <span id="video-audio-label">Áudio: Estéreo</span>
                             <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400"></i>
                         </button>
-                        <div id="video-audio-dropdown" class="absolute right-0 mt-2 w-60 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-2 hidden z-50 text-xs">
+                        <div id="video-audio-dropdown" class="absolute right-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-2 hidden z-50 text-xs">
+                            <div id="video-audio-status" class="px-2 py-1.5 text-[10px] font-semibold text-sky-400 bg-sky-950/40 border border-sky-900/50 rounded-lg mb-1.5 flex items-center justify-between">
+                                <span>Verificando canais...</span>
+                                <span id="video-audio-ch-count" class="font-mono text-[9px] px-1.5 py-0.5 bg-sky-900/60 rounded">2 CH</span>
+                            </div>
                             <div class="px-2 py-1 text-[10px] font-bold uppercase text-slate-400 tracking-wider">Canais de Áudio (Dual Áudio)</div>
                             <button onclick="selectVideoAudioChannel('stereo')" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 flex items-center justify-between group text-xs font-medium transition cursor-pointer active-audio-option" data-channel="stereo">
-                                <span>Estéreo (Padrão)</span>
+                                <span>Estéreo (Padrão L+R)</span>
                                 <i data-lucide="check" class="w-3.5 h-3.5 text-sky-400 opacity-100 check-icon"></i>
                             </button>
                             <button onclick="selectVideoAudioChannel('left')" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 flex items-center justify-between group text-xs font-medium transition cursor-pointer" data-channel="left">
@@ -2112,6 +2116,14 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                             </button>
                             <button onclick="selectVideoAudioChannel('right')" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 flex items-center justify-between group text-xs font-medium transition cursor-pointer" data-channel="right">
                                 <span>Canal Direito (Áudio 2 / Leg)</span>
+                                <i data-lucide="check" class="w-3.5 h-3.5 text-sky-400 opacity-0 check-icon"></i>
+                            </button>
+                            <button onclick="selectVideoAudioChannel('mono')" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 flex items-center justify-between group text-xs font-medium transition cursor-pointer" data-channel="mono">
+                                <span>Misturar Canais (Mono L+R)</span>
+                                <i data-lucide="check" class="w-3.5 h-3.5 text-sky-400 opacity-0 check-icon"></i>
+                            </button>
+                            <button onclick="selectVideoAudioChannel('swap')" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 flex items-center justify-between group text-xs font-medium transition cursor-pointer" data-channel="swap">
+                                <span>Inverter Canais (L ↔ R)</span>
                                 <i data-lucide="check" class="w-3.5 h-3.5 text-sky-400 opacity-0 check-icon"></i>
                             </button>
                             <div id="native-tracks-section" class="hidden">
@@ -9547,34 +9559,34 @@ async function deleteUser(username) {
             const now = videoAudioCtx.currentTime;
             if (mode === 'left') {
                 // Route Left channel (Audio 1 / Dub) to BOTH speakers
-                gainL_L.gain.value = 1;
-                gainL_L.gain.setValueAtTime(1, now);
-                gainL_R.gain.value = 1;
-                gainL_R.gain.setValueAtTime(1, now);
-                gainR_L.gain.value = 0;
-                gainR_L.gain.setValueAtTime(0, now);
-                gainR_R.gain.value = 0;
-                gainR_R.gain.setValueAtTime(0, now);
+                gainL_L.gain.value = 1; gainL_L.gain.setValueAtTime(1, now);
+                gainL_R.gain.value = 1; gainL_R.gain.setValueAtTime(1, now);
+                gainR_L.gain.value = 0; gainR_L.gain.setValueAtTime(0, now);
+                gainR_R.gain.value = 0; gainR_R.gain.setValueAtTime(0, now);
             } else if (mode === 'right') {
                 // Route Right channel (Audio 2 / Original) to BOTH speakers
-                gainL_L.gain.value = 0;
-                gainL_L.gain.setValueAtTime(0, now);
-                gainL_R.gain.value = 0;
-                gainL_R.gain.setValueAtTime(0, now);
-                gainR_L.gain.value = 1;
-                gainR_L.gain.setValueAtTime(1, now);
-                gainR_R.gain.value = 1;
-                gainR_R.gain.setValueAtTime(1, now);
+                gainL_L.gain.value = 0; gainL_L.gain.setValueAtTime(0, now);
+                gainL_R.gain.value = 0; gainL_R.gain.setValueAtTime(0, now);
+                gainR_L.gain.value = 1; gainR_L.gain.setValueAtTime(1, now);
+                gainR_R.gain.value = 1; gainR_R.gain.setValueAtTime(1, now);
+            } else if (mode === 'mono') {
+                // Mix Left and Right into both speakers (0.5 each)
+                gainL_L.gain.value = 0.5; gainL_L.gain.setValueAtTime(0.5, now);
+                gainL_R.gain.value = 0.5; gainL_R.gain.setValueAtTime(0.5, now);
+                gainR_L.gain.value = 0.5; gainR_L.gain.setValueAtTime(0.5, now);
+                gainR_R.gain.value = 0.5; gainR_R.gain.setValueAtTime(0.5, now);
+            } else if (mode === 'swap') {
+                // Invert L and R
+                gainL_L.gain.value = 0; gainL_L.gain.setValueAtTime(0, now);
+                gainL_R.gain.value = 1; gainL_R.gain.setValueAtTime(1, now);
+                gainR_L.gain.value = 1; gainR_L.gain.setValueAtTime(1, now);
+                gainR_R.gain.value = 0; gainR_R.gain.setValueAtTime(0, now);
             } else {
                 // 'stereo': Left -> Left, Right -> Right
-                gainL_L.gain.value = 1;
-                gainL_L.gain.setValueAtTime(1, now);
-                gainL_R.gain.value = 0;
-                gainL_R.gain.setValueAtTime(0, now);
-                gainR_L.gain.value = 0;
-                gainR_L.gain.setValueAtTime(0, now);
-                gainR_R.gain.value = 1;
-                gainR_R.gain.setValueAtTime(1, now);
+                gainL_L.gain.value = 1; gainL_L.gain.setValueAtTime(1, now);
+                gainL_R.gain.value = 0; gainL_R.gain.setValueAtTime(0, now);
+                gainR_L.gain.value = 0; gainR_L.gain.setValueAtTime(0, now);
+                gainR_R.gain.value = 1; gainR_R.gain.setValueAtTime(1, now);
             }
         }
 
@@ -9588,6 +9600,8 @@ async function deleteUser(username) {
             if (labelEl) {
                 if (mode === 'left') labelEl.textContent = 'Áudio: Canal Esq (Dub)';
                 else if (mode === 'right') labelEl.textContent = 'Áudio: Canal Dir (Leg)';
+                else if (mode === 'mono') labelEl.textContent = 'Áudio: Mono (L+R)';
+                else if (mode === 'swap') labelEl.textContent = 'Áudio: Invertido (L/R)';
                 else labelEl.textContent = 'Áudio: Estéreo';
             }
 
@@ -9608,12 +9622,36 @@ async function deleteUser(username) {
             }
         };
 
+        window.updateAudioChannelInfo = function() {
+            const player = document.getElementById('modal-video-player');
+            const statusEl = document.getElementById('video-audio-status');
+            const countEl = document.getElementById('video-audio-ch-count');
+            if (!statusEl) return;
+
+            let chCount = 2;
+            if (videoSourceNode && videoSourceNode.channelCount) {
+                chCount = videoSourceNode.channelCount;
+            } else if (videoAudioCtx && videoAudioCtx.destination) {
+                chCount = videoAudioCtx.destination.channelCount || 2;
+            }
+
+            if (countEl) countEl.textContent = chCount + ' CH';
+
+            if (chCount > 1) {
+                statusEl.innerHTML = `<span>Multi-canais detectados:</span><span class="font-mono text-[9px] px-1.5 py-0.5 bg-sky-900/60 text-sky-300 border border-sky-800/60 rounded">${chCount} Canais (${chCount === 2 ? 'Estéreo/Dual' : chCount + ' CH'})</span>`;
+            } else {
+                statusEl.innerHTML = `<span>Canal de áudio:</span><span class="font-mono text-[9px] px-1.5 py-0.5 bg-amber-900/60 text-amber-300 border border-amber-800/60 rounded">1 Canal (Mono)</span>`;
+            }
+        };
+
         window.toggleAudioTrackDropdown = function(e) {
             if (e) e.stopPropagation();
             const dropdown = document.getElementById('video-audio-dropdown');
             if (dropdown) {
                 dropdown.classList.toggle('hidden');
                 if (!dropdown.classList.contains('hidden')) {
+                    initVideoAudioNodes();
+                    updateAudioChannelInfo();
                     checkNativeAudioTracks();
                     if (typeof lucide !== 'undefined') lucide.createIcons();
                 }

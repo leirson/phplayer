@@ -1,5 +1,8 @@
 <?php
 $changelog = <<<EOT
+v1.1.9
+- Verificação dinâmica e seleção de canais de áudio em vídeos (Estéreo, Canal Esquerdo/Dublado, Canal Direito/Legendado, Mistura Mono L+R e Inversão L ↔ R) com indicador de contagem de canais detectados no reprodutor.
+
 v1.1.8
 - Adicionada leitura automática de legendas .SRT/.WebVTT com o mesmo nome do vídeo sem alterar ou interferir nos canais e faixas de áudio configurados.
 - Incluído cabeçalhos CORS (Cross-Origin) para rotas de transmissão de vídeos e mídias no api.php.
