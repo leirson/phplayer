@@ -944,7 +944,14 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                         <!-- Video scan -->
                         <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left">
                             <div class="space-y-1.5">
-                                <span class="bg-violet-500/10 text-violet-400 border border-violet-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Vídeo Library</span>
+                                <div class="flex items-center justify-between">
+                                    <span class="bg-violet-500/10 text-violet-400 border border-violet-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Vídeo Library</span>
+                                    <label class="relative inline-flex items-center cursor-pointer gap-2" title="Ativar/Desativar no menu lateral">
+                                        <span class="text-[10px] font-bold text-slate-400">Ativo</span>
+                                        <input type="checkbox" class="sr-only peer feature-enable-videos" onchange="toggleFeature('videos', this.checked)">
+                                        <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600"></div>
+                                    </label>
+                                </div>
                                 <h3 class="text-sm font-bold text-white">Sincronizar Pasta /videos</h3>
                                 <p class="text-[11px] text-slate-400 leading-relaxed">Varre recursivamente o diretório de vídeos no disco do servidor para listar arquivos .mp4 ou .mkv.</p>
                             </div>
@@ -956,7 +963,14 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                         <!-- Movies scan -->
                         <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left">
                             <div class="space-y-1.5">
-                                <span class="bg-amber-500/10 text-amber-400 border border-amber-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Movies Library</span>
+                                <div class="flex items-center justify-between">
+                                    <span class="bg-amber-500/10 text-amber-400 border border-amber-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Movies Library</span>
+                                    <label class="relative inline-flex items-center cursor-pointer gap-2" title="Ativar/Desativar no menu lateral">
+                                        <span class="text-[10px] font-bold text-slate-400">Ativo</span>
+                                        <input type="checkbox" class="sr-only peer feature-enable-movies" onchange="toggleFeature('movies', this.checked)">
+                                        <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+                                    </label>
+                                </div>
                                 <h3 class="text-sm font-bold text-white">Sincronizar Pasta /movies</h3>
                                 <p class="text-[11px] text-slate-400 leading-relaxed">Varre o diretório de filmes no disco do servidor para listar arquivos por gênero (.mp4, .mkv, .webm, .avi, .mov).</p>
                             </div>
@@ -968,7 +982,14 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                         <!-- Series scan -->
                         <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left">
                             <div class="space-y-1.5">
-                                <span class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Series Library</span>
+                                <div class="flex items-center justify-between">
+                                    <span class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Series Library</span>
+                                    <label class="relative inline-flex items-center cursor-pointer gap-2" title="Ativar/Desativar no menu lateral">
+                                        <span class="text-[10px] font-bold text-slate-400">Ativo</span>
+                                        <input type="checkbox" class="sr-only peer feature-enable-series" onchange="toggleFeature('series', this.checked)">
+                                        <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                    </label>
+                                </div>
                                 <h3 class="text-sm font-bold text-white">Sincronizar Pasta /series</h3>
                                 <p class="text-[11px] text-slate-400 leading-relaxed">Varre o diretório de séries no disco do servidor para listar séries, temporadas e episódios (.mp4, .mkv, .webm, .avi, .mov).</p>
                             </div>
@@ -5413,6 +5434,7 @@ const updPane = document.getElementById('subtab-pane-updates');
         }
 
         function renderLeftSidebar() {
+            if (window.updateMediaSidebarVisibility) window.updateMediaSidebarVisibility();
             // Sidebar Artists list
             const arts = Array.from(new Set(allTracks.map(t => t.artist))).filter(Boolean).sort();
             const artEl = document.getElementById('artist-sidebar-list');
@@ -9092,6 +9114,38 @@ document.addEventListener('fullscreenchange', (event) => {
         
 
 
+
+window.updateMediaSidebarVisibility = function() {
+    if (!window.globalSettings) window.globalSettings = {};
+    
+    // Videos (default enabled unless feature_videos === '0')
+    const showVideos = globalSettings['feature_videos'] !== '0';
+    const btnVideos = document.getElementById('tab-btn-videos');
+    if (btnVideos) {
+        if (showVideos) btnVideos.classList.remove('hidden');
+        else btnVideos.classList.add('hidden');
+    }
+    document.querySelectorAll('.feature-enable-videos, #feature-enable-videos').forEach(el => { el.checked = showVideos; });
+
+    // Movies (default enabled unless feature_movies === '0')
+    const showMovies = globalSettings['feature_movies'] !== '0';
+    const btnMovies = document.getElementById('tab-btn-movies');
+    if (btnMovies) {
+        if (showMovies) btnMovies.classList.remove('hidden');
+        else btnMovies.classList.add('hidden');
+    }
+    document.querySelectorAll('.feature-enable-movies, #feature-enable-movies').forEach(el => { el.checked = showMovies; });
+
+    // Series (default enabled unless feature_series === '0')
+    const showSeries = globalSettings['feature_series'] !== '0';
+    const btnSeries = document.getElementById('tab-btn-series');
+    if (btnSeries) {
+        if (showSeries) btnSeries.classList.remove('hidden');
+        else btnSeries.classList.add('hidden');
+    }
+    document.querySelectorAll('.feature-enable-series, #feature-enable-series').forEach(el => { el.checked = showSeries; });
+};
+
 async function loadDashSettings() {
     try {
         const res = await fetch(API + '?route=get_settings');
@@ -9110,25 +9164,7 @@ async function loadDashSettings() {
         if(elTime) elTime.value = (globalSettings['dashboard_rotate_time'] !== undefined) ? globalSettings['dashboard_rotate_time'] : 8;
         
         
-        const elMovies = document.getElementById('feature-enable-movies');
-        if(elMovies) elMovies.checked = (globalSettings['feature_movies'] === '1');
-        
-        const elSeries = document.getElementById('feature-enable-series');
-        if(elSeries) elSeries.checked = (globalSettings['feature_series'] === '1');
-        
-        const btnMovies = document.getElementById('tab-btn-movies');
-        if(btnMovies) {
-            if(globalSettings['feature_movies'] === '1') btnMovies.classList.remove('hidden');
-            else btnMovies.classList.add('hidden');
-        }
-        
-        const btnSeries = document.getElementById('tab-btn-series');
-        if(btnSeries) {
-            if(globalSettings['feature_series'] === '1') btnSeries.classList.remove('hidden');
-            else btnSeries.classList.add('hidden');
-        }
-
-        
+        updateMediaSidebarVisibility();
     } catch(e) { console.error(e); }
 }
 

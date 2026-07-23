@@ -1,5 +1,8 @@
 <?php
 $changelog = <<<EOT
+v1.1.5
+- Adicionado seletor de ativação/desativação para 'Vídeo Library', 'Series Library' e 'Movies Library' na aba Sincronização e Mídia das Configurações, ocultando ou exibindo os menus correspondentes no menu lateral.
+
 v1.1.4
 - Adicionado suporte a foto/capa e descrição/sinopse para Séries com modal de edição para administradores e armazenamento no banco de dados.
 
