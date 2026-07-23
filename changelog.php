@@ -1,5 +1,8 @@
 <?php
 $changelog = <<<EOT
+v1.1.3
+- Correção para compatibilidade com instalações existentes: definição fallback de constantes de diretório (MOVIES_DIR, SERIES_DIR, VIDEOS_DIR, etc.) caso não existam no config.php do usuário.
+
 v1.1.2
 - Adicionados botões de escaneamento para as pastas 'movies' e 'series' na aba Sincronização e Mídia das Configurações.
 

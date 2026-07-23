@@ -79,6 +79,11 @@ register_shutdown_function(function () {
 });
 
 require_once 'config.php';
+if (!defined('UPLOAD_DIR')) define('UPLOAD_DIR', __DIR__ . '/uploads/');
+if (!defined('IMAGES_DIR')) define('IMAGES_DIR', __DIR__ . '/images/');
+if (!defined('VIDEOS_DIR')) define('VIDEOS_DIR', __DIR__ . '/videos/');
+if (!defined('MOVIES_DIR')) define('MOVIES_DIR', __DIR__ . '/movies/');
+if (!defined('SERIES_DIR')) define('SERIES_DIR', __DIR__ . '/series/');
 header('Content-Type: application/json; charset=utf-8');
 
 try {
