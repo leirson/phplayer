@@ -1,5 +1,8 @@
 <?php
 $changelog = <<<EOT
+v1.1.6
+- Implementado seletor de canais de áudio e suporte a Dual Áudio nos reprodutores de filmes, séries e vídeos (Estéreo, Canal Esquerdo/Dublado e Canal Direito/Legendado via Web Audio API + faixas de áudio nativas).
+
 v1.1.5
 - Adicionado seletor de ativação/desativação para 'Vídeo Library', 'Series Library' e 'Movies Library' na aba Sincronização e Mídia das Configurações, ocultando ou exibindo os menus correspondentes no menu lateral.
 

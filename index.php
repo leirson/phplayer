@@ -2088,6 +2088,35 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     <span id="video-modal-title" class="text-xs font-bold text-white max-w-sm sm:max-w-md truncate">Video</span>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
+                    <!-- Dual Audio / Channel Selector -->
+                    <div class="relative inline-block text-left" id="video-audio-selector-container">
+                        <button id="video-audio-btn" onclick="toggleAudioTrackDropdown(event)" class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg text-xs font-semibold border border-slate-800 transition cursor-pointer" title="Selecionar Áudio / Canal (Dual Áudio)">
+                            <i data-lucide="volume-2" class="w-3.5 h-3.5 text-sky-400"></i>
+                            <span id="video-audio-label">Áudio: Estéreo</span>
+                            <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400"></i>
+                        </button>
+                        <div id="video-audio-dropdown" class="absolute right-0 mt-2 w-60 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-2 hidden z-50 text-xs">
+                            <div class="px-2 py-1 text-[10px] font-bold uppercase text-slate-400 tracking-wider">Canais de Áudio (Dual Áudio)</div>
+                            <button onclick="selectVideoAudioChannel('stereo')" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 flex items-center justify-between group text-xs font-medium transition cursor-pointer active-audio-option" data-channel="stereo">
+                                <span>Estéreo (Padrão)</span>
+                                <i data-lucide="check" class="w-3.5 h-3.5 text-sky-400 opacity-100 check-icon"></i>
+                            </button>
+                            <button onclick="selectVideoAudioChannel('left')" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 flex items-center justify-between group text-xs font-medium transition cursor-pointer" data-channel="left">
+                                <span>Canal Esquerdo (Áudio 1 / Dub)</span>
+                                <i data-lucide="check" class="w-3.5 h-3.5 text-sky-400 opacity-0 check-icon"></i>
+                            </button>
+                            <button onclick="selectVideoAudioChannel('right')" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 flex items-center justify-between group text-xs font-medium transition cursor-pointer" data-channel="right">
+                                <span>Canal Direito (Áudio 2 / Leg)</span>
+                                <i data-lucide="check" class="w-3.5 h-3.5 text-sky-400 opacity-0 check-icon"></i>
+                            </button>
+                            <div id="native-tracks-section" class="hidden">
+                                <div class="border-t border-slate-800 my-1.5"></div>
+                                <div class="px-2 py-1 text-[10px] font-bold uppercase text-slate-400 tracking-wider">Faixas Nativas de Áudio</div>
+                                <div id="native-tracks-list" class="space-y-0.5"></div>
+                            </div>
+                        </div>
+                    </div>
+
                     <button id="video-maximize-btn" onclick="toggleVideoMaximize()" class="p-1 text-slate-500 hover:text-white hover:bg-slate-900 rounded-lg transition" title="Tela Cheia">
                         <i data-lucide="maximize" class="w-4 h-4"></i>
                     </button>
@@ -9448,6 +9477,152 @@ async function deleteUser(username) {
             player.play().catch(e => console.log('Auto-play prevent', e));
         }
 
+        
+        let videoAudioCtx = null;
+        let videoSourceNode = null;
+        let videoSplitter = null;
+        let videoMerger = null;
+        let currentAudioChannel = 'stereo';
+
+        function initVideoAudioNodes() {
+            const player = document.getElementById('modal-video-player');
+            if (!player) return;
+
+            if (!videoAudioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextClass) return;
+
+                try {
+                    videoAudioCtx = new AudioContextClass();
+                    videoSourceNode = videoAudioCtx.createMediaElementSource(player);
+                    videoSplitter = videoAudioCtx.createChannelSplitter(2);
+                    videoMerger = videoAudioCtx.createChannelMerger(2);
+
+                    videoSourceNode.connect(videoSplitter);
+
+                    // Default stereo routing: Left -> Left, Right -> Right
+                    videoSplitter.connect(videoMerger, 0, 0);
+                    videoSplitter.connect(videoMerger, 1, 1);
+
+                    videoMerger.connect(videoAudioCtx.destination);
+                } catch(e) {
+                    console.error("AudioContext initialization error:", e);
+                }
+            }
+
+            if (videoAudioCtx && videoAudioCtx.state === 'suspended') {
+                videoAudioCtx.resume().catch(e => console.log('AudioCtx resume error', e));
+            }
+        }
+
+        window.selectVideoAudioChannel = function(mode) {
+            initVideoAudioNodes();
+
+            currentAudioChannel = mode;
+
+            if (videoSplitter && videoMerger) {
+                try {
+                    videoSplitter.disconnect();
+                    if (mode === 'left') {
+                        // Route Left channel (output 0) to both Left (0) and Right (1) outputs
+                        videoSplitter.connect(videoMerger, 0, 0);
+                        videoSplitter.connect(videoMerger, 0, 1);
+                    } else if (mode === 'right') {
+                        // Route Right channel (output 1) to both Left (0) and Right (1) outputs
+                        videoSplitter.connect(videoMerger, 1, 0);
+                        videoSplitter.connect(videoMerger, 1, 1);
+                    } else {
+                        // 'stereo': Left -> Left, Right -> Right
+                        videoSplitter.connect(videoMerger, 0, 0);
+                        videoSplitter.connect(videoMerger, 1, 1);
+                    }
+                } catch(e) {
+                    console.error("Channel routing error:", e);
+                }
+            }
+
+            // Update UI
+            const labelEl = document.getElementById('video-audio-label');
+            if (labelEl) {
+                if (mode === 'left') labelEl.textContent = 'Áudio: Canal Esq';
+                else if (mode === 'right') labelEl.textContent = 'Áudio: Canal Dir';
+                else labelEl.textContent = 'Áudio: Estéreo';
+            }
+
+            const dropdown = document.getElementById('video-audio-dropdown');
+            if (dropdown) {
+                dropdown.querySelectorAll('button[data-channel]').forEach(btn => {
+                    const ch = btn.getAttribute('data-channel');
+                    const check = btn.querySelector('.check-icon');
+                    if (ch === mode) {
+                        btn.classList.add('bg-slate-800', 'text-white');
+                        if (check) check.classList.remove('opacity-0');
+                    } else {
+                        btn.classList.remove('bg-slate-800', 'text-white');
+                        if (check) check.classList.add('opacity-0');
+                    }
+                });
+                dropdown.classList.add('hidden');
+            }
+        };
+
+        window.toggleAudioTrackDropdown = function(e) {
+            if (e) e.stopPropagation();
+            const dropdown = document.getElementById('video-audio-dropdown');
+            if (dropdown) {
+                dropdown.classList.toggle('hidden');
+                if (!dropdown.classList.contains('hidden')) {
+                    checkNativeAudioTracks();
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+            }
+        };
+
+        window.checkNativeAudioTracks = function() {
+            const player = document.getElementById('modal-video-player');
+            const nativeSection = document.getElementById('native-tracks-section');
+            const nativeList = document.getElementById('native-tracks-list');
+
+            if (player && player.audioTracks && player.audioTracks.length > 1) {
+                if (nativeSection && nativeList) {
+                    nativeSection.classList.remove('hidden');
+                    nativeList.innerHTML = '';
+
+                    for (let i = 0; i < player.audioTracks.length; i++) {
+                        const track = player.audioTracks[i];
+                        const btn = document.createElement('button');
+                        btn.className = 'w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 flex items-center justify-between text-xs font-medium transition cursor-pointer ' + (track.enabled ? 'bg-slate-800 text-white' : '');
+                        btn.innerHTML = `
+                            <span>${track.label || track.language || ('Faixa de Áudio ' + (i + 1))}</span>
+                            <i data-lucide="check" class="w-3.5 h-3.5 text-sky-400 ${track.enabled ? '' : 'opacity-0'}"></i>
+                        `;
+                        btn.onclick = (ev) => {
+                            ev.stopPropagation();
+                            for (let j = 0; j < player.audioTracks.length; j++) {
+                                player.audioTracks[j].enabled = (j === i);
+                            }
+                            checkNativeAudioTracks();
+                            const labelEl = document.getElementById('video-audio-label');
+                            if (labelEl) labelEl.textContent = 'Áudio: ' + (track.label || ('Faixa ' + (i + 1)));
+                            const dropdown = document.getElementById('video-audio-dropdown');
+                            if (dropdown) dropdown.classList.add('hidden');
+                        };
+                        nativeList.appendChild(btn);
+                    }
+                }
+            } else {
+                if (nativeSection) nativeSection.classList.add('hidden');
+            }
+        };
+
+        document.addEventListener('click', function(e) {
+            const container = document.getElementById('video-audio-selector-container');
+            if (container && !container.contains(e.target)) {
+                const dropdown = document.getElementById('video-audio-dropdown');
+                if (dropdown) dropdown.classList.add('hidden');
+            }
+        });
+
         function playMediaFile(path, title) {
             // stop audio player if playing
             if (isPlaying) {
@@ -9473,7 +9648,10 @@ async function deleteUser(username) {
                 modal.querySelector('> div').classList.remove('scale-95', 'opacity-0');
             }
             
-            if (player) player.play().catch(e => console.log('Auto-play prevent', e));
+            if (player) {
+                player.onplay = function() { initVideoAudioNodes(); };
+                player.play().then(() => { initVideoAudioNodes(); }).catch(e => console.log('Auto-play prevent', e));
+            }
         }
 
         function playVideo(id) {
