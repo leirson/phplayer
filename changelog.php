@@ -1,5 +1,9 @@
 <?php
 $changelog = <<<EOT
+v1.1.8
+- Adicionada leitura automática de legendas .SRT/.WebVTT com o mesmo nome do vídeo sem alterar ou interferir nos canais e faixas de áudio configurados.
+- Incluído cabeçalhos CORS (Cross-Origin) para rotas de transmissão de vídeos e mídias no api.php.
+
 v1.1.7
 - Adicionado suporte a legendas SRT e WebVTT automáticas em filmes, séries e vídeos (detecção automática por arquivo com o mesmo nome do vídeo, conversão SRT -> WebVTT em tempo real e botão de controle ON/OFF no reprodutor).
 
