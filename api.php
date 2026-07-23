@@ -3821,6 +3821,9 @@ Accept: */*
         }
 
         header("Content-Type: " . $contentType);
+        header("Access-Control-Allow-Origin: *");
+        header("Access-Control-Allow-Headers: *");
+        header("Access-Control-Expose-Headers: Content-Length, Content-Range, Accept-Ranges");
         header("Accept-Ranges: bytes");
         header("Last-Modified: " . gmdate('D, d M Y H:i:s', $time) . ' GMT');
         
@@ -3905,6 +3908,9 @@ Accept: */*
 
         // Enviar os cabeçalhos de controle ideais de cache e mídia
         header("Content-Type: $contentType");
+        header("Access-Control-Allow-Origin: *");
+        header("Access-Control-Allow-Headers: *");
+        header("Access-Control-Expose-Headers: Content-Length, Content-Range, Accept-Ranges");
         header("Accept-Ranges: bytes");
         header("Cache-Control: public, max-age=604800, no-transform"); // Cacheia por 1 semana no navegador/dispositivo
         header("Connection: keep-alive");
@@ -4015,7 +4021,7 @@ Accept: */*
         $content = preg_replace('/(\d{2}:\d{2}:\d{2}),(\d{3})/', '$1.$2', $content);
 
         if (strpos(trim($content), 'WEBVTT') !== 0) {
-            $vttOutput = "WEBVTT\n\n" + trim($content) + "\n";
+            $vttOutput = "WEBVTT\n\n" . trim($content) . "\n";
         } else {
             $vttOutput = $content;
         }

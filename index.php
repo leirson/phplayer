@@ -9547,21 +9547,33 @@ async function deleteUser(username) {
             const now = videoAudioCtx.currentTime;
             if (mode === 'left') {
                 // Route Left channel (Audio 1 / Dub) to BOTH speakers
+                gainL_L.gain.value = 1;
                 gainL_L.gain.setValueAtTime(1, now);
+                gainL_R.gain.value = 1;
                 gainL_R.gain.setValueAtTime(1, now);
+                gainR_L.gain.value = 0;
                 gainR_L.gain.setValueAtTime(0, now);
+                gainR_R.gain.value = 0;
                 gainR_R.gain.setValueAtTime(0, now);
             } else if (mode === 'right') {
                 // Route Right channel (Audio 2 / Original) to BOTH speakers
+                gainL_L.gain.value = 0;
                 gainL_L.gain.setValueAtTime(0, now);
+                gainL_R.gain.value = 0;
                 gainL_R.gain.setValueAtTime(0, now);
+                gainR_L.gain.value = 1;
                 gainR_L.gain.setValueAtTime(1, now);
+                gainR_R.gain.value = 1;
                 gainR_R.gain.setValueAtTime(1, now);
             } else {
                 // 'stereo': Left -> Left, Right -> Right
+                gainL_L.gain.value = 1;
                 gainL_L.gain.setValueAtTime(1, now);
+                gainL_R.gain.value = 0;
                 gainL_R.gain.setValueAtTime(0, now);
+                gainR_L.gain.value = 0;
                 gainR_L.gain.setValueAtTime(0, now);
+                gainR_R.gain.value = 1;
                 gainR_R.gain.setValueAtTime(1, now);
             }
         }
