@@ -1,5 +1,8 @@
 <?php
 $changelog = <<<EOT
+v1.1.0
+- Modal para renomear arquivos e pastas no Gerenciador de Arquivos com sincronização automática do banco de dados (músicas e vídeos).
+
 v1.0.3
 - Removido compartilhamento de álbuns e playlists
 
