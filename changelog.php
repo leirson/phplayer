@@ -1,5 +1,8 @@
 <?php
 $changelog = <<<EOT
+v1.1.1
+- Adicionadas as pastas 'movies' e 'series' na lista da raiz do Gerenciador de Arquivos (Aba de Arquivos nas Configurações).
+
 v1.1.0
 - Modal para renomear arquivos e pastas no Gerenciador de Arquivos com sincronização automática do banco de dados (músicas e vídeos).
 

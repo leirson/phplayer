@@ -4156,8 +4156,12 @@ Accept: */*
         if ($resolved === 'root') {
             $musicDir = $realBase . '/music';
             $videosDir = $realBase . '/videos';
+            $moviesDir = $realBase . '/movies';
+            $seriesDir = $realBase . '/series';
             if (!file_exists($musicDir)) { @mkdir($musicDir, 0777, true); }
             if (!file_exists($videosDir)) { @mkdir($videosDir, 0777, true); }
+            if (!file_exists($moviesDir)) { @mkdir($moviesDir, 0777, true); }
+            if (!file_exists($seriesDir)) { @mkdir($seriesDir, 0777, true); }
             
             $items = [
                 [
@@ -4173,6 +4177,20 @@ Accept: */*
                     'is_dir' => true,
                     'size' => 0,
                     'mtime' => @filemtime($videosDir) ?: time()
+                ],
+                [
+                    'name' => 'movies',
+                    'path' => 'movies',
+                    'is_dir' => true,
+                    'size' => 0,
+                    'mtime' => @filemtime($moviesDir) ?: time()
+                ],
+                [
+                    'name' => 'series',
+                    'path' => 'series',
+                    'is_dir' => true,
+                    'size' => 0,
+                    'mtime' => @filemtime($seriesDir) ?: time()
                 ]
             ];
             echo json_encode([
