@@ -171,6 +171,12 @@ try {
               setting_value text DEFAULT NULL,
               PRIMARY KEY (setting_key)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+            $pdo->exec("CREATE TABLE IF NOT EXISTS series_metadata (
+              series_name varchar(255) NOT NULL,
+              cover_url varchar(1000) DEFAULT NULL,
+              description text DEFAULT NULL,
+              PRIMARY KEY (series_name)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
             $pdo->exec("CREATE TABLE IF NOT EXISTS artist_metadata (
               artist varchar(255) NOT NULL,
@@ -610,7 +616,7 @@ try {
         'dlna_status', 'toggle_dlna', 'search_images', 'search_artist_logo',
         'update_album_cover_url', 'update_artist_banner_url',
         'get_settings', 'save_settings', 'lastfm_sync', 'deezer_sync',
-        'google_images_sync', 'videos_scan', 'videos_upload_cover', 'movies_scan', 'series_scan',
+        'google_images_sync', 'videos_scan', 'videos_upload_cover', 'movies_scan', 'series_scan', 'save_series_metadata', 'upload_series_cover',
         'files_list', 'files_create_dir', 'files_delete', 'files_rename', 'files_upload',
         'podcasts_sync'
     ];
@@ -3941,6 +3947,21 @@ Accept: */*
 
     case 'series':
         $series = [];
+        $pdo->exec("CREATE TABLE IF NOT EXISTS series_metadata (
+            series_name varchar(255) NOT NULL,
+            cover_url varchar(1000) DEFAULT NULL,
+            description text DEFAULT NULL,
+            PRIMARY KEY (series_name)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+        $metaMap = [];
+        try {
+            $stmtMeta = $pdo->query("SELECT * FROM series_metadata");
+            foreach ($stmtMeta->fetchAll() as $mRow) {
+                $metaMap[$mRow['series_name']] = $mRow;
+            }
+        } catch (Exception $e) {}
+
         if (file_exists(SERIES_DIR)) {
             $seriesNames = array_diff(scandir(SERIES_DIR), array('..', '.'));
             foreach ($seriesNames as $serie) {
@@ -3979,13 +4000,83 @@ Accept: */*
                         });
                         $series[] = [
                             'name' => $serie,
-                            'seasons' => $seasonsList
+                            'seasons' => $seasonsList,
+                            'cover_url' => $metaMap[$serie]['cover_url'] ?? null,
+                            'description' => $metaMap[$serie]['description'] ?? null
                         ];
                     }
                 }
             }
         }
         echo json_encode(['success' => true, 'series' => $series]);
+        break;
+
+    case 'save_series_metadata':
+        if ($method !== 'POST') {
+            http_response_code(405);
+            exit(json_encode(['error' => 'Apenas requisições POST são permitidas.']));
+        }
+        $pdo->exec("CREATE TABLE IF NOT EXISTS series_metadata (
+            series_name varchar(255) NOT NULL,
+            cover_url varchar(1000) DEFAULT NULL,
+            description text DEFAULT NULL,
+            PRIMARY KEY (series_name)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+        $seriesName = trim($input['series_name'] ?? '');
+        $coverUrl = trim($input['cover_url'] ?? '');
+        $description = trim($input['description'] ?? '');
+
+        if (empty($seriesName)) {
+            http_response_code(400);
+            exit(json_encode(['error' => 'Nome da série não informado.']));
+        }
+
+        $stmt = $pdo->prepare("INSERT INTO series_metadata (series_name, cover_url, description) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE cover_url = VALUES(cover_url), description = VALUES(description)");
+        $stmt->execute([$seriesName, $coverUrl ?: null, $description ?: null]);
+
+        echo json_encode(['success' => true, 'message' => 'Metadados da série salvos com sucesso!']);
+        break;
+
+    case 'upload_series_cover':
+        if ($method !== 'POST') {
+            http_response_code(405);
+            exit(json_encode(['error' => 'Apenas requisições POST são permitidas.']));
+        }
+        if (!isset($_FILES['cover'])) {
+            http_response_code(400);
+            exit(json_encode(['error' => 'Arquivo de imagem não fornecido.']));
+        }
+        $seriesName = trim($_POST['series_name'] ?? '');
+        if (empty($seriesName)) {
+            http_response_code(400);
+            exit(json_encode(['error' => 'O nome da série é obrigatório.']));
+        }
+        
+        $file = $_FILES['cover'];
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'gif'])) {
+            http_response_code(400);
+            exit(json_encode(['error' => 'Formato não suportado. Use PNG, JPG, JPEG, WEBP ou GIF.']));
+        }
+        
+        $newFileName = 'series_' . md5($seriesName) . '_' . uniqid() . '.' . $ext;
+        if (move_uploaded_file($file['tmp_name'], IMAGES_DIR . $newFileName)) {
+            $coverUrl = 'images/' . $newFileName;
+            $pdo->exec("CREATE TABLE IF NOT EXISTS series_metadata (
+                series_name varchar(255) NOT NULL,
+                cover_url varchar(1000) DEFAULT NULL,
+                description text DEFAULT NULL,
+                PRIMARY KEY (series_name)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+            
+            $stmt = $pdo->prepare("INSERT INTO series_metadata (series_name, cover_url) VALUES (?, ?) ON DUPLICATE KEY UPDATE cover_url = VALUES(cover_url)");
+            $stmt->execute([$seriesName, $coverUrl]);
+            echo json_encode(['success' => true, 'cover_url' => $coverUrl]);
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Não foi possível mover a imagem para a pasta /images. Verifique permissões de escrita.']);
+        }
         break;
 
     case 'videos':

@@ -1,5 +1,8 @@
 <?php
 $changelog = <<<EOT
+v1.1.4
+- Adicionado suporte a foto/capa e descrição/sinopse para Séries com modal de edição para administradores e armazenamento no banco de dados.
+
 v1.1.3
 - Correção para compatibilidade com instalações existentes: definição fallback de constantes de diretório (MOVIES_DIR, SERIES_DIR, VIDEOS_DIR, etc.) caso não existam no config.php do usuário.
 

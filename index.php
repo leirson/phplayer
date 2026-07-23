@@ -2576,6 +2576,63 @@ define('DONT_EXIT_ON_DB_ERROR', true);
         </div>
     </div>
 
+    <!-- SERIES EDIT MODAL (Admin Only) -->
+    <div id="series-edit-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-[60] p-4 backdrop-blur-sm hidden font-sans">
+        <div class="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-md p-6 relative shadow-2xl space-y-5 animate-fade-in text-left">
+            <div class="flex justify-between items-center border-b border-slate-900 pb-4">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="tv" class="w-5 h-5 text-indigo-400"></i>
+                    <h3 class="text-sm font-bold text-white">
+                        Editar Série: <span id="series-edit-modal-name" class="text-indigo-300"></span>
+                    </h3>
+                </div>
+                <button onclick="closeSeriesEditModal()" class="text-slate-400 hover:text-white p-1.5 hover:bg-slate-900 rounded-lg transition cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <input type="hidden" id="series-edit-name-input">
+
+            <!-- Cover Photo Section -->
+            <div class="space-y-2">
+                <label class="block text-xs font-bold text-slate-300">Foto / Capa da Série</label>
+                <div id="series-edit-cover-preview-container" class="relative w-full h-44 bg-slate-900/80 rounded-2xl border border-slate-800 overflow-hidden flex items-center justify-center group">
+                    <img id="series-edit-cover-img" src="" class="w-full h-full object-cover hidden">
+                    <div id="series-edit-cover-placeholder" class="text-center p-4">
+                        <i data-lucide="image" class="w-8 h-8 text-slate-600 mx-auto mb-1"></i>
+                        <p class="text-[11px] text-slate-500">Nenhuma capa definida</p>
+                    </div>
+                </div>
+                <div class="flex gap-2 pt-1">
+                    <input type="file" id="series-edit-file-input" accept="image/*" class="hidden" onchange="handleSeriesFileSelect(this)">
+                    <button type="button" onclick="document.getElementById('series-edit-file-input').click()" class="flex-1 py-2 px-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+                        <i data-lucide="upload" class="w-3.5 h-3.5"></i> Enviar do Computador
+                    </button>
+                </div>
+                <div class="space-y-1 pt-1">
+                    <span class="text-[10px] text-slate-500">Ou informe a URL da Imagem:</span>
+                    <input type="text" id="series-edit-url-input" placeholder="https://exemplo.com/capa.jpg" oninput="handleSeriesUrlInput(this.value)" class="w-full bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-xl p-2.5 outline-none focus:border-indigo-500 transition">
+                </div>
+            </div>
+
+            <!-- Description Section -->
+            <div class="space-y-1.5">
+                <label class="block text-xs font-bold text-slate-300">Descrição / Sinopse</label>
+                <textarea id="series-edit-description-input" rows="4" placeholder="Escreva um resumo ou sinopse da série..." class="w-full bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-xl p-3 outline-none focus:border-indigo-500 transition resize-none"></textarea>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end gap-3 pt-2">
+                <button type="button" onclick="closeSeriesEditModal()" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition cursor-pointer">
+                    Cancelar
+                </button>
+                <button type="button" id="btn-save-series-meta" onclick="saveSeriesMetadata()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-lg shadow-indigo-600/20">
+                    <i data-lucide="save" class="w-4 h-4"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Garantir que chamadas ao lucide não quebrem a aplicação caso o CDN falhe ou atrase
         if (typeof window.lucide === 'undefined' || !window.lucide) {
@@ -10261,6 +10318,8 @@ async function deleteUser(username) {
             }
         }
 
+        window.allSeriesList = [];
+
         async function loadSeries() {
             const container = document.getElementById('series-container');
             if (!container) return;
@@ -10268,7 +10327,8 @@ async function deleteUser(username) {
                 const res = await fetch(API + '?route=series');
                 const data = await res.json();
                 if (data.success) {
-                    const series = data.series;
+                    const series = data.series || [];
+                    window.allSeriesList = series;
                     if (series.length === 0) {
                         container.innerHTML = '<div class="text-center text-slate-500 py-12">Nenhuma série encontrada.</div>';
                         return;
@@ -10276,27 +10336,56 @@ async function deleteUser(username) {
                     
                     let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">';
                     series.forEach((s, sIdx) => {
+                        const hasCover = s.cover_url && s.cover_url.trim() !== '';
+                        const isAdmin = currentUser && currentUser.role === 'admin';
+                        
                         html += `
-                            <div class="bg-slate-900/50 rounded-xl border border-slate-800 overflow-hidden">
-                                <div class="p-4 border-b border-slate-800 bg-slate-900">
-                                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                                        <i data-lucide="tv" class="w-5 h-5 text-indigo-400"></i> ${s.name}
-                                    </h3>
-                                </div>
-                                <div class="p-4 space-y-4 max-h-64 overflow-y-auto custom-scrollbar">
-                                    ${s.seasons.map((season, seasonIdx) => `
-                                        <div>
-                                            <h4 class="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-2">${season.name}</h4>
-                                            <div class="space-y-1">
-                                                ${season.episodes.map(ep => `
-                                                    <div class="flex items-center gap-2 p-2 hover:bg-slate-800 rounded-lg cursor-pointer transition group" onclick="playMediaFile('${ep.file_name}', '${ep.title}')">
-                                                        <i data-lucide="play-circle" class="w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition shrink-0"></i>
-                                                        <span class="text-sm text-slate-300 group-hover:text-white truncate">${ep.title}</span>
-                                                    </div>
-                                                `).join('')}
-                                            </div>
+                            <div class="bg-slate-900/50 rounded-2xl border border-slate-800/80 overflow-hidden flex flex-col justify-between hover:border-slate-700 transition">
+                                <div>
+                                    ${hasCover ? `
+                                        <div class="relative w-full h-48 bg-slate-950 overflow-hidden group">
+                                            <img src="${s.cover_url}" alt="${s.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
+                                            ${isAdmin ? `
+                                                <button onclick="openSeriesEditModal(${sIdx})" class="absolute top-3 right-3 p-2 bg-slate-950/80 hover:bg-indigo-600 text-white rounded-xl backdrop-blur-md border border-white/10 transition shadow-lg flex items-center gap-1.5 text-xs font-bold cursor-pointer" title="Editar Foto e Sinopse">
+                                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar
+                                                </button>
+                                            ` : ''}
                                         </div>
-                                    `).join('')}
+                                    ` : ''}
+
+                                    <div class="p-5 space-y-3">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                                                <i data-lucide="tv" class="w-5 h-5 text-indigo-400 shrink-0"></i> ${s.name}
+                                            </h3>
+                                            ${isAdmin && !hasCover ? `
+                                                <button onclick="openSeriesEditModal(${sIdx})" class="px-2.5 py-1.5 bg-slate-800/80 hover:bg-indigo-600 text-slate-300 hover:text-white rounded-xl transition text-xs font-bold flex items-center gap-1 shrink-0 cursor-pointer border border-slate-700/50" title="Adicionar Foto e Sinopse">
+                                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar
+                                                </button>
+                                            ` : ''}
+                                        </div>
+
+                                        ${s.description ? `
+                                            <p class="text-xs text-slate-400 leading-relaxed bg-slate-950/50 p-3 rounded-xl border border-slate-800/60">${s.description}</p>
+                                        ` : ''}
+
+                                        <div class="space-y-4 max-h-64 overflow-y-auto custom-scrollbar pt-2 border-t border-slate-800/60">
+                                            ${s.seasons.map((season, seasonIdx) => `
+                                                <div>
+                                                    <h4 class="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-2">${season.name}</h4>
+                                                    <div class="space-y-1">
+                                                        ${season.episodes.map(ep => `
+                                                            <div class="flex items-center gap-2 p-2 hover:bg-slate-800/80 rounded-xl cursor-pointer transition group" onclick="playMediaFile('${ep.file_name}', '${ep.title}')">
+                                                                <i data-lucide="play-circle" class="w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition shrink-0"></i>
+                                                                <span class="text-sm text-slate-300 group-hover:text-white truncate">${ep.title}</span>
+                                                            </div>
+                                                        `).join('')}
+                                                    </div>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         `;
@@ -10307,11 +10396,145 @@ async function deleteUser(username) {
                     if(window.lucide) lucide.createIcons();
                 }
             } catch(e) {
+                console.error(e);
                 container.innerHTML = '<div class="text-center text-red-500 py-12">Erro ao carregar séries.</div>';
             }
         }
 
-        // =====================================================
+        window.openSeriesEditModal = function(sIdx) {
+            const s = window.allSeriesList ? window.allSeriesList[sIdx] : null;
+            if (!s) return;
+            document.getElementById('series-edit-modal-name').innerText = s.name;
+            document.getElementById('series-edit-name-input').value = s.name;
+            document.getElementById('series-edit-url-input').value = s.cover_url || '';
+            document.getElementById('series-edit-description-input').value = s.description || '';
+            
+            const fileInput = document.getElementById('series-edit-file-input');
+            if (fileInput) fileInput.value = '';
+            
+            handleSeriesUrlInput(s.cover_url || '');
+            
+            const modal = document.getElementById('series-edit-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.style.zIndex = '999999';
+                modal.style.display = 'flex';
+            }
+            if (window.lucide) lucide.createIcons();
+        };
+
+        window.closeSeriesEditModal = function() {
+            const modal = document.getElementById('series-edit-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+            }
+        };
+
+        window.handleSeriesFileSelect = function(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById('series-edit-cover-img');
+                    const placeholder = document.getElementById('series-edit-cover-placeholder');
+                    if (img) {
+                        img.src = e.target.result;
+                        img.classList.remove('hidden');
+                    }
+                    if (placeholder) placeholder.classList.add('hidden');
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        };
+
+        window.handleSeriesUrlInput = function(val) {
+            const img = document.getElementById('series-edit-cover-img');
+            const placeholder = document.getElementById('series-edit-cover-placeholder');
+            if (val && val.trim() !== '') {
+                if (img) {
+                    img.src = val.trim();
+                    img.classList.remove('hidden');
+                }
+                if (placeholder) placeholder.classList.add('hidden');
+            } else {
+                const fileInput = document.getElementById('series-edit-file-input');
+                if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+                    if (img) {
+                        img.src = '';
+                        img.classList.add('hidden');
+                    }
+                    if (placeholder) placeholder.classList.remove('hidden');
+                }
+            }
+        };
+
+        window.saveSeriesMetadata = async function() {
+            if (!currentUser || currentUser.role !== 'admin') {
+                showToast("Apenas administradores podem editar metadados das séries.");
+                return;
+            }
+            const seriesName = document.getElementById('series-edit-name-input').value;
+            const description = document.getElementById('series-edit-description-input').value;
+            let coverUrl = document.getElementById('series-edit-url-input').value;
+            const fileInput = document.getElementById('series-edit-file-input');
+            const btn = document.getElementById('btn-save-series-meta');
+            
+            if (!seriesName) {
+                showToast("Nome da série inválido.");
+                return;
+            }
+            
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Salvando...';
+            if (window.lucide) lucide.createIcons();
+            
+            try {
+                if (fileInput && fileInput.files && fileInput.files[0]) {
+                    const formData = new FormData();
+                    formData.append('series_name', seriesName);
+                    formData.append('cover', fileInput.files[0]);
+                    
+                    const uploadRes = await fetch(API + '?route=upload_series_cover&admin_username=' + encodeURIComponent(currentUser.username), {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const uploadData = await uploadRes.json();
+                    if (uploadRes.ok && uploadData.success) {
+                        coverUrl = uploadData.cover_url;
+                    } else {
+                        showToast("Aviso: Falha ao enviar imagem. " + (uploadData.error || ''));
+                    }
+                }
+                
+                const saveRes = await fetch(API + '?route=save_series_metadata&admin_username=' + encodeURIComponent(currentUser.username), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        series_name: seriesName,
+                        cover_url: coverUrl,
+                        description: description
+                    })
+                });
+                const saveData = await saveRes.json();
+                if (saveRes.ok && saveData.success) {
+                    showToast("Metadados da série salvos com sucesso!");
+                    closeSeriesEditModal();
+                    loadSeries();
+                } else {
+                    showToast("Erro ao salvar metadados: " + (saveData.error || 'Erro desconhecido'));
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Erro de rede ao salvar metadados da série.");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+                if (window.lucide) lucide.createIcons();
+            }
+        };
+        
+// =====================================================
     </script>
 
     <!-- TOAST CONTAINER -->
