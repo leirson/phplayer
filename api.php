@@ -616,7 +616,7 @@ try {
         'dlna_status', 'toggle_dlna', 'search_images', 'search_artist_logo',
         'update_album_cover_url', 'update_artist_banner_url',
         'get_settings', 'save_settings', 'lastfm_sync', 'deezer_sync',
-        'google_images_sync', 'videos_scan', 'videos_upload_cover', 'movies_scan', 'series_scan', 'save_series_metadata', 'upload_series_cover',
+        'google_images_sync', 'videos_scan', 'videos_upload_cover', 'movies_scan', 'series_scan', 'save_series_metadata', 'upload_series_cover', 'save_movie_metadata', 'upload_movie_cover',
         'files_list', 'files_create_dir', 'files_delete', 'files_rename', 'files_upload',
         'podcasts_sync'
     ];
@@ -3821,9 +3821,6 @@ Accept: */*
         }
 
         header("Content-Type: " . $contentType);
-        header("Access-Control-Allow-Origin: *");
-        header("Access-Control-Allow-Headers: *");
-        header("Access-Control-Expose-Headers: Content-Length, Content-Range, Accept-Ranges");
         header("Accept-Ranges: bytes");
         header("Last-Modified: " . gmdate('D, d M Y H:i:s', $time) . ' GMT');
         
@@ -3908,9 +3905,6 @@ Accept: */*
 
         // Enviar os cabeçalhos de controle ideais de cache e mídia
         header("Content-Type: $contentType");
-        header("Access-Control-Allow-Origin: *");
-        header("Access-Control-Allow-Headers: *");
-        header("Access-Control-Expose-Headers: Content-Length, Content-Range, Accept-Ranges");
         header("Accept-Ranges: bytes");
         header("Cache-Control: public, max-age=604800, no-transform"); // Cacheia por 1 semana no navegador/dispositivo
         header("Connection: keep-alive");
@@ -3927,125 +3921,52 @@ Accept: */*
         exit;
 
     
-    case 'stream_subtitle':
-        $id = $_GET['id'] ?? '';
-        $path = $_GET['path'] ?? '';
-        $filePath = '';
-
-        if (!empty($id)) {
-            $stmt = $pdo->prepare("SELECT file_name FROM videos WHERE id = ?");
-            $stmt->execute([$id]);
-            $video = $stmt->fetch();
-            if ($video) {
-                $filePath = VIDEOS_DIR . $video['file_name'];
-            }
-        } elseif (!empty($path)) {
-            $pathDecoded = rawurldecode($path);
-            if (strpos($pathDecoded, 'movies/') === 0 || strpos($pathDecoded, 'series/') === 0 || strpos($pathDecoded, 'videos/') === 0) {
-                $filePath = __DIR__ . '/' . $pathDecoded;
-            }
-        }
-
-        if (empty($filePath) || strpos($filePath, '..') !== false) {
-            http_response_code(400);
-            exit("Path ou ID inválido");
-        }
-
-        $dir = pathinfo($filePath, PATHINFO_DIRNAME);
-        $filename = pathinfo($filePath, PATHINFO_FILENAME);
-        $basePath = $dir . '/' . $filename;
-
-        // Procurar arquivo de legenda (.srt, .vtt)
-        $possibleSubFiles = [
-            $basePath . '.srt',
-            $basePath . '.SRT',
-            $basePath . '.Srt',
-            $basePath . '.vtt',
-            $basePath . '.VTT',
-            $basePath . '.Vtt',
-        ];
-
-        $foundSubFile = null;
-        foreach ($possibleSubFiles as $pSub) {
-            if (file_exists($pSub)) {
-                $foundSubFile = $pSub;
-                break;
-            }
-        }
-
-        if (!$foundSubFile && is_dir($dir)) {
-            $dh = @opendir($dir);
-            if ($dh) {
-                while (($f = readdir($dh)) !== false) {
-                    if ($f === '.' || $f === '..') continue;
-                    $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
-                    if ($ext === 'srt' || $ext === 'vtt') {
-                        $fNameWithoutExt = pathinfo($f, PATHINFO_FILENAME);
-                        if (strcasecmp($fNameWithoutExt, $filename) === 0) {
-                            $foundSubFile = $dir . '/' . $f;
-                            break;
-                        }
-                    }
-                }
-                closedir($dh);
-            }
-        }
-
-        if (!$foundSubFile || !file_exists($foundSubFile)) {
-            http_response_code(404);
-            exit("Legenda não encontrada");
-        }
-
-        $subExt = strtolower(pathinfo($foundSubFile, PATHINFO_EXTENSION));
-        $content = @file_get_contents($foundSubFile);
-        if ($content === false) {
-            http_response_code(500);
-            exit("Erro ao ler legenda");
-        }
-
-        header("Content-Type: text/vtt; charset=utf-8");
-        header("Access-Control-Allow-Origin: *");
-        header("Cache-Control: public, max-age=86400");
-
-        if ($subExt === 'vtt') {
-            echo $content;
-            exit;
-        }
-
-        // Converter SRT para WebVTT
-        if (!mb_check_encoding($content, 'UTF-8')) {
-            $content = mb_convert_encoding($content, 'UTF-8', 'ISO-8859-1, Windows-1252, auto');
-        }
-        $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
-        $content = str_replace(["\r\n", "\r"], "\n", $content);
-        $content = preg_replace('/(\d{2}:\d{2}:\d{2}),(\d{3})/', '$1.$2', $content);
-
-        if (strpos(trim($content), 'WEBVTT') !== 0) {
-            $vttOutput = "WEBVTT\n\n" . trim($content) . "\n";
-        } else {
-            $vttOutput = $content;
-        }
-
-        echo $vttOutput;
-        exit;
-
     case 'movies':
         $movies = [];
+        $pdo->exec("CREATE TABLE IF NOT EXISTS movies_metadata (
+            movie_title varchar(255) NOT NULL,
+            cover_url varchar(1000) DEFAULT NULL,
+            PRIMARY KEY (movie_title)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+        $metaMap = [];
+        try {
+            $stmtMeta = $pdo->query("SELECT * FROM movies_metadata");
+            foreach ($stmtMeta->fetchAll() as $mRow) {
+                $metaMap[$mRow['movie_title']] = $mRow;
+            }
+        } catch (Exception $e) {}
         if (file_exists(MOVIES_DIR)) {
-            $genres = array_diff(scandir(MOVIES_DIR), array('..', '.'));
-            foreach ($genres as $genre) {
-                if (is_dir(MOVIES_DIR . $genre)) {
+            $items = array_diff(scandir(MOVIES_DIR), array('..', '.'));
+            foreach ($items as $item) {
+                if (is_dir(MOVIES_DIR . $item)) {
+                    $genre = $item;
                     $files = array_diff(scandir(MOVIES_DIR . $genre), array('..', '.'));
                     foreach ($files as $file) {
                         $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
                         if (in_array($ext, ['mp4', 'mkv', 'webm', 'avi', 'mov'])) {
+                            $mTitle = pathinfo($file, PATHINFO_FILENAME);
                             $movies[] = [
-                                'title' => pathinfo($file, PATHINFO_FILENAME),
+                                'title' => $mTitle,
                                 'genre' => $genre,
                                 'file_name' => 'movies/' . rawurlencode($genre) . '/' . rawurlencode($file),
+                                'cover_url' => $metaMap[$mTitle]['cover_url'] ?? null,
                                 'type' => 'movie'
                             ];
                         }
+                    }
+                } else {
+                    // Arquivo solto na pasta raiz de movies
+                    $ext = strtolower(pathinfo($item, PATHINFO_EXTENSION));
+                    if (in_array($ext, ['mp4', 'mkv', 'webm', 'avi', 'mov'])) {
+                        $mTitle = pathinfo($item, PATHINFO_FILENAME);
+                        $movies[] = [
+                            'title' => $mTitle,
+                            'genre' => 'Filmes',
+                            'file_name' => 'movies/' . rawurlencode($item),
+                            'cover_url' => $metaMap[$mTitle]['cover_url'] ?? null,
+                            'type' => 'movie'
+                        ];
                     }
                 }
             }
@@ -4117,6 +4038,67 @@ Accept: */*
             }
         }
         echo json_encode(['success' => true, 'series' => $series]);
+        break;
+
+    case 'save_movie_metadata':
+        if ($method !== 'POST') {
+            http_response_code(405);
+            exit(json_encode(['error' => 'Apenas requisições POST são permitidas.']));
+        }
+        $pdo->exec("CREATE TABLE IF NOT EXISTS movies_metadata (
+            movie_title varchar(255) NOT NULL,
+            cover_url varchar(1000) DEFAULT NULL,
+            PRIMARY KEY (movie_title)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+        $movieTitle = trim($input['movie_title'] ?? '');
+        $coverUrl = trim($input['cover_url'] ?? '');
+
+        if (empty($movieTitle)) {
+            http_response_code(400);
+            exit(json_encode(['error' => 'Título do filme não informado.']));
+        }
+
+        $stmt = $pdo->prepare("INSERT INTO movies_metadata (movie_title, cover_url) VALUES (?, ?) ON DUPLICATE KEY UPDATE cover_url = VALUES(cover_url)");
+        $stmt->execute([$movieTitle, $coverUrl ?: null]);
+
+        echo json_encode(['success' => true, 'message' => 'Capa do filme salva com sucesso!']);
+        break;
+
+    case 'upload_movie_cover':
+        if ($method !== 'POST') {
+            http_response_code(405);
+            exit(json_encode(['error' => 'Apenas requisições POST são permitidas.']));
+        }
+        if (!isset($_FILES['cover'])) {
+            http_response_code(400);
+            exit(json_encode(['error' => 'Arquivo de imagem não fornecido.']));
+        }
+        $movieTitle = trim($_POST['movie_title'] ?? '');
+        if (empty($movieTitle)) {
+            http_response_code(400);
+            exit(json_encode(['error' => 'O título do filme é obrigatório.']));
+        }
+        
+        $file = $_FILES['cover'];
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'gif'])) {
+            http_response_code(400);
+            exit(json_encode(['error' => 'Formato não suportado. Use PNG, JPG, JPEG, WEBP ou GIF.']));
+        }
+        
+        if (!file_exists(IMAGES_DIR)) @mkdir(IMAGES_DIR, 0755, true);
+        
+        $newFilename = 'movie_' . md5($movieTitle . time()) . '.' . $ext;
+        $dest = IMAGES_DIR . $newFilename;
+        
+        if (move_uploaded_file($file['tmp_name'], $dest)) {
+            $coverUrl = 'images/' . $newFilename;
+            echo json_encode(['success' => true, 'cover_url' => $coverUrl]);
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Falha ao mover arquivo enviado.']);
+        }
         break;
 
     case 'save_series_metadata':
@@ -4755,7 +4737,13 @@ Accept: */*
 
     case 'files_upload':
         $subpath = isset($_POST['path']) ? trim($_POST['path']) : '';
+        $relativePath = isset($_POST['relative_path']) ? trim($_POST['relative_path']) : '';
         $realBase = realpath(__DIR__);
+        
+        // Default to 'music' if subpath is empty/root and a relative_path (e.g. artist folder) is provided
+        if ((empty($subpath) || $subpath === '.' || $subpath === 'root') && !empty($relativePath)) {
+            $subpath = 'music';
+        }
         
         $is_valid_file_path = function($subpath, $realBase) {
             $subpath = trim(trim($subpath), '/\\');
@@ -4799,10 +4787,6 @@ Accept: */*
             http_response_code(400);
             exit(json_encode(['error' => 'Acesso negado: Selecione uma pasta específica (music, videos, movies, series) para enviar os arquivos.']));
         }
-        if ($resolved === false) {
-            http_response_code(403);
-            exit(json_encode(['error' => 'Acesso negado: pasta de destino inválida.']));
-        }
         $targetDir = $resolved;
         if (!isset($_FILES['file'])) {
             http_response_code(400);
@@ -4813,16 +4797,44 @@ Accept: */*
             http_response_code(400);
             exit(json_encode(['error' => 'Erro no upload do arquivo (Código: ' . $file['error'] . ').']));
         }
+
+        $destDir = $targetDir;
         $uploadedName = basename($file['name']);
         $uploadedName = preg_replace('/[^a-zA-Z0-9_\-\.\s]/', '', $uploadedName);
-        $destPath = $targetDir . '/' . $uploadedName;
+
+        // Process nested subdirectories from relative_path (e.g. ArtistName/AlbumName/song.mp3)
+        if (!empty($relativePath)) {
+            $relativePath = str_replace('\\', '/', $relativePath);
+            $rawSegments = explode('/', $relativePath);
+            $cleanSegments = [];
+            foreach ($rawSegments as $seg) {
+                $seg = trim($seg);
+                $clean = preg_replace('/[^a-zA-Z0-9_\-\.\s]/', '', $seg);
+                if ($clean !== '' && $clean !== '.' && $clean !== '..') {
+                    $cleanSegments[] = $clean;
+                }
+            }
+            if (count($cleanSegments) > 0) {
+                $uploadedName = array_pop($cleanSegments);
+                if (count($cleanSegments) > 0) {
+                    $subDirRel = implode('/', $cleanSegments);
+                    $destDir = $targetDir . '/' . $subDirRel;
+                    if (!file_exists($destDir)) {
+                        @mkdir($destDir, 0755, true);
+                    }
+                }
+            }
+        }
+
+        $destPath = $destDir . '/' . $uploadedName;
         $protected = ['index.php', 'api.php', 'config.php', 'mobile.php', 'debug.php', 'package.json', 'server.ts', 'tsconfig.json', '.env', '.env.example'];
         if (in_array(strtolower($uploadedName), $protected)) {
             http_response_code(403);
             exit(json_encode(['error' => 'Upload negado: impossível sobrescrever arquivo protegido do sistema.']));
         }
+
         if (move_uploaded_file($file['tmp_name'], $destPath)) {
-            echo json_encode(['success' => true, 'filename' => $uploadedName]);
+            echo json_encode(['success' => true, 'filename' => $uploadedName, 'dest' => str_replace($realBase, '', $destPath)]);
         } else {
             http_response_code(500);
             exit(json_encode(['error' => 'Falha ao mover arquivo enviado para o destino. Verifique permissões.']));

@@ -1487,13 +1487,17 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                                 Navegue pelas pastas do player, crie diretórios, exclua e envie arquivos de música (<span class="font-mono text-sky-400">.mp3</span>) ou vídeo (<span class="font-mono text-sky-400">.mp4</span>) diretamente sob o servidor.
                             </p>
                         </div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 flex-wrap">
                             <button id="file-manager-btn-new-folder" onclick="openNewFolderModal()" class="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition select-none cursor-pointer">
                                 <i data-lucide="folder-plus" class="w-4 h-4 text-emerald-400"></i> Nova Pasta
                             </button>
-                            <button id="file-manager-btn-upload" onclick="document.getElementById('file-manager-upload-input').click()" class="px-4 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition select-none cursor-pointer shadow-lg shadow-sky-500/10">
+                            <button id="file-manager-btn-upload-artist" onclick="document.getElementById('file-manager-artist-upload-input').click()" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition select-none cursor-pointer shadow-lg shadow-purple-500/10" title="Enviar pasta completa do Artista com subpastas de Álbuns e Músicas">
+                                <i data-lucide="folder-up" class="w-4 h-4 text-purple-200"></i> Enviar Pasta do Artista
+                            </button>
+                            <button id="file-manager-btn-upload" onclick="document.getElementById('file-manager-upload-input').click()" class="px-4 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition select-none cursor-pointer shadow-lg shadow-sky-500/10">
                                 <i data-lucide="upload" class="w-4 h-4"></i> Enviar Arquivos
                             </button>
+                            <input type="file" id="file-manager-artist-upload-input" class="hidden" webkitdirectory directory multiple onchange="handleArtistFolderUpload(this.files)">
                             <input type="file" id="file-manager-upload-input" class="hidden" multiple onchange="handleFileManagerUpload(this.files)">
                         </div>
                     </div>
@@ -2088,52 +2092,6 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     <span id="video-modal-title" class="text-xs font-bold text-white max-w-sm sm:max-w-md truncate">Video</span>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
-                    <!-- Subtitle Toggle Button -->
-                    <button id="video-subtitle-btn" onclick="toggleSubtitles()" class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg text-xs font-semibold border border-slate-800 transition cursor-pointer hidden" title="Ativar / Desativar Legendas (SRT)">
-                        <i data-lucide="subtitles" class="w-3.5 h-3.5 text-sky-400"></i>
-                        <span id="video-subtitle-label">Legenda: ON</span>
-                    </button>
-                    <!-- Dual Audio / Channel Selector -->
-                    <div class="relative inline-block text-left" id="video-audio-selector-container">
-                        <button id="video-audio-btn" onclick="toggleAudioTrackDropdown(event)" class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg text-xs font-semibold border border-slate-800 transition cursor-pointer" title="Selecionar Áudio / Canal (Dual Áudio)">
-                            <i data-lucide="volume-2" class="w-3.5 h-3.5 text-sky-400"></i>
-                            <span id="video-audio-label">Áudio: Estéreo</span>
-                            <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400"></i>
-                        </button>
-                        <div id="video-audio-dropdown" class="absolute right-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-2 hidden z-50 text-xs">
-                            <div id="video-audio-status" class="px-2 py-1.5 text-[10px] font-semibold text-sky-400 bg-sky-950/40 border border-sky-900/50 rounded-lg mb-1.5 flex items-center justify-between">
-                                <span>Verificando canais...</span>
-                                <span id="video-audio-ch-count" class="font-mono text-[9px] px-1.5 py-0.5 bg-sky-900/60 rounded">2 CH</span>
-                            </div>
-                            <div class="px-2 py-1 text-[10px] font-bold uppercase text-slate-400 tracking-wider">Canais de Áudio (Dual Áudio)</div>
-                            <button onclick="selectVideoAudioChannel('stereo')" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 flex items-center justify-between group text-xs font-medium transition cursor-pointer active-audio-option" data-channel="stereo">
-                                <span>Estéreo (Padrão L+R)</span>
-                                <i data-lucide="check" class="w-3.5 h-3.5 text-sky-400 opacity-100 check-icon"></i>
-                            </button>
-                            <button onclick="selectVideoAudioChannel('left')" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 flex items-center justify-between group text-xs font-medium transition cursor-pointer" data-channel="left">
-                                <span>Canal Esquerdo (Áudio 1 / Dub)</span>
-                                <i data-lucide="check" class="w-3.5 h-3.5 text-sky-400 opacity-0 check-icon"></i>
-                            </button>
-                            <button onclick="selectVideoAudioChannel('right')" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 flex items-center justify-between group text-xs font-medium transition cursor-pointer" data-channel="right">
-                                <span>Canal Direito (Áudio 2 / Leg)</span>
-                                <i data-lucide="check" class="w-3.5 h-3.5 text-sky-400 opacity-0 check-icon"></i>
-                            </button>
-                            <button onclick="selectVideoAudioChannel('mono')" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 flex items-center justify-between group text-xs font-medium transition cursor-pointer" data-channel="mono">
-                                <span>Misturar Canais (Mono L+R)</span>
-                                <i data-lucide="check" class="w-3.5 h-3.5 text-sky-400 opacity-0 check-icon"></i>
-                            </button>
-                            <button onclick="selectVideoAudioChannel('swap')" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 flex items-center justify-between group text-xs font-medium transition cursor-pointer" data-channel="swap">
-                                <span>Inverter Canais (L ↔ R)</span>
-                                <i data-lucide="check" class="w-3.5 h-3.5 text-sky-400 opacity-0 check-icon"></i>
-                            </button>
-                            <div id="native-tracks-section" class="hidden">
-                                <div class="border-t border-slate-800 my-1.5"></div>
-                                <div class="px-2 py-1 text-[10px] font-bold uppercase text-slate-400 tracking-wider">Faixas Nativas de Áudio</div>
-                                <div id="native-tracks-list" class="space-y-0.5"></div>
-                            </div>
-                        </div>
-                    </div>
-
                     <button id="video-maximize-btn" onclick="toggleVideoMaximize()" class="p-1 text-slate-500 hover:text-white hover:bg-slate-900 rounded-lg transition" title="Tela Cheia">
                         <i data-lucide="maximize" class="w-4 h-4"></i>
                     </button>
@@ -2145,7 +2103,7 @@ define('DONT_EXIT_ON_DB_ERROR', true);
 
             <!-- Video core viewport -->
             <div id="video-viewport-container" class="aspect-video bg-black flex items-center justify-center relative">
-                <video id="modal-video-player" controls crossorigin="anonymous" class="w-full h-full object-contain" style="will-change: transform; transform: translate3d(0,0,0);"></video>
+                <video id="modal-video-player" controls class="w-full h-full object-contain" style="will-change: transform; transform: translate3d(0,0,0);"></video>
             </div>
         </div>
     </div>
@@ -2640,6 +2598,57 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- MOVIE EDIT MODAL (Admin Only) -->
+    <div id="movie-edit-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-[60] p-4 backdrop-blur-sm hidden font-sans">
+        <div class="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-md p-6 relative shadow-2xl space-y-5 animate-fade-in text-left">
+            <div class="flex justify-between items-center border-b border-slate-900 pb-4">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="clapperboard" class="w-5 h-5 text-purple-400"></i>
+                    <h3 class="text-sm font-bold text-white">
+                        Editar Filme: <span id="movie-edit-modal-name" class="text-purple-300"></span>
+                    </h3>
+                </div>
+                <button onclick="closeMovieEditModal()" class="text-slate-400 hover:text-white p-1.5 hover:bg-slate-900 rounded-lg transition cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <input type="hidden" id="movie-edit-name-input">
+
+            <!-- Cover Photo Section -->
+            <div class="space-y-2">
+                <label class="block text-xs font-bold text-slate-300">Foto / Capa do Filme</label>
+                <div id="movie-edit-cover-preview-container" class="relative w-full h-44 bg-slate-900/80 rounded-2xl border border-slate-800 overflow-hidden flex items-center justify-center group">
+                    <img id="movie-edit-cover-img" src="" class="w-full h-full object-cover hidden">
+                    <div id="movie-edit-cover-placeholder" class="text-center p-4">
+                        <i data-lucide="image" class="w-8 h-8 text-slate-600 mx-auto mb-1"></i>
+                        <p class="text-[11px] text-slate-500">Nenhuma capa definida</p>
+                    </div>
+                </div>
+                <div class="flex gap-2 pt-1">
+                    <input type="file" id="movie-edit-file-input" accept="image/*" class="hidden" onchange="handleMovieFileSelect(this)">
+                    <button type="button" onclick="document.getElementById('movie-edit-file-input').click()" class="flex-1 py-2 px-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+                        <i data-lucide="upload" class="w-3.5 h-3.5"></i> Enviar do Computador
+                    </button>
+                </div>
+                <div class="space-y-1 pt-1">
+                    <span class="text-[10px] text-slate-500">Ou informe a URL da Imagem:</span>
+                    <input type="text" id="movie-edit-url-input" placeholder="https://exemplo.com/capa.jpg" oninput="handleMovieUrlInput(this.value)" class="w-full bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-xl p-2.5 outline-none focus:border-purple-500 transition">
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end gap-3 pt-2">
+                <button type="button" onclick="closeMovieEditModal()" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition cursor-pointer">
+                    Cancelar
+                </button>
+                <button type="button" id="btn-save-movie-meta" onclick="saveMovieMetadata()" class="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-lg shadow-purple-600/20">
+                    <i data-lucide="save" class="w-4 h-4"></i> Salvar
+                </button>
+            </div>
         </div>
     </div>
 
@@ -4327,10 +4336,46 @@ const updPane = document.getElementById('subtab-pane-updates');
             }
             if (!files || files.length === 0) return;
             for (let i = 0; i < files.length; i++) {
-                fileUploadQueue.push(files[i]);
+                fileUploadQueue.push({
+                    file: files[i],
+                    relativePath: files[i].webkitRelativePath || files[i].name,
+                    targetBasePath: fileManagerCurrentPath
+                });
             }
             processNextUpload();
         }
+
+        function handleArtistFolderUpload(files) {
+            if (!files || files.length === 0) return;
+
+            // Determine target path: if inside music, use current path; otherwise default to 'music'
+            let targetPath = fileManagerCurrentPath;
+            if (!targetPath || targetPath === '' || (!targetPath.startsWith('music') && targetPath !== 'music')) {
+                targetPath = 'music';
+            }
+
+            let fileCount = 0;
+            for (let i = 0; i < files.length; i++) {
+                const f = files[i];
+                if (f.name === '.DS_Store' || f.name === 'Thumbs.db') continue;
+                
+                const relPath = f.webkitRelativePath || f.name;
+                fileUploadQueue.push({
+                    file: f,
+                    relativePath: relPath,
+                    targetBasePath: targetPath,
+                    isArtistFolder: true
+                });
+                fileCount++;
+            }
+
+            if (fileCount > 0) {
+                showToast(`Enviando pasta do artista (${fileCount} arquivos/álbuns)...`);
+                processNextUpload();
+            }
+        }
+
+        let isArtistUploadBatch = false;
 
         async function processNextUpload() {
             if (currentlyUploading || fileUploadQueue.length === 0) {
@@ -4339,22 +4384,44 @@ const updPane = document.getElementById('subtab-pane-updates');
                         const progressEl = document.getElementById('file-manager-upload-progress');
                         if (progressEl) progressEl.classList.add('hidden');
                     }, 1000);
+
+                    if (isArtistUploadBatch) {
+                        isArtistUploadBatch = false;
+                        showToast('Sincronizando novas músicas e álbuns no banco de dados...');
+                        try {
+                            await fetch('api.php?route=scan');
+                            showToast('Pasta do Artista e Álbuns sincronizados com sucesso!');
+                        } catch(e) {
+                            console.error('Erro ao varrer músicas após upload:', e);
+                        }
+                    }
                 }
                 return;
             }
 
             currentlyUploading = true;
-            const file = fileUploadQueue.shift();
+            const item = fileUploadQueue.shift();
+            const file = item.file || item;
+            const relPath = item.relativePath || file.webkitRelativePath || '';
+            const targetBasePath = item.targetBasePath || fileManagerCurrentPath;
+
+            if (item.isArtistFolder) {
+                isArtistUploadBatch = true;
+            }
 
             const progressEl = document.getElementById('file-manager-upload-progress');
             if (progressEl) progressEl.classList.remove('hidden');
 
             const pText = document.getElementById('upload-progress-text');
-            if (pText) pText.textContent = `Enviando: ${file.name} (${formatBytes(file.size)}) ... [Pendentes: ${fileUploadQueue.length}]`;
+            const displayName = relPath || file.name;
+            if (pText) pText.textContent = `Enviando: ${displayName} (${formatBytes(file.size)}) ... [Pendentes: ${fileUploadQueue.length}]`;
 
             try {
                 const formData = new FormData();
-                formData.append('path', fileManagerCurrentPath);
+                formData.append('path', targetBasePath);
+                if (relPath) {
+                    formData.append('relative_path', relPath);
+                }
                 formData.append('file', file);
 
                 const xhr = new XMLHttpRequest();
@@ -4438,13 +4505,67 @@ const updPane = document.getElementById('subtab-pane-updates');
             }
         }
 
-        function handleFileDrop(e) {
+        async function handleFileDrop(e) {
             e.preventDefault();
             e.stopPropagation();
             const overlay = document.getElementById('file-manager-drag-overlay');
             if (overlay) {
                 overlay.style.opacity = '0';
                 overlay.style.pointerEvents = 'none';
+            }
+
+            const items = e.dataTransfer.items;
+            if (items && items.length > 0) {
+                const filesList = [];
+                const readEntry = async (entry, path = '') => {
+                    if (entry.isFile) {
+                        return new Promise((resolve) => {
+                            entry.file((f) => {
+                                if (f.name !== '.DS_Store' && f.name !== 'Thumbs.db') {
+                                    filesList.push({
+                                        file: f,
+                                        relativePath: path ? path + '/' + f.name : f.name
+                                    });
+                                }
+                                resolve();
+                            });
+                        });
+                    } else if (entry.isDirectory) {
+                        const dirReader = entry.createReader();
+                        const entries = await new Promise((resolve) => {
+                            dirReader.readEntries((results) => resolve(results));
+                        });
+                        for (const childEntry of entries) {
+                            await readEntry(childEntry, path ? path + '/' + entry.name : entry.name);
+                        }
+                    }
+                };
+
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+                    if (entry) {
+                        await readEntry(entry, '');
+                    }
+                }
+
+                if (filesList.length > 0) {
+                    let targetPath = fileManagerCurrentPath;
+                    if (!targetPath || targetPath === '' || (!targetPath.startsWith('music') && targetPath !== 'music')) {
+                        targetPath = 'music';
+                    }
+                    for (let i = 0; i < filesList.length; i++) {
+                        fileUploadQueue.push({
+                            file: filesList[i].file,
+                            relativePath: filesList[i].relativePath,
+                            targetBasePath: targetPath,
+                            isArtistFolder: true
+                        });
+                    }
+                    showToast(`Enviando pasta arrastada (${filesList.length} arquivos)...`);
+                    processNextUpload();
+                    return;
+                }
             }
 
             const files = e.dataTransfer.files;
@@ -9494,385 +9615,67 @@ async function deleteUser(username) {
             player.play().catch(e => console.log('Auto-play prevent', e));
         }
 
-        
-        let videoAudioCtx = null;
-        let videoSourceNode = null;
-        let videoSplitter = null;
-        let videoMerger = null;
-        let gainL_L = null;
-        let gainL_R = null;
-        let gainR_L = null;
-        let gainR_R = null;
-        let currentAudioChannel = 'stereo';
-
-        function initVideoAudioNodes() {
-            const player = document.getElementById('modal-video-player');
-            if (!player) return;
-
-            if (!videoAudioCtx) {
-                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-                if (!AudioContextClass) return;
-
-                try {
-                    videoAudioCtx = new AudioContextClass();
-                    videoSourceNode = videoAudioCtx.createMediaElementSource(player);
-                    videoSplitter = videoAudioCtx.createChannelSplitter(2);
-                    videoMerger = videoAudioCtx.createChannelMerger(2);
-
-                    gainL_L = videoAudioCtx.createGain();
-                    gainL_R = videoAudioCtx.createGain();
-                    gainR_L = videoAudioCtx.createGain();
-                    gainR_R = videoAudioCtx.createGain();
-
-                    videoSourceNode.connect(videoSplitter);
-
-                    // Left channel (output 0) -> gainL_L & gainL_R
-                    videoSplitter.connect(gainL_L, 0);
-                    videoSplitter.connect(gainL_R, 0);
-
-                    // Right channel (output 1) -> gainR_L & gainR_R
-                    videoSplitter.connect(gainR_L, 1);
-                    videoSplitter.connect(gainR_R, 1);
-
-                    // Connect Gains to Merger
-                    gainL_L.connect(videoMerger, 0, 0); // L -> L out
-                    gainR_L.connect(videoMerger, 0, 0); // R -> L out
-
-                    gainL_R.connect(videoMerger, 0, 1); // L -> R out
-                    gainR_R.connect(videoMerger, 0, 1); // R -> R out
-
-                    videoMerger.connect(videoAudioCtx.destination);
-                } catch(e) {
-                    console.error("AudioContext initialization error:", e);
-                }
-            }
-
-            applyAudioGainMatrix(currentAudioChannel);
-
-            if (videoAudioCtx && videoAudioCtx.state === 'suspended') {
-                videoAudioCtx.resume().catch(e => console.log('AudioCtx resume error', e));
-            }
-        }
-
-        function applyAudioGainMatrix(mode) {
-            if (!gainL_L || !gainL_R || !gainR_L || !gainR_R || !videoAudioCtx) return;
-            const now = videoAudioCtx.currentTime;
-            if (mode === 'left') {
-                // Route Left channel (Audio 1 / Dub) to BOTH speakers
-                gainL_L.gain.value = 1; gainL_L.gain.setValueAtTime(1, now);
-                gainL_R.gain.value = 1; gainL_R.gain.setValueAtTime(1, now);
-                gainR_L.gain.value = 0; gainR_L.gain.setValueAtTime(0, now);
-                gainR_R.gain.value = 0; gainR_R.gain.setValueAtTime(0, now);
-            } else if (mode === 'right') {
-                // Route Right channel (Audio 2 / Original) to BOTH speakers
-                gainL_L.gain.value = 0; gainL_L.gain.setValueAtTime(0, now);
-                gainL_R.gain.value = 0; gainL_R.gain.setValueAtTime(0, now);
-                gainR_L.gain.value = 1; gainR_L.gain.setValueAtTime(1, now);
-                gainR_R.gain.value = 1; gainR_R.gain.setValueAtTime(1, now);
-            } else if (mode === 'mono') {
-                // Mix Left and Right into both speakers (0.5 each)
-                gainL_L.gain.value = 0.5; gainL_L.gain.setValueAtTime(0.5, now);
-                gainL_R.gain.value = 0.5; gainL_R.gain.setValueAtTime(0.5, now);
-                gainR_L.gain.value = 0.5; gainR_L.gain.setValueAtTime(0.5, now);
-                gainR_R.gain.value = 0.5; gainR_R.gain.setValueAtTime(0.5, now);
-            } else if (mode === 'swap') {
-                // Invert L and R
-                gainL_L.gain.value = 0; gainL_L.gain.setValueAtTime(0, now);
-                gainL_R.gain.value = 1; gainL_R.gain.setValueAtTime(1, now);
-                gainR_L.gain.value = 1; gainR_L.gain.setValueAtTime(1, now);
-                gainR_R.gain.value = 0; gainR_R.gain.setValueAtTime(0, now);
-            } else {
-                // 'stereo': Left -> Left, Right -> Right
-                gainL_L.gain.value = 1; gainL_L.gain.setValueAtTime(1, now);
-                gainL_R.gain.value = 0; gainL_R.gain.setValueAtTime(0, now);
-                gainR_L.gain.value = 0; gainR_L.gain.setValueAtTime(0, now);
-                gainR_R.gain.value = 1; gainR_R.gain.setValueAtTime(1, now);
-            }
-        }
-
-        window.selectVideoAudioChannel = function(mode) {
-            currentAudioChannel = mode;
-            initVideoAudioNodes();
-            applyAudioGainMatrix(mode);
-
-            // Update UI
-            const labelEl = document.getElementById('video-audio-label');
-            if (labelEl) {
-                if (mode === 'left') labelEl.textContent = 'Áudio: Canal Esq (Dub)';
-                else if (mode === 'right') labelEl.textContent = 'Áudio: Canal Dir (Leg)';
-                else if (mode === 'mono') labelEl.textContent = 'Áudio: Mono (L+R)';
-                else if (mode === 'swap') labelEl.textContent = 'Áudio: Invertido (L/R)';
-                else labelEl.textContent = 'Áudio: Estéreo';
-            }
-
-            const dropdown = document.getElementById('video-audio-dropdown');
-            if (dropdown) {
-                dropdown.querySelectorAll('button[data-channel]').forEach(btn => {
-                    const ch = btn.getAttribute('data-channel');
-                    const check = btn.querySelector('.check-icon');
-                    if (ch === mode) {
-                        btn.classList.add('bg-slate-800', 'text-white');
-                        if (check) check.classList.remove('opacity-0');
-                    } else {
-                        btn.classList.remove('bg-slate-800', 'text-white');
-                        if (check) check.classList.add('opacity-0');
-                    }
-                });
-                dropdown.classList.add('hidden');
-            }
-        };
-
-        window.updateAudioChannelInfo = function() {
-            const player = document.getElementById('modal-video-player');
-            const statusEl = document.getElementById('video-audio-status');
-            const countEl = document.getElementById('video-audio-ch-count');
-            if (!statusEl) return;
-
-            let chCount = 2;
-            if (videoSourceNode && videoSourceNode.channelCount) {
-                chCount = videoSourceNode.channelCount;
-            } else if (videoAudioCtx && videoAudioCtx.destination) {
-                chCount = videoAudioCtx.destination.channelCount || 2;
-            }
-
-            if (countEl) countEl.textContent = chCount + ' CH';
-
-            if (chCount > 1) {
-                statusEl.innerHTML = `<span>Multi-canais detectados:</span><span class="font-mono text-[9px] px-1.5 py-0.5 bg-sky-900/60 text-sky-300 border border-sky-800/60 rounded">${chCount} Canais (${chCount === 2 ? 'Estéreo/Dual' : chCount + ' CH'})</span>`;
-            } else {
-                statusEl.innerHTML = `<span>Canal de áudio:</span><span class="font-mono text-[9px] px-1.5 py-0.5 bg-amber-900/60 text-amber-300 border border-amber-800/60 rounded">1 Canal (Mono)</span>`;
-            }
-        };
-
-        window.toggleAudioTrackDropdown = function(e) {
-            if (e) e.stopPropagation();
-            const dropdown = document.getElementById('video-audio-dropdown');
-            if (dropdown) {
-                dropdown.classList.toggle('hidden');
-                if (!dropdown.classList.contains('hidden')) {
-                    initVideoAudioNodes();
-                    updateAudioChannelInfo();
-                    checkNativeAudioTracks();
-                    if (typeof lucide !== 'undefined') lucide.createIcons();
-                }
-            }
-        };
-
-        window.checkNativeAudioTracks = function() {
-            const player = document.getElementById('modal-video-player');
-            const nativeSection = document.getElementById('native-tracks-section');
-            const nativeList = document.getElementById('native-tracks-list');
-
-            if (player && player.audioTracks && player.audioTracks.length > 1) {
-                if (nativeSection && nativeList) {
-                    nativeSection.classList.remove('hidden');
-                    nativeList.innerHTML = '';
-                    for (let i = 0; i < player.audioTracks.length; i++) {
-                        const track = player.audioTracks[i];
-                        const btn = document.createElement('button');
-                        btn.className = 'w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 flex items-center justify-between text-xs font-medium transition cursor-pointer ' + (track.enabled ? 'bg-slate-800 text-white' : '');
-                        btn.innerHTML = `
-                            <span>${track.label || track.language || ('Faixa de Áudio ' + (i + 1))}</span>
-                            <i data-lucide="check" class="w-3.5 h-3.5 text-sky-400 ${track.enabled ? '' : 'opacity-0'}"></i>
-                        `;
-                        btn.onclick = (ev) => {
-                            ev.stopPropagation();
-                            for (let j = 0; j < player.audioTracks.length; j++) {
-                                player.audioTracks[j].enabled = (j === i);
-                            }
-                            checkNativeAudioTracks();
-                            const labelEl = document.getElementById('video-audio-label');
-                            if (labelEl) labelEl.textContent = 'Áudio: ' + (track.label || ('Faixa ' + (i + 1)));
-                            const dropdown = document.getElementById('video-audio-dropdown');
-                            if (dropdown) dropdown.classList.add('hidden');
-                        };
-                        nativeList.appendChild(btn);
-                    }
-                }
-            } else {
-                if (nativeSection) nativeSection.classList.add('hidden');
-            }
-        };
-
-        document.addEventListener('click', function(e) {
-            const container = document.getElementById('video-audio-selector-container');
-            if (container && !container.contains(e.target)) {
-                const dropdown = document.getElementById('video-audio-dropdown');
-                if (dropdown) dropdown.classList.add('hidden');
-            }
-        });
-
-        
-        window.setupVideoSubtitle = function(params) {
-            const player = document.getElementById('modal-video-player');
-            if (!player) return;
-
-            const oldTracks = player.querySelectorAll('track');
-            oldTracks.forEach(tr => tr.remove());
-
-            let subUrl = 'api.php?route=stream_subtitle&';
-            if (params.id) {
-                subUrl += 'id=' + encodeURIComponent(params.id);
-            } else if (params.path) {
-                subUrl += 'path=' + encodeURIComponent(params.path);
-            } else {
-                updateSubtitleUI(false);
-                return;
-            }
-
-            const track = document.createElement('track');
-            track.kind = 'subtitles';
-            track.label = 'Português (SRT)';
-            track.srclang = 'pt';
-            track.src = subUrl;
-            track.default = true;
-
-            track.onload = function() {
-                try {
-                    if (player.textTracks && player.textTracks.length > 0) {
-                        player.textTracks[0].mode = 'showing';
-                    }
-                } catch(e) {}
-                updateSubtitleUI(true);
-            };
-
-            track.onerror = function() {
-                updateSubtitleUI(false);
-            };
-
-            player.appendChild(track);
-
-            setTimeout(() => {
-                if (player.textTracks && player.textTracks.length > 0) {
-                    try {
-                        const t = player.textTracks[0];
-                        if (t && t.mode !== 'disabled') {
-                            t.mode = 'showing';
-                            updateSubtitleUI(true);
-                        }
-                    } catch(e) {}
-                }
-            }, 600);
-        };
-
-        window.toggleSubtitles = function() {
-            const player = document.getElementById('modal-video-player');
-            if (!player) return;
-            const btnLabel = document.getElementById('video-subtitle-label');
-            const btn = document.getElementById('video-subtitle-btn');
-
-            if (player.textTracks && player.textTracks.length > 0) {
-                const t = player.textTracks[0];
-                if (t.mode === 'showing') {
-                    t.mode = 'disabled';
-                    if (btnLabel) btnLabel.textContent = 'Legenda: OFF';
-                    if (btn) btn.classList.add('opacity-60');
-                } else {
-                    t.mode = 'showing';
-                    if (btnLabel) btnLabel.textContent = 'Legenda: ON';
-                    if (btn) btn.classList.remove('opacity-60');
-                }
-            }
-        };
-
-        window.updateSubtitleUI = function(hasSub) {
-            const btn = document.getElementById('video-subtitle-btn');
-            const btnLabel = document.getElementById('video-subtitle-label');
-            if (!btn) return;
-            if (hasSub) {
-                btn.classList.remove('hidden');
-                if (btnLabel) btnLabel.textContent = 'Legenda: ON';
-                btn.classList.remove('opacity-60');
-            } else {
-                btn.classList.add('hidden');
-            }
-        };
-
         function playMediaFile(path, title) {
+            // stop audio player if playing
             if (isPlaying) {
                 audio.pause();
                 isPlaying = false;
                 const btn = document.getElementById('player-play-btn');
                 if (btn) btn.innerHTML = '<i data-lucide="play" class="w-4 h-4 fill-current"></i>';
-                if (typeof lucide !== 'undefined') lucide.createIcons();
+                lucide.createIcons();
             }
-
+            
             const player = document.getElementById('modal-video-player');
             if (player) {
                 player.src = 'api.php?route=stream_media&path=' + encodeURIComponent(path);
                 player.removeAttribute('poster');
-                player.onplay = function() { initVideoAudioNodes(); };
-                setupVideoSubtitle({ path: path });
             }
-
+            
             const tEl = document.getElementById('video-modal-title');
             if (tEl) tEl.textContent = title;
-
+            
             const modal = document.getElementById('video-modal');
             if (modal) {
                 modal.classList.remove('hidden');
                 modal.querySelector('> div').classList.remove('scale-95', 'opacity-0');
             }
-
-            if (player) {
-                player.play().then(() => {
-                    initVideoAudioNodes();
-                }).catch(e => console.log('Auto-play prevent', e));
-            }
+            
+            if (player) player.play().catch(e => console.log('Auto-play prevent', e));
         }
 
         function playVideo(id) {
             const vid = allVideos.find(v => v.id === id);
             if (!vid) return;
-
+            
+            // stop audio player if playing
             if (isPlaying) {
                 audio.pause();
                 isPlaying = false;
-                const btn = document.getElementById('player-play-btn');
-                if (btn) btn.innerHTML = '<i data-lucide="play" class="w-4 h-4 fill-current"></i>';
-                if (typeof lucide !== 'undefined') lucide.createIcons();
+                document.getElementById('player-play-btn').innerHTML = '<i data-lucide="play" class="w-4 h-4 fill-current"></i>';
+                lucide.createIcons();
             }
-
+            
             const player = document.getElementById('modal-video-player');
-            if (player) {
-                player.src = 'api.php?route=stream_video&id=' + encodeURIComponent(vid.id);
-                if (vid.coverUrl) {
-                    player.poster = vid.coverUrl;
-                } else {
-                    player.removeAttribute('poster');
-                }
-                player.onplay = function() { initVideoAudioNodes(); };
-                setupVideoSubtitle({ id: vid.id });
+            player.src = 'api.php?route=stream_video&id=' + encodeURIComponent(vid.id);
+            if (vid.coverUrl) {
+                player.poster = vid.coverUrl;
+            } else {
+                player.removeAttribute('poster');
             }
-
-            const tEl = document.getElementById('video-modal-title');
-            if (tEl) tEl.textContent = vid.title;
-
-            const modal = document.getElementById('video-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-            }
-
-            if (player) {
-                player.play().then(() => {
-                    initVideoAudioNodes();
-                }).catch(e => console.log('Auto-play prevent', e));
-            }
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+            
+            document.getElementById('video-modal-title').textContent = vid.title;
+            document.getElementById('video-modal').classList.remove('hidden');
+            player.play();
+            lucide.createIcons();
         }
 
         function closeVideoModal() {
-            updateSubtitleUI(false);
             const player = document.getElementById('modal-video-player');
-            if (player) {
-                player.pause();
-                player.src = '';
-            }
+            player.pause();
+            player.src = '';
             const modal = document.getElementById('video-modal');
-            if (modal) {
-                modal.classList.add('hidden');
-                modal.classList.remove('pseudo-fullscreen-active');
-            }
+            modal.classList.add('hidden');
+            modal.classList.remove('pseudo-fullscreen-active');
             const btn = document.getElementById('video-maximize-btn');
             if (btn) btn.innerHTML = '<i data-lucide="maximize" class="w-4 h-4"></i>';
             if (typeof lucide !== 'undefined') {
@@ -10686,26 +10489,41 @@ async function deleteUser(username) {
                     });
                     
                     let html = '';
+                    window.moviesByGenre = byGenre; // For edit modal logic
                     for (const genre in byGenre) {
                         html += `
                             <div class="mb-8">
                                 <h3 class="text-lg font-bold text-white mb-4">${genre}</h3>
-                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                                    ${byGenre[genre].map(m => `
-                                        <div class="bg-slate-900/50 rounded-xl overflow-hidden border border-slate-800 hover:border-purple-500/50 transition cursor-pointer group" onclick="playMediaFile('${m.file_name}', '${m.title}')">
-                                            <div class="aspect-[2/3] bg-slate-800 flex items-center justify-center relative">
-                                                <i data-lucide="clapperboard" class="w-8 h-8 text-slate-600"></i>
-                                                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
-                                                    <div class="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center">
-                                                        <i data-lucide="play" class="w-5 h-5 text-white ml-1 fill-current"></i>
+                                <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+                                    ${byGenre[genre].map((m, mIdx) => {
+                                        const hasCover = m.cover_url && m.cover_url.trim() !== '';
+                                        const isAdmin = currentUser && currentUser.role === 'admin';
+                                        
+                                        return `
+                                            <div class="bg-slate-900/50 rounded-xl overflow-hidden border border-slate-800 hover:border-purple-500/50 transition cursor-pointer group relative">
+                                                <div class="aspect-[2/3] bg-slate-800 flex items-center justify-center relative" onclick="playMediaFile('${m.file_name}', '${m.title}')">
+                                                    ${hasCover ? `
+                                                        <img src="${API_BASE_URL + m.cover_url}" class="w-full h-full object-cover transition duration-500 group-hover:scale-105" alt="${m.title}" loading="lazy" />
+                                                    ` : `
+                                                        <i data-lucide="clapperboard" class="w-6 h-6 text-slate-600"></i>
+                                                    `}
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                                                        <div class="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                                                            <i data-lucide="play" class="w-4 h-4 text-white ml-0.5 fill-current"></i>
+                                                        </div>
                                                     </div>
                                                 </div>
+                                                <div class="p-2.5 pb-3">
+                                                    <div class="text-[11px] font-bold text-slate-200 leading-tight line-clamp-2" title="${m.title}">${m.title}</div>
+                                                </div>
+                                                ${isAdmin ? `
+                                                    <button onclick="event.stopPropagation(); openMovieEditModal(${mIdx}, '${genre}')" class="absolute top-2 right-2 p-1.5 bg-slate-950/80 hover:bg-purple-600 text-white rounded-lg backdrop-blur-md border border-white/10 transition shadow-lg flex items-center gap-1 text-[10px] font-bold cursor-pointer opacity-0 group-hover:opacity-100" title="Editar Capa">
+                                                        <i data-lucide="pencil" class="w-3 h-3"></i>
+                                                    </button>
+                                                ` : ''}
                                             </div>
-                                            <div class="p-3">
-                                                <div class="text-sm font-bold text-white truncate">${m.title}</div>
-                                            </div>
-                                        </div>
-                                    `).join('')}
+                                        `;
+                                    }).join('')}
                                 </div>
                             </div>
                         `;
@@ -10770,11 +10588,14 @@ async function deleteUser(username) {
                                             <p class="text-xs text-slate-400 leading-relaxed bg-slate-950/50 p-3 rounded-xl border border-slate-800/60">${s.description}</p>
                                         ` : ''}
 
-                                        <div class="space-y-4 max-h-64 overflow-y-auto custom-scrollbar pt-2 border-t border-slate-800/60">
+                                        <div class="space-y-3 max-h-72 overflow-y-auto custom-scrollbar pt-2 border-t border-slate-800/60">
                                             ${s.seasons.map((season, seasonIdx) => `
-                                                <div>
-                                                    <h4 class="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-2">${season.name}</h4>
-                                                    <div class="space-y-1">
+                                                <details class="group/season bg-slate-900/40 rounded-xl border border-slate-800/50 overflow-hidden">
+                                                    <summary class="flex justify-between items-center text-xs font-bold text-indigo-300 uppercase tracking-wider p-3 cursor-pointer hover:bg-slate-800/60 transition select-none list-none [&::-webkit-details-marker]:hidden">
+                                                        <span>${season.name}</span>
+                                                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 group-open/season:rotate-180 transition-transform duration-300 shrink-0"></i>
+                                                    </summary>
+                                                    <div class="space-y-1 p-2 pt-0 border-t border-slate-800/50 bg-slate-900/20">
                                                         ${season.episodes.map(ep => `
                                                             <div class="flex items-center gap-2 p-2 hover:bg-slate-800/80 rounded-xl cursor-pointer transition group" onclick="playMediaFile('${ep.file_name}', '${ep.title}')">
                                                                 <i data-lucide="play-circle" class="w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition shrink-0"></i>
@@ -10782,7 +10603,7 @@ async function deleteUser(username) {
                                                             </div>
                                                         `).join('')}
                                                     </div>
-                                                </div>
+                                                </details>
                                             `).join('')}
                                         </div>
                                     </div>
@@ -10821,6 +10642,130 @@ async function deleteUser(username) {
                 modal.style.display = 'flex';
             }
             if (window.lucide) lucide.createIcons();
+        };
+
+        window.openMovieEditModal = function(mIdx, genre) {
+            const byGenre = window.moviesByGenre;
+            if (!byGenre || !byGenre[genre]) return;
+            const m = byGenre[genre][mIdx];
+            if (!m) return;
+
+            document.getElementById('movie-edit-modal-name').innerText = m.title;
+            document.getElementById('movie-edit-name-input').value = m.title;
+            document.getElementById('movie-edit-url-input').value = m.cover_url || '';
+            
+            const fileInput = document.getElementById('movie-edit-file-input');
+            if (fileInput) fileInput.value = '';
+            
+            handleMovieUrlInput(m.cover_url || '');
+            
+            const modal = document.getElementById('movie-edit-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.style.zIndex = '999999';
+                modal.style.display = 'flex';
+            }
+            if (window.lucide) lucide.createIcons();
+        };
+
+        window.closeMovieEditModal = function() {
+            const modal = document.getElementById('movie-edit-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+            }
+        };
+
+        window.handleMovieUrlInput = function(url) {
+            const img = document.getElementById('movie-edit-cover-img');
+            const ph = document.getElementById('movie-edit-cover-placeholder');
+            if (url && url.trim() !== '') {
+                img.src = API_BASE_URL + url.trim();
+                img.classList.remove('hidden');
+                ph.classList.add('hidden');
+            } else {
+                img.src = '';
+                img.classList.add('hidden');
+                ph.classList.remove('hidden');
+            }
+        };
+
+        window.handleMovieFileSelect = async function(input) {
+            if (!input.files || input.files.length === 0) return;
+            const file = input.files[0];
+            const movieTitle = document.getElementById('movie-edit-name-input').value;
+            
+            const formData = new FormData();
+            formData.append('cover', file);
+            formData.append('movie_title', movieTitle);
+            
+            const btn = document.getElementById('btn-save-movie-meta');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Enviando...';
+            btn.disabled = true;
+            if (window.lucide) lucide.createIcons();
+            
+            try {
+                const res = await fetch(API + '?route=upload_movie_cover', {
+                    method: 'POST',
+                    headers: { 'X-Username': currentUsername || '' },
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('movie-edit-url-input').value = data.cover_url;
+                    handleMovieUrlInput(data.cover_url);
+                } else {
+                    alert(data.error || 'Erro ao enviar capa.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro na requisição.');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                if (window.lucide) lucide.createIcons();
+            }
+        };
+
+        window.saveMovieMetadata = async function() {
+            const movieTitle = document.getElementById('movie-edit-name-input').value;
+            const coverUrl = document.getElementById('movie-edit-url-input').value;
+            
+            const btn = document.getElementById('btn-save-movie-meta');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Salvando...';
+            btn.disabled = true;
+            if (window.lucide) lucide.createIcons();
+            
+            try {
+                const form = new URLSearchParams();
+                form.append('movie_title', movieTitle);
+                form.append('cover_url', coverUrl);
+                
+                const res = await fetch(API + '?route=save_movie_metadata', {
+                    method: 'POST',
+                    headers: { 
+                        'X-Username': currentUsername || '',
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: form.toString()
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeMovieEditModal();
+                    loadMovies(); // refresh list
+                } else {
+                    alert(data.error || 'Erro ao salvar.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro na requisição.');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                if (window.lucide) lucide.createIcons();
+            }
         };
 
         window.closeSeriesEditModal = function() {
