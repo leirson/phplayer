@@ -1,22 +1,8 @@
 <?php
 $changelog = <<<EOT
-v1.2.0
-- Suporte a leitura e carregamento automático de legendas SRT/WebVTT para vídeos (com detecção do arquivo pelo nome do vídeo e botão LIGA/DESLIGA).
-- Verificação dinâmica e seletor de canais de áudio para vídeos com múltiplos canais (Estéreo, Canal Esquerdo/Dublado, Canal Direito/Legendado, Mono L+R e Inversão L ↔ R).
-- Adicionados cabeçalhos de controle CORS (Cross-Origin Resource Sharing) no api.php para streaming de mídia e suporte a legendas externas.
-
-v1.1.9
-- Verificação dinâmica e seleção de canais de áudio em vídeos (Estéreo, Canal Esquerdo/Dublado, Canal Direito/Legendado, Mistura Mono L+R e Inversão L ↔ R) com indicador de contagem de canais detectados no reprodutor.
-
-v1.1.8
-- Adicionada leitura automática de legendas .SRT/.WebVTT com o mesmo nome do vídeo sem alterar ou interferir nos canais e faixas de áudio configurados.
-- Incluído cabeçalhos CORS (Cross-Origin) para rotas de transmissão de vídeos e mídias no api.php.
-
-v1.1.7
-- Adicionado suporte a legendas SRT e WebVTT automáticas em filmes, séries e vídeos (detecção automática por arquivo com o mesmo nome do vídeo, conversão SRT -> WebVTT em tempo real e botão de controle ON/OFF no reprodutor).
-
 v1.1.6
-- Implementado seletor de canais de áudio e suporte a Dual Áudio nos reprodutores de filmes, séries e vídeos (Estéreo, Canal Esquerdo/Dublado e Canal Direito/Legendado via Web Audio API + faixas de áudio nativas).
+- Ajuste no layout e tamanho das capas de Filmes com suporte a upload de imagem e edição de capa de filme.
+- Suporte a upload completo de pasta do Artista com preservação da estrutura de subpastas (Álbuns e Músicas) no Gerenciador de Arquivos e sincronização automática da biblioteca.
 
 v1.1.5
 - Adicionado seletor de ativação/desativação para 'Vídeo Library', 'Series Library' e 'Movies Library' na aba Sincronização e Mídia das Configurações, ocultando ou exibindo os menus correspondentes no menu lateral.
