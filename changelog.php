@@ -1,5 +1,8 @@
 <?php
 $changelog = <<<EOT
+v1.1.7
+- Correção no envio de capa de filmes (upload_movie_cover) e salvamento de metadados de filmes com autenticação de administrador e tratamento de erros.
+
 v1.1.6
 - Ajuste no layout e tamanho das capas de Filmes com suporte a upload de imagem e edição de capa de filme.
 - Suporte a upload completo de pasta do Artista com preservação da estrutura de subpastas (Álbuns e Músicas) no Gerenciador de Arquivos e sincronização automática da biblioteca.

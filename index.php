@@ -10694,6 +10694,7 @@ async function deleteUser(username) {
             if (!input.files || input.files.length === 0) return;
             const file = input.files[0];
             const movieTitle = document.getElementById('movie-edit-name-input').value;
+            const username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : '';
             
             const formData = new FormData();
             formData.append('cover', file);
@@ -10706,9 +10707,9 @@ async function deleteUser(username) {
             if (window.lucide) lucide.createIcons();
             
             try {
-                const res = await fetch(API + '?route=upload_movie_cover', {
+                const res = await fetch(API + '?route=upload_movie_cover&admin_username=' + encodeURIComponent(username), {
                     method: 'POST',
-                    headers: { 'X-Username': currentUsername || '' },
+                    headers: { 'X-Username': username },
                     body: formData
                 });
                 const data = await res.json();
@@ -10720,7 +10721,7 @@ async function deleteUser(username) {
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro na requisição.');
+                alert('Erro na requisição: ' + err.message);
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -10731,6 +10732,7 @@ async function deleteUser(username) {
         window.saveMovieMetadata = async function() {
             const movieTitle = document.getElementById('movie-edit-name-input').value;
             const coverUrl = document.getElementById('movie-edit-url-input').value;
+            const username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : '';
             
             const btn = document.getElementById('btn-save-movie-meta');
             const originalText = btn.innerHTML;
@@ -10739,17 +10741,16 @@ async function deleteUser(username) {
             if (window.lucide) lucide.createIcons();
             
             try {
-                const form = new URLSearchParams();
-                form.append('movie_title', movieTitle);
-                form.append('cover_url', coverUrl);
-                
-                const res = await fetch(API + '?route=save_movie_metadata', {
+                const res = await fetch(API + '?route=save_movie_metadata&admin_username=' + encodeURIComponent(username), {
                     method: 'POST',
                     headers: { 
-                        'X-Username': currentUsername || '',
-                        'Content-Type': 'application/x-www-form-urlencoded'
+                        'X-Username': username,
+                        'Content-Type': 'application/json'
                     },
-                    body: form.toString()
+                    body: JSON.stringify({
+                        movie_title: movieTitle,
+                        cover_url: coverUrl
+                    })
                 });
                 const data = await res.json();
                 if (data.success) {
@@ -10760,7 +10761,7 @@ async function deleteUser(username) {
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro na requisição.');
+                alert('Erro na requisição: ' + err.message);
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;

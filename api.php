@@ -4051,8 +4051,8 @@ Accept: */*
             PRIMARY KEY (movie_title)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
-        $movieTitle = trim($input['movie_title'] ?? '');
-        $coverUrl = trim($input['cover_url'] ?? '');
+        $movieTitle = trim($input['movie_title'] ?? $_POST['movie_title'] ?? '');
+        $coverUrl = trim($input['cover_url'] ?? $_POST['cover_url'] ?? '');
 
         if (empty($movieTitle)) {
             http_response_code(400);
