@@ -1,5 +1,8 @@
 <?php
 $changelog = <<<EOT
+v1.1.8
+- Correção no carregamento e preview de capas de filmes (remoção da variável indefinida API_BASE_URL).
+
 v1.1.7
 - Correção no envio de capa de filmes (upload_movie_cover) e salvamento de metadados de filmes com autenticação de administrador e tratamento de erros.
 

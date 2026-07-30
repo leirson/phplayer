@@ -10503,7 +10503,7 @@ async function deleteUser(username) {
                                             <div class="bg-slate-900/50 rounded-xl overflow-hidden border border-slate-800 hover:border-purple-500/50 transition cursor-pointer group relative">
                                                 <div class="aspect-[2/3] bg-slate-800 flex items-center justify-center relative" onclick="playMediaFile('${m.file_name}', '${m.title}')">
                                                     ${hasCover ? `
-                                                        <img src="${API_BASE_URL + m.cover_url}" class="w-full h-full object-cover transition duration-500 group-hover:scale-105" alt="${m.title}" loading="lazy" />
+                                                        <img src="${m.cover_url}" class="w-full h-full object-cover transition duration-500 group-hover:scale-105" alt="${m.title}" loading="lazy" />
                                                     ` : `
                                                         <i data-lucide="clapperboard" class="w-6 h-6 text-slate-600"></i>
                                                     `}
@@ -10680,7 +10680,7 @@ async function deleteUser(username) {
             const img = document.getElementById('movie-edit-cover-img');
             const ph = document.getElementById('movie-edit-cover-placeholder');
             if (url && url.trim() !== '') {
-                img.src = API_BASE_URL + url.trim();
+                img.src = url.trim();
                 img.classList.remove('hidden');
                 ph.classList.add('hidden');
             } else {
