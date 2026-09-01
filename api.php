@@ -473,8 +473,8 @@ try {
                 
                 // Remove potential remnants of BOMs and control characters
                 $decoded = str_replace(["ï»¿", "ÿþ", "þÿ"], '', $decoded);
-                $decoded = trim($decoded, " .. ");
-                $decoded = preg_replace('/[ --]/', '', $decoded);
+                $decoded = trim($decoded, "\x00..\x1f ");
+                $decoded = preg_replace("/[\x00-\x08\x0b\x0c\x0e-\x1f]/", "", $decoded);
                 
                 // Fallback validation to guarantee absolute conformance to utf8mb4
                 $decoded = mb_convert_encoding($decoded, 'UTF-8', 'UTF-8');
@@ -543,9 +543,9 @@ try {
                     $tag = fread($handle_v1, 128);
                     if (substr($tag, 0, 3) === 'TAG') {
                         $sanitizeV1 = function($str) {
-                            $clean = trim($str, " .. ");
-                            $clean = mb_check_encoding($clean, 'UTF-8') ? $clean : @mb_convert_encoding($clean, 'UTF-8', 'ISO-8859-1');
-                            $clean = preg_replace('/[ --]/', '', $clean);
+                            $clean = trim($str, "\x00..\x1f ");
+                            $clean = mb_check_encoding($clean, "UTF-8") ? $clean : @mb_convert_encoding($clean, "UTF-8", "ISO-8859-1");
+                            $clean = preg_replace("/[\x00-\x08\x0b\x0c\x0e-\x1f]/", "", $clean);
                             return trim($clean);
                         };
                         $titlev1 = $sanitizeV1(substr($tag, 3, 30));
