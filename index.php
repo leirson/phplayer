@@ -2053,10 +2053,10 @@ define('DONT_EXIT_ON_DB_ERROR', true);
     <!-- AUDIO PLAYER CONTROLLER -->
     <footer id="player-toolbar" class="h-20 bg-slate-950 border-t border-slate-900 px-6 flex items-center justify-between shrink-0 select-none z-55 hidden">
         <div class="flex items-center gap-3 w-1/4">
-            <img id="track-cover" src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100" class="w-10 h-10 rounded-lg object-cover bg-slate-900 border border-slate-800 shrink-0">
+            <img id="track-cover" onclick="navigateToCurrentPlayingAlbum(event)" src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100" class="w-10 h-10 rounded-lg object-cover bg-slate-900 border border-slate-800 shrink-0 cursor-pointer hover:opacity-80 transition" title="Ver Álbum">
             <div class="min-w-0 hidden md:block">
-                <p id="track-title" class="text-xs font-bold text-white truncate">Nenhuma música</p>
-                <p id="track-artist" class="text-[10px] text-slate-400 truncate mt-0.5">Selecione para ouvir</p>
+                <p id="track-title" onclick="navigateToCurrentPlayingAlbum(event)" class="text-xs font-bold text-white truncate cursor-pointer hover:text-sky-400 transition" title="Ver Álbum">Nenhuma música</p>
+                <p id="track-artist" onclick="navigateToCurrentPlayingArtist(event)" class="text-[10px] text-slate-400 truncate mt-0.5 cursor-pointer hover:text-sky-400 hover:underline transition inline-block" title="Ver Artista">Selecione para ouvir</p>
             </div>
         </div>
 
@@ -8291,6 +8291,76 @@ document.addEventListener('fullscreenchange', (event) => {
             renderPlayerMiniQueue();
             renderTracksTable();
             lucide.createIcons();
+        };
+
+        window.navigateToCurrentPlayingAlbum = function(e) {
+            if (e) e.stopPropagation();
+            if (isPartyMode) {
+                alert("O Modo Festa está ativo! A navegação está bloqueada.");
+                return;
+            }
+            if (!activeQueue || activeQueueIdx < 0) return;
+            const track = activeQueue[activeQueueIdx];
+            if (!track || !track.album) return;
+            
+            // Highlight tracks tab visually
+            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'playlists', 'podcast', 'radios', 'reprodutor'];
+            btns.forEach(b => {
+                const el = document.getElementById('tab-btn-' + b);
+                if (el) {
+                    if (b === 'tracks') {
+                        el.className = "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-sky-400 bg-sky-550/10 border border-sky-500/20";
+                    } else {
+                        el.className = "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition";
+                    }
+                }
+            });
+            
+            activeTab = 'tracks';
+            activePlaylistAlbum = track.album;
+            selectedArtist = '';
+            selectedPlaylistId = '';
+            
+            const titleEl = document.getElementById('table-view-title');
+            if (titleEl) titleEl.textContent = "Álbum: " + track.album;
+            
+            const panes = ['dashboard', 'tracks', 'config', 'videos', 'playlists', 'podcast', 'radios', 'reprodutor'];
+            panes.forEach(p => {
+                const el = document.getElementById('pane-' + p);
+                if (el) {
+                    if (p === 'tracks') el.classList.remove('hidden');
+                    else el.classList.add('hidden');
+                }
+            });
+            
+            renderLeftSidebar();
+            renderTracksTable();
+        };
+
+        window.navigateToCurrentPlayingArtist = function(e) {
+            if (e) e.stopPropagation();
+            if (isPartyMode) {
+                alert("O Modo Festa está ativo! A navegação está bloqueada.");
+                return;
+            }
+            if (!activeQueue || activeQueueIdx < 0) return;
+            const track = activeQueue[activeQueueIdx];
+            if (!track || !track.artist) return;
+            
+            // Highlight tracks tab visually
+            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'playlists', 'podcast', 'radios', 'reprodutor'];
+            btns.forEach(b => {
+                const el = document.getElementById('tab-btn-' + b);
+                if (el) {
+                    if (b === 'tracks') {
+                        el.className = "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-sky-400 bg-sky-550/10 border border-sky-500/20";
+                    } else {
+                        el.className = "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition";
+                    }
+                }
+            });
+            
+            selectArtist(track.artist);
         };
 
         window.renderPlaylistsGrid = function() {
