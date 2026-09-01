@@ -84,6 +84,12 @@ if (!defined('IMAGES_DIR')) define('IMAGES_DIR', __DIR__ . '/images/');
 if (!defined('VIDEOS_DIR')) define('VIDEOS_DIR', __DIR__ . '/videos/');
 if (!defined('MOVIES_DIR')) define('MOVIES_DIR', __DIR__ . '/movies/');
 if (!defined('SERIES_DIR')) define('SERIES_DIR', __DIR__ . '/series/');
+
+foreach ([UPLOAD_DIR, IMAGES_DIR, VIDEOS_DIR, MOVIES_DIR, SERIES_DIR] as $dirPathCheck) {
+    if (!file_exists($dirPathCheck)) {
+        @mkdir($dirPathCheck, 0755, true);
+    }
+}
 header('Content-Type: application/json; charset=utf-8');
 
 try {
@@ -199,10 +205,31 @@ try {
                 target_type VARCHAR(50),
                 target_id VARCHAR(500),
                 target_name VARCHAR(255),
-                created_by VARCHAR(50),
+                created_by VARCHAR(50) DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 expires_at DATETIME DEFAULT NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+            // Garantir colunas em shares caso a tabela já existisse de versões anteriores
+            try {
+                $shareCols = $pdo->query("SHOW COLUMNS FROM `shares`");
+                $existingCols = $shareCols ? $shareCols->fetchAll(PDO::FETCH_COLUMN) : [];
+                if (!empty($existingCols)) {
+                    if (!in_array('created_by', $existingCols)) {
+                        $pdo->exec("ALTER TABLE `shares` ADD COLUMN `created_by` VARCHAR(50) DEFAULT NULL");
+                    }
+                    if (!in_array('expires_at', $existingCols)) {
+                        $pdo->exec("ALTER TABLE `shares` ADD COLUMN `expires_at` DATETIME DEFAULT NULL");
+                    }
+                    if (!in_array('target_name', $existingCols)) {
+                        $pdo->exec("ALTER TABLE `shares` ADD COLUMN `target_name` VARCHAR(255) DEFAULT NULL");
+                    }
+                }
+            } catch (Throwable $th) {
+                try { $pdo->exec("ALTER TABLE `shares` ADD COLUMN `created_by` VARCHAR(50) DEFAULT NULL"); } catch (Throwable $e) {}
+                try { $pdo->exec("ALTER TABLE `shares` ADD COLUMN `expires_at` DATETIME DEFAULT NULL"); } catch (Throwable $e) {}
+                try { $pdo->exec("ALTER TABLE `shares` ADD COLUMN `target_name` VARCHAR(255) DEFAULT NULL"); } catch (Throwable $e) {}
+            }
 
             // Garantir coluna theme
             try {
@@ -393,6 +420,30 @@ try {
     $method = $_SERVER['REQUEST_METHOD'];
     $route = isset($_GET['route']) ? $_GET['route'] : '';
     $input = json_decode(file_get_contents('php://input'), true) ?? [];
+    if (!is_array($input)) {
+        $input = [];
+    }
+
+    $current_username = '';
+    if (!empty($_SERVER['HTTP_X_USERNAME'])) {
+        $current_username = trim($_SERVER['HTTP_X_USERNAME']);
+    } elseif (!empty($_GET['admin_username'])) {
+        $current_username = trim($_GET['admin_username']);
+    } elseif (!empty($_GET['username'])) {
+        $current_username = trim($_GET['username']);
+    } elseif (!empty($input['username'])) {
+        $current_username = trim($input['username']);
+    } elseif (!empty($input['admin_username'])) {
+        $current_username = trim($input['admin_username']);
+    } elseif (function_exists('getallheaders')) {
+        $allHeaders = getallheaders();
+        foreach ($allHeaders as $hKey => $hVal) {
+            if (strtolower($hKey) === 'x-username' && !empty($hVal)) {
+                $current_username = trim($hVal);
+                break;
+            }
+        }
+    }
 
     // Lightweight pure PHP ID3 tag parser helper
     $getMp3Meta = function($filename) {
@@ -592,7 +643,8 @@ try {
     // Helper para verificar se o usuário atual é administrador
     if (!function_exists('is_admin_user')) {
         function is_admin_user($pdo) {
-            $username = $_SERVER['HTTP_X_USERNAME'] ?? $_GET['admin_username'] ?? '';
+            global $current_username;
+            $username = !empty($current_username) ? $current_username : ($_SERVER['HTTP_X_USERNAME'] ?? $_GET['admin_username'] ?? $_GET['username'] ?? '');
             if (empty($username)) {
                 return false;
             }
@@ -601,7 +653,7 @@ try {
                 $stmt->execute([$username]);
                 $role = $stmt->fetchColumn();
                 return ($role === 'admin');
-            } catch (Exception $e) {
+            } catch (Throwable $e) {
                 return false;
             }
         }
@@ -628,7 +680,6 @@ try {
         }
     }
 
-    $current_username = $_SERVER["HTTP_X_USERNAME"] ?? $_GET["admin_username"] ?? "";
     switch ($route) {
     
         case 'list_users':
@@ -720,22 +771,34 @@ try {
             }
         }
         try {
-            $pdo->exec("ALTER TABLE shares ADD COLUMN created_by VARCHAR(50) DEFAULT NULL");
-        } catch(Exception $e) {}
-        try {
-            $pdo->exec("ALTER TABLE shares ADD COLUMN expires_at DATETIME DEFAULT NULL");
-        } catch(Exception $e) {}
-        try {
             $pdo->exec("CREATE TABLE IF NOT EXISTS shares (
                 share_hash VARCHAR(100) PRIMARY KEY,
                 target_type VARCHAR(50),
                 target_id VARCHAR(500),
                 target_name VARCHAR(255),
-                created_by VARCHAR(50),
+                created_by VARCHAR(50) DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 expires_at DATETIME DEFAULT NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        } catch(Exception $e) {}
+
+            $shareCols = $pdo->query("SHOW COLUMNS FROM `shares`");
+            $existingCols = $shareCols ? $shareCols->fetchAll(PDO::FETCH_COLUMN) : [];
+            if (!empty($existingCols)) {
+                if (!in_array('created_by', $existingCols)) {
+                    $pdo->exec("ALTER TABLE `shares` ADD COLUMN `created_by` VARCHAR(50) DEFAULT NULL");
+                }
+                if (!in_array('expires_at', $existingCols)) {
+                    $pdo->exec("ALTER TABLE `shares` ADD COLUMN `expires_at` DATETIME DEFAULT NULL");
+                }
+                if (!in_array('target_name', $existingCols)) {
+                    $pdo->exec("ALTER TABLE `shares` ADD COLUMN `target_name` VARCHAR(255) DEFAULT NULL");
+                }
+            }
+        } catch (Throwable $e) {
+            try { $pdo->exec("ALTER TABLE `shares` ADD COLUMN `created_by` VARCHAR(50) DEFAULT NULL"); } catch(Throwable $te) {}
+            try { $pdo->exec("ALTER TABLE `shares` ADD COLUMN `expires_at` DATETIME DEFAULT NULL"); } catch(Throwable $te) {}
+            try { $pdo->exec("ALTER TABLE `shares` ADD COLUMN `target_name` VARCHAR(255) DEFAULT NULL"); } catch(Throwable $te) {}
+        }
         
         $hash = substr(md5(uniqid(rand(), true)), 0, 12);
         $type = $input['type'] ?? 'album';
@@ -751,7 +814,7 @@ try {
         $stmt = $pdo->prepare("INSERT INTO shares (share_hash, target_type, target_id, target_name, created_by, expires_at) VALUES (?, ?, ?, ?, ?, ?)");
         try {
             $stmt->execute([$hash, $type, $id, $name, $current_username, $expires_at]);
-        } catch(Exception $e) {
+        } catch (Throwable $e) {
             exit(json_encode(['error' => $e->getMessage()]));
         }
         
@@ -765,14 +828,31 @@ try {
                 target_type VARCHAR(50),
                 target_id VARCHAR(500),
                 target_name VARCHAR(255),
-                created_by VARCHAR(50),
+                created_by VARCHAR(50) DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 expires_at DATETIME DEFAULT NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
             
-            try { $pdo->exec("ALTER TABLE shares ADD COLUMN created_by VARCHAR(50) DEFAULT NULL"); } catch(Exception $e) {}
-            try { $pdo->exec("ALTER TABLE shares ADD COLUMN expires_at DATETIME DEFAULT NULL"); } catch(Exception $e) {}
+            $shareCols = $pdo->query("SHOW COLUMNS FROM `shares`");
+            $existingCols = $shareCols ? $shareCols->fetchAll(PDO::FETCH_COLUMN) : [];
+            if (!empty($existingCols)) {
+                if (!in_array('created_by', $existingCols)) {
+                    $pdo->exec("ALTER TABLE `shares` ADD COLUMN `created_by` VARCHAR(50) DEFAULT NULL");
+                }
+                if (!in_array('expires_at', $existingCols)) {
+                    $pdo->exec("ALTER TABLE `shares` ADD COLUMN `expires_at` DATETIME DEFAULT NULL");
+                }
+                if (!in_array('target_name', $existingCols)) {
+                    $pdo->exec("ALTER TABLE `shares` ADD COLUMN `target_name` VARCHAR(255) DEFAULT NULL");
+                }
+            }
+        } catch (Throwable $e) {
+            try { $pdo->exec("ALTER TABLE `shares` ADD COLUMN `created_by` VARCHAR(50) DEFAULT NULL"); } catch(Throwable $te) {}
+            try { $pdo->exec("ALTER TABLE `shares` ADD COLUMN `expires_at` DATETIME DEFAULT NULL"); } catch(Throwable $te) {}
+            try { $pdo->exec("ALTER TABLE `shares` ADD COLUMN `target_name` VARCHAR(255) DEFAULT NULL"); } catch(Throwable $te) {}
+        }
 
+        try {
             if (!is_admin_user($pdo)) {
                 $stmt = $pdo->prepare("SELECT * FROM shares WHERE created_by = ? ORDER BY created_at DESC");
                 $stmt->execute([$current_username]);
@@ -781,7 +861,7 @@ try {
             }
             $shares = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
             echo json_encode($shares);
-        } catch(Exception $e) {
+        } catch (Throwable $e) {
             echo json_encode([]);
         }
         break;
@@ -917,16 +997,29 @@ try {
             @unlink($temp_zip);
             if (!function_exists('delete_dir_update')) {
                 function delete_dir_update($dir) {
-                    if (!is_dir($dir)) {
-                        if (is_file($dir)) { @unlink($dir); }
+                    if (empty($dir) || !file_exists($dir)) {
                         return;
                     }
-                    $files = array_diff(scandir($dir), array('.', '..'));
+                    if (!is_dir($dir)) {
+                        @unlink($dir);
+                        return;
+                    }
+                    $files = @scandir($dir);
+                    if ($files === false) {
+                        return;
+                    }
+                    $files = array_diff($files, array('.', '..'));
                     foreach ($files as $file) {
                         $path = $dir . '/' . $file;
-                        (is_dir($path)) ? delete_dir_update($path) : @unlink($path);
+                        if (is_dir($path)) {
+                            delete_dir_update($path);
+                        } else {
+                            @unlink($path);
+                        }
                     }
-                    @rmdir($dir);
+                    if (file_exists($dir) && is_dir($dir)) {
+                        @rmdir($dir);
+                    }
                 }
             }
             delete_dir_update($temp_extract_dir);
@@ -1881,8 +1974,14 @@ Accept: */*
         }
 
         $deleteDir = function($dirPath) use (&$deleteDir) {
-            if (!is_dir($dirPath)) return;
-            $files = array_diff(scandir($dirPath), ['.', '..']);
+            if (empty($dirPath) || !file_exists($dirPath)) return;
+            if (!is_dir($dirPath)) {
+                @unlink($dirPath);
+                return;
+            }
+            $scanned = @scandir($dirPath);
+            if ($scanned === false) return;
+            $files = array_diff($scanned, ['.', '..']);
             foreach ($files as $file) {
                 $p = $dirPath . '/' . $file;
                 if (is_dir($p)) {
@@ -1891,7 +1990,9 @@ Accept: */*
                     @unlink($p);
                 }
             }
-            @rmdir($dirPath);
+            if (file_exists($dirPath) && is_dir($dirPath)) {
+                @rmdir($dirPath);
+            }
         };
 
         $deleteDir($targetDir);
@@ -4596,6 +4697,9 @@ Accept: */*
             exit(json_encode(['error' => 'Protegido do sistema.']));
         }
         function rmdir_recursive_php($dir) {
+            if (empty($dir) || !file_exists($dir)) {
+                return true;
+            }
             @chmod($dir, 0777);
             if (!is_dir($dir)) {
                 return @unlink($dir);
@@ -4619,7 +4723,10 @@ Accept: */*
                     }
                 }
             }
-            return $success ? @rmdir($dir) : false;
+            if (file_exists($dir) && is_dir($dir)) {
+                return $success ? @rmdir($dir) : false;
+            }
+            return true;
         }
         if (rmdir_recursive_php($targetPath)) {
             echo json_encode(['success' => true]);
