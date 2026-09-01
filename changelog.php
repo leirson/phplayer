@@ -1,5 +1,13 @@
 <?php
 $changelog = <<<EOT
+v1.1.10
+- Corrigido problema onde a tela de splash "Iniciando sistema..." não era ocultada para usuários deslogados.
+
+v1.1.9
+- Suprimido o aviso no console sobre o uso do Tailwind CSS CDN.
+- Atualizado o seletor obsoleto do CSS (slider-vertical) substituindo-o pela propriedade \`writing-mode: vertical-lr\` para compatibilidade futura com os navegadores.
+- Fechamento da tag script corrigido no mobile.php
+
 v1.1.8
 - Correção no carregamento e preview de capas de filmes (remoção da variável indefinida API_BASE_URL).
 
