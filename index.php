@@ -565,6 +565,11 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                             <button onclick="playRandomAlbum()" class="px-3.5 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-[11px] font-black uppercase tracking-wider transition active:scale-95 flex items-center gap-1.5 shadow-lg shadow-sky-500/10 cursor-pointer shrink-0" data-i18n="btn-random-album">
                                 <i data-lucide="shuffle" class="w-3.5 h-3.5"></i> Tocar Álbum Aleatório
                             </button>
+
+                            <!-- play 50 random tracks button -->
+                            <button onclick="play50RandomTracks()" class="px-3.5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl text-[11px] font-black uppercase tracking-wider transition active:scale-95 flex items-center gap-1.5 shadow-lg shadow-purple-500/15 cursor-pointer shrink-0" title="Toca 50 músicas aleatórias de artistas variados">
+                                <i data-lucide="shuffle" class="w-3.5 h-3.5"></i> Aleatório
+                            </button>
                         </div>
                     </div>
                     <div id="album-grid-container" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
@@ -5384,18 +5389,28 @@ const updPane = document.getElementById('subtab-pane-updates');
                                     <span class="text-[9px] text-slate-500 font-mono">${count} ${count === 1 ? "música" : "músicas"}</span>
                                 </div>
                             </div>
-                            <button title="Tocar todas as músicas de ${art.replace(/"/g, "&quot;")}" class="opacity-0 group-hover:opacity-100 p-1 text-sky-400 hover:text-white hover:bg-sky-500 rounded-md transition cursor-pointer shrink-0 ml-1.5 play-artist-btn">
-                                <i data-lucide="play" class="w-3 h-3 fill-current"></i>
-                            </button>
+                            <div class="opacity-0 group-hover:opacity-100 flex items-center gap-1 shrink-0 ml-1.5 transition">
+                                <button title="Tocar todas as músicas de ${art.replace(/"/g, "&quot;")}" class="p-1 text-sky-400 hover:text-white hover:bg-sky-500 rounded-md transition cursor-pointer play-artist-btn">
+                                    <i data-lucide="play" class="w-3 h-3 fill-current"></i>
+                                </button>
+                                <button title="Tocar todas as músicas de ${art.replace(/"/g, "&quot;")} em modo aleatório" class="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition cursor-pointer shuffle-artist-btn">
+                                    <i data-lucide="shuffle" class="w-3 h-3 text-sky-400"></i>
+                                </button>
+                            </div>
                         `;
 
                         itemDiv.onclick = (e) => {
                             if (e.target.closest(".play-artist-btn")) {
                                 e.stopPropagation();
                                 if (artistSongs.length > 0) {
-                                    currentQueue = [...artistSongs];
-                                    currentQueueIndex = 0;
-                                    playTrack(artistSongs[0]);
+                                    playAlbumQueue(e, artistSongs);
+                                }
+                                return;
+                            }
+                            if (e.target.closest(".shuffle-artist-btn")) {
+                                e.stopPropagation();
+                                if (artistSongs.length > 0) {
+                                    playAlbumQueueShuffled(e, artistSongs);
                                 }
                                 return;
                             }
@@ -5701,6 +5716,17 @@ const updPane = document.getElementById('subtab-pane-updates');
             const randomAlb = albumsArray[Math.floor(Math.random() * albumsArray.length)];
             if (randomAlb.tracks.length > 0) {
                 activeQueue = randomAlb.tracks;
+                activeQueueIdx = 0;
+                loadTrack(activeQueue[0]);
+            }
+        };
+
+        window.play50RandomTracks = function() {
+            if (!allTracks || allTracks.length === 0) return;
+            const shuffled = [...allTracks].sort(() => Math.random() - 0.5);
+            const selected50 = shuffled.slice(0, 50);
+            if (selected50.length > 0) {
+                activeQueue = selected50;
                 activeQueueIdx = 0;
                 loadTrack(activeQueue[0]);
             }
@@ -7336,11 +7362,14 @@ document.addEventListener('fullscreenchange', (event) => {
                                     </p>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2.5">
-                                    <button onclick="playArtistByName(event, '${selectedArtist.replace(new RegExp("'", "g"), "\\'")}')" class="px-4.5 py-2.5 bg-sky-500 hover:bg-sky-600 font-bold text-xs uppercase tracking-wider text-white rounded-xl flex items-center gap-2 transition shadow-lg shadow-sky-500/15 cursor-pointer">
+                                    <button onclick="playArtistByName(event, '${selectedArtist.replace(new RegExp("'", "g"), "\\'")}')" class="px-4 py-2.5 bg-sky-500 hover:bg-sky-600 font-bold text-xs uppercase tracking-wider text-white rounded-xl flex items-center gap-2 transition shadow-lg shadow-sky-500/15 cursor-pointer" title="Tocar todas as músicas do artista em ordem">
                                         <i data-lucide="play" class="w-4 h-4 text-white fill-white"></i> Tocar Músicas
                                     </button>
-                                    <button onclick="playArtistByNameShuffled(event, '${selectedArtist.replace(new RegExp("'", "g"), "\\'")}')" class="px-4.5 py-2.5 bg-slate-900 hover:bg-slate-800 font-bold text-xs uppercase tracking-wider text-slate-330 rounded-xl flex items-center gap-2 border border-slate-800 transition cursor-pointer">
-                                        <i data-lucide="shuffle" class="w-3.5 h-3.5"></i> Aleatório
+                                    <button onclick="playArtistRandomAlbum(event, '${selectedArtist.replace(new RegExp("'", "g"), "\\'")}')" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 font-bold text-xs uppercase tracking-wider text-white rounded-xl flex items-center gap-2 transition shadow-lg shadow-indigo-600/15 cursor-pointer" title="Tocar um álbum aleatório deste artista">
+                                        <i data-lucide="disc" class="w-3.5 h-3.5 text-white"></i> Álbum Aleatório do Artista
+                                    </button>
+                                    <button onclick="playArtistByNameShuffled(event, '${selectedArtist.replace(new RegExp("'", "g"), "\\'")}')" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 font-bold text-xs uppercase tracking-wider text-slate-300 hover:text-white rounded-xl flex items-center gap-2 border border-slate-800 transition cursor-pointer" title="Tocar todas as músicas do artista em modo aleatório">
+                                        <i data-lucide="shuffle" class="w-3.5 h-3.5 text-sky-400"></i> Aleatório
                                     </button>
                                 </div>
                             </div>
@@ -7872,6 +7901,22 @@ document.addEventListener('fullscreenchange', (event) => {
             if (e) e.stopPropagation();
             const tracks = allTracks.filter(t => t.artist === artistName);
             playAlbumQueue(e, tracks);
+        };
+
+        window.playArtistRandomAlbum = function(e, artistName) {
+            if (e) e.stopPropagation();
+            const tracks = allTracks.filter(t => t.artist === artistName);
+            if (tracks.length === 0) return;
+            const albsMap = {};
+            tracks.forEach(t => {
+                const key = t.album || 'Single';
+                if (!albsMap[key]) albsMap[key] = [];
+                albsMap[key].push(t);
+            });
+            const albumKeys = Object.keys(albsMap);
+            if (albumKeys.length === 0) return;
+            const randomKey = albumKeys[Math.floor(Math.random() * albumKeys.length)];
+            playAlbumQueue(e, albsMap[randomKey]);
         };
 
         window.playArtistByNameShuffled = function(e, artistName) {

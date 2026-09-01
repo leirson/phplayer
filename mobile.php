@@ -12,7 +12,15 @@ if (!file_exists('config.php')) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>PHPlayer Mobile</title>
     <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com">
+    <script>
+        const originalWarn = console.warn;
+        console.warn = function() {
+            if (arguments[0] && typeof arguments[0] === 'string' && arguments[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+            originalWarn.apply(console, arguments);
+        };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
         // TOAST NOTIFICATIONS
         window.showToast = function(message, type = 'info') {
             const container = document.getElementById('toast-container');
@@ -414,6 +422,9 @@ if (!file_exists('config.php')) {
                         <h4 class="text-[10px] font-black uppercase text-sky-400 tracking-wider">Recomendações</h4>
                         <p class="text-[8px] text-slate-500 uppercase tracking-wider mt-0.5">10 Álbuns Aleatórios</p>
                     </div>
+                    <button onclick="play50RandomTracksMobile()" class="px-2.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition active:scale-95 flex items-center gap-1 shadow-md shadow-purple-500/10 cursor-pointer" title="Tocar 50 músicas aleatórias">
+                        <i data-lucide="shuffle" class="w-3 h-3"></i> 50 Aleatórias
+                    </button>
                 </div>
                 <div id="mobile-random-albums-grid" class="grid grid-cols-2 gap-3">
                     <!-- Updated dynamically every 10 seconds -->
@@ -932,11 +943,14 @@ if (!file_exists('config.php')) {
             </div>
 
             <!-- Artist Quick Actions -->
-            <div class="flex gap-2 px-6 py-2 border-b border-slate-900/40 shrink-0 bg-slate-950/10 select-none">
-                <button id="artist-btn-play" class="flex-grow flex-1 py-1.5 px-3 bg-sky-500 hover:bg-sky-600 font-bold text-white rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition select-none h-9">
-                    <i data-lucide="play" class="w-3.5 h-3.5 fill-current text-white"></i> Play
+            <div class="flex gap-2 px-4 py-2.5 border-b border-slate-900/40 shrink-0 bg-slate-950/20 select-none">
+                <button id="artist-btn-play" class="flex-1 py-2 px-2 bg-sky-500 hover:bg-sky-600 font-bold text-white rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition select-none h-9 whitespace-nowrap shadow-md shadow-sky-500/10">
+                    <i data-lucide="play" class="w-3.5 h-3.5 fill-current text-white"></i> Tocar Músicas
                 </button>
-                <button id="artist-btn-random" class="flex-grow flex-1 py-1.5 px-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-bold rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition select-none h-9">
+                <button id="artist-btn-random-album" class="flex-1 py-2 px-2 bg-indigo-600 hover:bg-indigo-500 font-bold text-white rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition select-none h-9 whitespace-nowrap shadow-md shadow-indigo-600/10">
+                    <i data-lucide="disc" class="w-3.5 h-3.5 text-white"></i> Álbum Aleatório
+                </button>
+                <button id="artist-btn-random" class="flex-1 py-2 px-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-bold rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition select-none h-9 whitespace-nowrap">
                     <i data-lucide="shuffle" class="w-3.5 h-3.5 text-sky-400"></i> Aleatório
                 </button>
             </div>
@@ -1223,6 +1237,19 @@ if (!file_exists('config.php')) {
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- System Update & Repair Subsection (Admin only) -->
+                <div class="admin-only space-y-3 pt-4 border-t border-slate-900 text-left">
+                    <h5 class="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-cyan-400"></i> Atualização e Reparo
+                    </h5>
+                    <p class="text-[9px] text-slate-500 leading-tight">
+                        Atualize para a versão mais recente do PHPlayer ou repare arquivos danificados com preservação de banco e dados de mídia.
+                    </p>
+                    <a href="update.php" target="_blank" class="w-full py-2.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 font-bold rounded-2xl text-xs transition active:scale-98 flex items-center justify-center gap-2">
+                        <i data-lucide="wrench" class="w-3.5 h-3.5 text-cyan-400"></i> Abrir Painel de Atualização (update.php)
+                    </a>
                 </div>
             </div>
         </div>
@@ -2812,7 +2839,7 @@ if (!file_exists('config.php')) {
                 const photoUrl = artist.photo || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200';
                 
                 html += `
-                    <div onclick="openArtistSheet('${encodeURIComponent(artist.name)}')" class="bg-slate-950/40 border border-slate-900 p-3 rounded-2xl flex flex-col items-center text-center gap-3 shadow hover:border-sky-500/20 active:scale-95 transition">
+                    <div onclick="openArtistSheet('${encodeURIComponent(artist.name)}')" class="bg-slate-950/40 border border-slate-900 p-3 rounded-2xl flex flex-col items-center text-center gap-2.5 shadow hover:border-sky-500/20 active:scale-98 transition">
                         <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-slate-800 bg-slate-900 shrink-0">
                             <img src="${photoUrl}" class="w-full h-full object-cover" referrerpolicy="no-referrer">
                         </div>
@@ -2820,11 +2847,42 @@ if (!file_exists('config.php')) {
                             <h5 class="text-xs font-black leading-tight text-white truncate">${artist.name}</h5>
                             <p class="text-[9px] text-slate-500 truncate mt-0.5">${artist.albums.length} ${artist.albums.length === 1 ? 'álbum' : 'álbuns'}</p>
                         </div>
+                        <div class="flex items-center gap-1.5 w-full pt-1.5 border-t border-slate-900/60" onclick="event.stopPropagation()">
+                            <button onclick="event.stopPropagation(); playArtistAllMobile('${encodeURIComponent(artist.name)}')" class="flex-1 py-1.5 bg-sky-500/20 hover:bg-sky-500 text-sky-400 hover:text-white border border-sky-500/30 rounded-xl text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer" title="Tocar todas as músicas">
+                                <i data-lucide="play" class="w-3 h-3 fill-current"></i> Play
+                            </button>
+                            <button onclick="event.stopPropagation(); playArtistShuffledMobile('${encodeURIComponent(artist.name)}')" class="flex-1 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 rounded-xl text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer" title="Tocar em modo aleatório">
+                                <i data-lucide="shuffle" class="w-3 h-3 text-sky-400"></i> Shuffle
+                            </button>
+                        </div>
                     </div>
                 `;
             });
 
             container.innerHTML = html;
+        };
+
+        window.playArtistAllMobile = function(encodedArtistName) {
+            const artistName = decodeURIComponent(encodedArtistName);
+            const tracks = allTracks.filter(t => t.artist === artistName);
+            if (tracks.length === 0) return;
+            playFullQueueList(tracks);
+        };
+
+        window.playArtistShuffledMobile = function(encodedArtistName) {
+            const artistName = decodeURIComponent(encodedArtistName);
+            const tracks = allTracks.filter(t => t.artist === artistName);
+            if (tracks.length === 0) return;
+            playFullQueueListShuffled(tracks);
+        };
+
+        window.play50RandomTracksMobile = function() {
+            if (!allTracks || allTracks.length === 0) return;
+            const shuffled = [...allTracks].sort(() => Math.random() - 0.5);
+            const selected50 = shuffled.slice(0, 50);
+            if (selected50.length > 0) {
+                playFullQueueList(selected50);
+            }
         };
 
         window.performArtistsSearch = function() {
@@ -3432,9 +3490,9 @@ if (!file_exists('config.php')) {
                 };
             }
 
-            const randomBtn = document.getElementById('artist-btn-random');
-            if (randomBtn) {
-                randomBtn.onclick = () => {
+            const randomAlbumBtn = document.getElementById('artist-btn-random-album');
+            if (randomAlbumBtn) {
+                randomAlbumBtn.onclick = () => {
                     const artistAlbums = [];
                     Object.values(albumsMap).forEach(album => {
                         if (album.artist === artistName) {
@@ -3444,9 +3502,23 @@ if (!file_exists('config.php')) {
                     if (artistAlbums.length === 0) return;
                     const randomAlb = artistAlbums[Math.floor(Math.random() * artistAlbums.length)];
                     closeArtistSheet();
-                    setTimeout(() => {
-                        openAlbumSheet(encodeURIComponent(randomAlb.title));
-                    }, 300);
+                    if (randomAlb.tracks && randomAlb.tracks.length > 0) {
+                        playFullQueueList(randomAlb.tracks);
+                    } else {
+                        setTimeout(() => {
+                            openAlbumSheet(encodeURIComponent(randomAlb.title));
+                        }, 300);
+                    }
+                };
+            }
+
+            const randomBtn = document.getElementById('artist-btn-random');
+            if (randomBtn) {
+                randomBtn.onclick = () => {
+                    const tracks = allTracks.filter(t => t.artist === artistName);
+                    if (tracks.length === 0) return;
+                    closeArtistSheet();
+                    playFullQueueListShuffled(tracks);
                 };
             }
 
