@@ -397,8 +397,9 @@ define('DONT_EXIT_ON_DB_ERROR', true);
     <div id="workspace-panel" class="flex-1 flex overflow-hidden hidden">
         
         <!-- SIDEBAR -->
-        <aside class="w-64 bg-slate-950 border-r border-slate-900 p-4 flex flex-col justify-between shrink-0 h-full">
-            <div class="space-y-6 overflow-y-auto pr-1">
+        <aside class="w-64 bg-slate-950 border-r border-slate-900 p-4 flex flex-col shrink-0 h-full overflow-hidden select-none">
+            <!-- TOP SECTION: LOGO + MENU DE NAVEGAÇÃO -->
+            <div class="shrink-0 space-y-3">
                 <div class="flex items-center gap-3 px-2 py-1">
                     <div class="p-2 bg-gradient-to-tr from-sky-500 to-indigo-600 rounded-xl text-white shadow-lg shadow-sky-500/10">
                         <i data-lucide="music-4" class="w-5 h-5 animate-pulse"></i>
@@ -409,62 +410,63 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     </div>
                 </div>
 
-                <div class="space-y-1">
-                    <p class="text-[10px] font-black uppercase tracking-wider text-slate-500 pl-2" data-i18n="sidebar-title">Biblioteca</p>
-                    <button id="tab-btn-dashboard" onclick="setTab('dashboard')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-sky-400 bg-sky-550/10 border border-sky-500/20" data-i18n="sidebar-dashboard">
-                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+                <div class="space-y-0.5 max-h-[38vh] overflow-y-auto custom-scroll pr-1">
+                    <p class="text-[9px] font-black uppercase tracking-wider text-slate-500 pl-2 pb-1" data-i18n="sidebar-title">Biblioteca</p>
+                    <button id="tab-btn-dashboard" onclick="setTab('dashboard')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-sky-400 bg-sky-550/10 border border-sky-500/20" data-i18n="sidebar-dashboard">
+                        <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Dashboard
                     </button>
-                    <button id="tab-btn-tracks" onclick="setTab('tracks')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-songs">
-                        <i data-lucide="music" class="w-4 h-4"></i> Minhas Músicas
+                    <button id="tab-btn-tracks" onclick="setTab('tracks')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-songs">
+                        <i data-lucide="music" class="w-3.5 h-3.5"></i> Minhas Músicas
                     </button>
-                    <button id="tab-btn-favorites" onclick="setTab('favorites')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-favorites">
-                        <i data-lucide="heart" class="w-4 h-4 text-rose-500"></i> Favoritos
+                    <button id="tab-btn-favorites" onclick="setTab('favorites')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-favorites">
+                        <i data-lucide="heart" class="w-3.5 h-3.5 text-rose-500"></i> Favoritos
                     </button>
-                    <button id="tab-btn-playlists" onclick="setTab('playlists')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-playlists">
-                        <i data-lucide="list-music" class="w-4 h-4 text-emerald-450"></i> Playlists
-                    </button>
-                    
-                    <button id="tab-btn-videos" onclick="setTab('videos')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-videos">
-                        <i data-lucide="film" class="w-4 h-4 text-sky-450"></i> Galeria de Vídeos
-                    </button>
-                    <button id="tab-btn-movies" onclick="setTab('movies')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition hidden">
-                        <i data-lucide="clapperboard" class="w-4 h-4 text-purple-450"></i> Filmes
-                    </button>
-                    <button id="tab-btn-series" onclick="setTab('series')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition hidden">
-                        <i data-lucide="tv" class="w-4 h-4 text-indigo-450"></i> Séries
-                    </button>
-
-                    <button id="tab-btn-podcast" onclick="setTab('podcast')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition">
-                        <i data-lucide="podcast" class="w-4 h-4 text-orange-400"></i> Podcast
-                    </button>
-                    <button id="tab-btn-radios" onclick="setTab('radios')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition">
-                        <i data-lucide="radio" class="w-4 h-4 text-emerald-400"></i> Rádios
-                    </button>
-                    <button id="tab-btn-reprodutor" onclick="setTab('reprodutor')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition">
-                        <i data-lucide="disc" class="w-4 h-4 text-sky-450 animate-spin-slow"></i> Reprodutor
+                    <button id="tab-btn-playlists" onclick="setTab('playlists')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-playlists">
+                        <i data-lucide="list-music" class="w-3.5 h-3.5 text-emerald-450"></i> Playlists
                     </button>
                     
-                    <button id="tab-btn-config" onclick="setTab('config')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-settings">
-                        <i data-lucide="settings" class="w-4 h-4 text-sky-400"></i> Configurações
+                    <button id="tab-btn-videos" onclick="setTab('videos')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-videos">
+                        <i data-lucide="film" class="w-3.5 h-3.5 text-sky-450"></i> Galeria de Vídeos
                     </button>
-                </div>
+                    <button id="tab-btn-movies" onclick="setTab('movies')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition hidden">
+                        <i data-lucide="clapperboard" class="w-3.5 h-3.5 text-purple-450"></i> Filmes
+                    </button>
+                    <button id="tab-btn-series" onclick="setTab('series')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition hidden">
+                        <i data-lucide="tv" class="w-3.5 h-3.5 text-indigo-450"></i> Séries
+                    </button>
 
-
-
-                <!-- LISTA DE REPRODUÇÃO ATUAL (QUEUE) -->
-                <div id="player-mini-queue-wrapper" class="space-y-2 hidden">
-                    <div class="flex items-center justify-between pl-2 pt-2 border-t border-slate-900/40">
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-rose-500 flex items-center gap-1.5">
-                            <i data-lucide="play-circle" class="w-3.5 h-3.5"></i> Lista de Reprodução
-                        </span>
-                        <button onclick="clearCurrentQueue()" class="text-[9px] text-slate-500 hover:text-red-400 font-bold transition cursor-pointer">Limpar</button>
-                    </div>
-                    <div id="player-mini-queue-list" class="space-y-0.5 max-h-48 overflow-y-auto pr-1 custom-scroll text-left"></div>
+                    <button id="tab-btn-podcast" onclick="setTab('podcast')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition">
+                        <i data-lucide="podcast" class="w-3.5 h-3.5 text-orange-400"></i> Podcast
+                    </button>
+                    <button id="tab-btn-radios" onclick="setTab('radios')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition">
+                        <i data-lucide="radio" class="w-3.5 h-3.5 text-emerald-400"></i> Rádios
+                    </button>
+                    <button id="tab-btn-reprodutor" onclick="setTab('reprodutor')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition">
+                        <i data-lucide="disc" class="w-3.5 h-3.5 text-sky-450 animate-spin-slow"></i> Reprodutor
+                    </button>
+                    
+                    <button id="tab-btn-config" onclick="setTab('config')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-settings">
+                        <i data-lucide="settings" class="w-3.5 h-3.5 text-sky-400"></i> Configurações
+                    </button>
                 </div>
             </div>
 
+            <!-- LISTA DE REPRODUÇÃO ATUAL (QUEUE) - MAXIMIZADA NO ESPAÇO RESTANTE -->
+            <div id="player-mini-queue-wrapper" class="flex-1 flex flex-col min-h-0 mt-3 pt-2.5 border-t border-slate-900/80 overflow-hidden hidden">
+                <div class="flex items-center justify-between pl-1 pb-1.5 shrink-0">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
+                            <i data-lucide="play-circle" class="w-3.5 h-3.5"></i> Lista de Reprodução
+                        </span>
+                        <span id="player-mini-queue-count" class="text-[9px] font-mono text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded-md border border-slate-800"></span>
+                    </div>
+                    <button onclick="clearCurrentQueue()" class="text-[9px] text-slate-500 hover:text-rose-400 font-bold transition cursor-pointer px-1.5 py-0.5 rounded hover:bg-rose-500/10">Limpar</button>
+                </div>
+                <div id="player-mini-queue-list" class="flex-1 overflow-y-auto pr-1 custom-scroll text-left space-y-0.5 min-h-0"></div>
+            </div>
+
             <!-- FOOTER PROFILE -->
-            <div class="border-t border-slate-900 pt-3 flex items-center justify-between">
+            <div class="shrink-0 border-t border-slate-900 pt-3 mt-2 flex items-center justify-between">
                 <div class="flex items-center gap-2 truncate">
                     <div id="user-avatar" class="w-7 h-7 rounded-lg bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white text-[10px] font-black">US</div>
                     <div class="truncate">
@@ -6752,26 +6754,43 @@ document.addEventListener('fullscreenchange', (event) => {
         function renderPlayerMiniQueue() {
             const wrapper = document.getElementById('player-mini-queue-wrapper');
             const list = document.getElementById('player-mini-queue-list');
+            const countBadge = document.getElementById('player-mini-queue-count');
             if (!wrapper || !list) return;
 
-            if (activeQueue && activeQueue.length > 1) {
+            if (activeQueue && activeQueue.length > 0) {
                 wrapper.classList.remove('hidden');
+                if (countBadge) {
+                    countBadge.textContent = `${activeQueue.length}`;
+                    countBadge.title = `${activeQueue.length} ${activeQueue.length === 1 ? 'música' : 'músicas'} na lista de reprodução`;
+                }
                 
                 let html = '';
                 activeQueue.forEach((tr, index) => {
                     const highlight = activeQueueIdx === index;
+                    const trackTitle = (tr.title || tr.file_name || tr.fileName || 'Sem título').replace(/"/g, '&quot;');
+                    const trackArtist = (tr.artist || 'Artista').replace(/"/g, '&quot;');
                     html += `
-                        <div onclick="playFromMiniQueue(${index})" class="flex items-center gap-1.5 px-2 py-0.5 rounded cursor-pointer transition select-none ${highlight ? 'bg-sky-500/15 text-sky-400 font-bold' : 'hover:bg-slate-800 text-slate-400 hover:text-slate-200'}" style="font-size: 8.5px;">
-                            <span class="font-mono shrink-0 opacity-45" style="font-size: 7.5px;">${index + 1}</span>
-                            <span class="truncate flex-1 block font-sans">${tr.title}</span>
-                            ${highlight ? `<i data-lucide="volume-2" class="w-2.5 h-2.5 text-sky-400 shrink-0"></i>` : ''}
+                        <div id="mini-queue-item-${index}" onclick="playFromMiniQueue(${index})" class="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition select-none ${highlight ? 'bg-sky-500/15 text-sky-400 border border-sky-500/25 font-bold shadow-sm' : 'hover:bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-transparent'}">
+                            <span class="font-mono shrink-0 text-[9px] opacity-45 w-3.5 text-center">${index + 1}</span>
+                            <div class="truncate flex-1 min-w-0">
+                                <span class="truncate block text-[10px] leading-tight ${highlight ? 'text-sky-300 font-semibold' : 'text-slate-300'}">${trackTitle}</span>
+                                <span class="truncate block text-[8.5px] text-slate-500 font-normal leading-tight mt-0.5">${trackArtist}</span>
+                            </div>
+                            ${highlight ? `<i data-lucide="volume-2" class="w-3 h-3 text-sky-400 shrink-0 animate-pulse"></i>` : ''}
                         </div>
                     `;
                 });
                 list.innerHTML = html;
                 lucide.createIcons();
+
+                // Auto scroll active track into view
+                const activeEl = document.getElementById(`mini-queue-item-${activeQueueIdx}`);
+                if (activeEl) {
+                    activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
             } else {
                 wrapper.classList.add('hidden');
+                if (countBadge) countBadge.textContent = '';
             }
         }
 
