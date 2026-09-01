@@ -1268,6 +1268,13 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                                 <p class="text-[10px] text-center text-slate-500 mt-2 font-bold uppercase tracking-wider">O sistema fará o download e recarregará a página. O arquivo config.php será mantido.</p>
                             </div>
                         </div>
+
+                        <div class="mt-5 pt-4 border-t border-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                            <span class="text-slate-400">Em caso de erros ou arquivos danificados:</span>
+                            <a href="update.php" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-850 text-cyan-400 hover:text-cyan-300 border border-slate-800 rounded-xl font-semibold transition">
+                                <i data-lucide="wrench" class="w-3.5 h-3.5 text-cyan-400"></i> Abrir Painel de Reparo (update.php)
+                            </a>
+                        </div>
                     </div>
                 </div>
 
@@ -2826,7 +2833,28 @@ let currentUser = null;
         let randomDashboardAlbums = [];
         let dashboardRandomInterval = null;
 
+        // Splash Screen Disposer
+        function hideSplash() {
+            const splash = document.getElementById('global-splash');
+            if (!splash) return;
+            const bar = document.getElementById('splash-progress');
+            if (bar) bar.style.width = '100%';
+            splash.style.transition = 'opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s ease';
+            splash.style.opacity = '0';
+            splash.style.pointerEvents = 'none';
+            setTimeout(() => {
+                if (splash) {
+                    splash.classList.add('hidden');
+                    splash.style.display = 'none';
+                }
+            }, 450);
+        }
+        window.hideSplash = hideSplash;
+
         window.onload = function() {
+            // Safety fallback: ensure splash is never stuck
+            setTimeout(hideSplash, 2000);
+
             const urlParams = new URLSearchParams(window.location.search);
             let shareHash = urlParams.get('share');
             if (!shareHash && window.location.hash.length > 1) {
@@ -2837,6 +2865,7 @@ let currentUser = null;
                 if (lp) lp.classList.add('hidden');
                 const wp = document.getElementById('workspace-panel');
                 if (wp) wp.classList.add('hidden');
+                hideSplash();
                 return bootPublicSharedPlayer(shareHash);
             }
             const savedLang = localStorage.getItem('phplayer_lang') || 'pt';
@@ -2853,15 +2882,18 @@ let currentUser = null;
                     } else {
                         const lp = document.getElementById('login-panel');
                         if (lp) lp.classList.remove('hidden');
+                        hideSplash();
                     }
                 } catch (e) {
                     localStorage.removeItem('phplayer_user');
                     const lp = document.getElementById('login-panel');
                     if (lp) lp.classList.remove('hidden');
+                    hideSplash();
                 }
             } else {
                 const lp = document.getElementById('login-panel');
                 if (lp) lp.classList.remove('hidden');
+                hideSplash();
             }
             lucide.createIcons();
             
@@ -3131,11 +3163,16 @@ let currentUser = null;
                 }
             }
 
-            await loadData();
-            updateRandomDashboardAlbums();
-            setTab('dashboard');
-
-            setupDashboardInterval();
+            try {
+                await loadData();
+                updateRandomDashboardAlbums();
+                setTab('dashboard');
+                setupDashboardInterval();
+            } catch (err) {
+                console.error("Erro no bootPlayer:", err);
+            } finally {
+                hideSplash();
+            }
         }
 
         async function loadData() {
@@ -8831,6 +8868,7 @@ async function deleteUser(username) {
         }
 
         function showErrorModal(details) {
+            hideSplash();
             document.getElementById('error-modal-details').textContent = details;
             document.getElementById('error-modal').classList.remove('hidden');
             lucide.createIcons();
