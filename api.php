@@ -1696,6 +1696,36 @@ Accept: */*
         echo json_encode(['success' => true, 'count' => $newTracks, 'removed' => $removedTracksCount, 'total' => intval($total)]);
         break;
 
+    case 'genres':
+    case 'gentes':
+    case 'generos':
+        try {
+            if (!isset($pdo) || !$pdo) {
+                echo json_encode([]);
+                break;
+            }
+            $tables = get_songs_tables($pdo);
+            $genres = [];
+            foreach ($tables as $t) {
+                try {
+                    $stmt = $pdo->query("SELECT DISTINCT TRIM(genre) as genre_name FROM `" . $t . "` WHERE genre IS NOT NULL AND TRIM(genre) != ''");
+                    if ($stmt) {
+                        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                            $g = trim($row['genre_name'] ?? '');
+                            if (!empty($g) && !in_array($g, $genres)) {
+                                $genres[] = $g;
+                            }
+                        }
+                    }
+                } catch (Throwable $e) {}
+            }
+            sort($genres, SORT_NATURAL | SORT_FLAG_CASE);
+            echo json_encode($genres);
+        } catch (Throwable $e) {
+            echo json_encode([]);
+        }
+        break;
+
     case 'tracks':
         if ($method === 'GET') {
             try {
