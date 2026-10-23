@@ -651,7 +651,7 @@ try {
         'get_settings', 'save_settings', 'lastfm_sync', 'deezer_sync',
         'google_images_sync',
         'files_list', 'files_create_dir', 'files_delete', 'files_rename', 'files_upload',
-        'podcasts_sync'
+        'podcasts_sync', 'podcasts_auto_sync', 'podcast_config', 'podcast_update_limit'
     ];
 
     if (in_array($route, $admin_only_routes)) {
@@ -4229,6 +4229,196 @@ Accept: */*
         }
         break;
 
+function syncSinglePodcastFeed($pdo, $feedUrl, $maxEpisodesRaw, $podcastNameOverride = '') {
+    if (empty($feedUrl)) {
+        return ['error' => 'O endereço feedUrl é obrigatório.'];
+    }
+
+    $isAll = ($maxEpisodesRaw === 'all' || $maxEpisodesRaw === 0 || $maxEpisodesRaw === '0');
+    $maxEpisodes = $isAll ? 0 : intval($maxEpisodesRaw);
+    if (!$isAll && !in_array($maxEpisodes, [5, 10, 15])) {
+        if ($maxEpisodes <= 5) $maxEpisodes = 5;
+        else if ($maxEpisodes <= 10) $maxEpisodes = 10;
+        else $maxEpisodes = 15;
+    }
+
+    try {
+        $opts = [
+            "http" => [
+                "method" => "GET",
+                "header" => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\n",
+                "timeout" => 20
+            ]
+        ];
+        $context = stream_context_create($opts);
+        $xml = @file_get_contents($feedUrl, false, $context);
+        if ($xml === false) {
+            return ['error' => 'Falha ao conectar e ler o feed RSS do Podcast no PHP.'];
+        }
+
+        $podcastName = $podcastNameOverride ?: "Podcast Desconhecido";
+        if (preg_match('/<channel>([\s\S]*?)<\/channel>/i', $xml, $cMatch)) {
+            $channelXml = $cMatch[1];
+        } else {
+            $channelXml = $xml;
+        }
+        if (preg_match('/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i', $channelXml, $tMatch)) {
+            $extracted = preg_replace('/\s+/', ' ', trim($tMatch[1]));
+            if (!empty($extracted)) {
+                $podcastName = $extracted;
+            }
+        }
+
+        $safePodcastName = preg_replace('/[\/\\\?%*:|"<>]/', '-', $podcastName);
+        $safePodcastName = trim($safePodcastName);
+
+        // Salvar feedUrl e limite nas configurações
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS settings (
+                setting_key VARCHAR(100) PRIMARY KEY,
+                setting_value TEXT DEFAULT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $stmtSaveFeed = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+            $stmtSaveFeed->execute(["podcast_feed_" . $podcastName, $feedUrl]);
+            
+            $limitStr = $maxEpisodes === 0 ? "all" : strval($maxEpisodes);
+            $stmtSaveLimit = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+            $stmtSaveLimit->execute(["podcast_limit_" . $podcastName, $limitStr]);
+        } catch (Exception $e) {}
+
+        // Capa
+        $coverUrl = 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=450';
+        if (preg_match('/<itunes:image\s+[^>]*href=["']([^"']+)["']/i', $channelXml, $imgMatch)) {
+            $coverUrl = $imgMatch[1];
+        } else {
+            if (preg_match('/<image>([\s\S]*?)<\/image>/i', $channelXml, $imgBlock)) {
+                if (preg_match('/<url>([\s\S]*?)<\/url>/i', $imgBlock[1], $urlMatch)) {
+                    $coverUrl = trim($urlMatch[1]);
+                }
+            }
+        }
+
+        // Diretório
+        $podcastDir = UPLOAD_DIR . '/podcast/' . $safePodcastName;
+        if (!file_exists($podcastDir)) {
+            @mkdir($podcastDir, 0755, true);
+        }
+
+        // Itens
+        preg_match_all('/<item>([\s\S]*?)<\/item>/i', $xml, $itemMatches);
+        $items = $itemMatches[1] ?? [];
+        $itemsToProcess = $maxEpisodes > 0 ? array_slice($items, 0, $maxEpisodes) : array_slice($items, 0, 100);
+        $downloadedCount = 0;
+
+        foreach ($itemsToProcess as $itemXml) {
+            $epTitleRaw = 'Episódio Desconhecido';
+            if (preg_match('/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i', $itemXml, $epTitleMatch)) {
+                $epTitleRaw = preg_replace('/\s+/', ' ', trim($epTitleMatch[1]));
+            }
+            $cleanEpTitle = preg_replace('/[\/\\\?%*:|"<>]/', '-', $epTitleRaw);
+            $cleanEpTitle = trim($cleanEpTitle);
+
+            $mediaUrl = '';
+            if (preg_match('/<enclosure[^>]+url=["']([^"']+)["']/i', $itemXml, $encMatch)) {
+                $mediaUrl = $encMatch[1];
+            } else {
+                if (preg_match('/<enclosure[\s\S]*?url=["']([^"']+)["']/i', $itemXml, $fallbackEncMatch)) {
+                    $mediaUrl = $fallbackEncMatch[1];
+                }
+            }
+
+            if (empty($mediaUrl)) continue;
+
+            $episodeFileName = $cleanEpTitle . '.mp3';
+            $filePath = $podcastDir . '/' . $episodeFileName;
+            $fileSize = 0;
+
+            if (!file_exists($filePath)) {
+                $ch = curl_init($mediaUrl);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($ch, CURLOPT_USERAGENT, 'PHPlayerPodcastDownloader/1.0 PHP');
+                curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+                $fileData = curl_exec($ch);
+                curl_close($ch);
+
+                if ($fileData !== false) {
+                    @file_put_contents($filePath, $fileData);
+                    $fileSize = strlen($fileData);
+                    $downloadedCount++;
+                } else {
+                    continue;
+                }
+            } else {
+                $fileSize = filesize($filePath);
+            }
+
+            $durationInSeconds = 1800;
+            if (preg_match('/<itunes:duration>([\s\S]*?)<\/itunes:duration>/i', $itemXml, $durMatch)) {
+                $durStr = trim($durMatch[1]);
+                if (strpos($durStr, ':') !== false) {
+                    $pts = explode(':', $durStr);
+                    if (count($pts) === 3) {
+                        $durationInSeconds = intval($pts[0]) * 3600 + intval($pts[1]) * 60 + intval($pts[2]);
+                    } else if (count($pts) === 2) {
+                        $durationInSeconds = intval($pts[0]) * 60 + intval($pts[1]);
+                    }
+                } else {
+                    $val = intval($durStr);
+                    if ($val > 0) $durationInSeconds = $val;
+                }
+            }
+
+            $relativeFileName = 'podcast/' . $safePodcastName . '/' . $episodeFileName;
+
+            $stmtCheck = $pdo->prepare("SELECT id FROM songs WHERE file_name = ?");
+            $stmtCheck->execute([$relativeFileName]);
+            $exists = $stmtCheck->fetchColumn();
+
+            if ($exists) {
+                $stmtUpd = $pdo->prepare("UPDATE songs SET title = ?, artist = ?, album = ?, duration = ?, file_size = ?, cover_url = ? WHERE id = ?");
+                $stmtUpd->execute([$epTitleRaw, $podcastName, $podcastName, $durationInSeconds, $fileSize, $coverUrl, $exists]);
+            } else {
+                $stmtIns = $pdo->prepare("INSERT INTO songs (title, artist, album, genre, file_name, file_size, duration, cover_url) VALUES (?, ?, ?, 'Podcast', ?, ?, ?, ?)");
+                $stmtIns->execute([$epTitleRaw, $podcastName, $podcastName, $relativeFileName, $fileSize, $durationInSeconds, $coverUrl]);
+            }
+        }
+
+        // Excluir episódios excedentes apenas se o limite for numérico e finito (> 0)
+        if ($maxEpisodes > 0) {
+            try {
+                $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM songs WHERE genre = 'Podcast' AND album = ?");
+                $stmtCount->execute([$podcastName]);
+                $totalEpisodes = intval($stmtCount->fetchColumn());
+
+                if ($totalEpisodes > $maxEpisodes) {
+                    $stmtAll = $pdo->prepare("SELECT id, file_name FROM songs WHERE genre = 'Podcast' AND album = ? ORDER BY created_at DESC, id DESC");
+                    $stmtAll->execute([$podcastName]);
+                    $allEps = $stmtAll->fetchAll(PDO::FETCH_ASSOC);
+
+                    $epsToDelete = array_slice($allEps, $maxEpisodes);
+                    foreach ($epsToDelete as $epToDelete) {
+                        $epId = $epToDelete['id'];
+                        $epFileName = $epToDelete['file_name'];
+
+                        $fullPathToDelete = UPLOAD_DIR . '/' . $epFileName;
+                        if (!empty($epFileName) && file_exists($fullPathToDelete)) {
+                            @unlink($fullPathToDelete);
+                        }
+
+                        $stmtDel = $pdo->prepare("DELETE FROM songs WHERE id = ?");
+                        $stmtDel->execute([$epId]);
+                    }
+                }
+            } catch (Exception $delErr) {}
+        }
+
+        return ['success' => true, 'podcastName' => $podcastName, 'episodeCount' => $downloadedCount];
+    } catch (Exception $e) {
+        return ['error' => 'Erro ao sincronizar podcast: ' . $e->getMessage()];
+    }
+}
+
     case 'podcasts':
         if ($method === 'GET') {
             $stmt = $pdo->query("SELECT * FROM songs WHERE genre = 'Podcast' ORDER BY created_at DESC");
@@ -4249,7 +4439,7 @@ Accept: */*
                         $stmtLimit->execute(["podcast_limit_" . $podName]);
                         $limitVal = $stmtLimit->fetchColumn();
                         if ($limitVal !== false && $limitVal !== null) {
-                            $limitFromDb = intval($limitVal);
+                            $limitFromDb = ($limitVal === 'all' || $limitVal === '0') ? 'all' : intval($limitVal);
                         }
                     } catch (Exception $e) {}
 
@@ -4287,13 +4477,166 @@ Accept: */*
         $rawInput = file_get_contents('php://input');
         $dataDecoded = json_decode($rawInput, true);
         $feedUrl = trim($dataDecoded['feedUrl'] ?? '');
-        $maxEpisodes = intval($dataDecoded['maxEpisodes'] ?? 5);
-        if ($maxEpisodes < 1) {
-            $maxEpisodes = 5;
-        }
-        if (empty($feedUrl)) {
+        $maxEpisodesRaw = $dataDecoded['maxEpisodes'] ?? 5;
+        
+        $res = syncSinglePodcastFeed($pdo, $feedUrl, $maxEpisodesRaw);
+        if (!empty($res['error'])) {
             http_response_code(400);
-            exit(json_encode(['error' => 'O endereço feedUrl é obrigatório.']));
+        }
+        echo json_encode($res);
+        break;
+
+    case 'podcasts_auto_sync':
+        try {
+            $stmtFeeds = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'podcast_feed_%'");
+            $savedFeeds = $stmtFeeds->fetchAll(PDO::FETCH_ASSOC);
+
+            $synced = [];
+            $totalDownloaded = 0;
+
+            foreach ($savedFeeds as $sf) {
+                $feedUrl = trim($sf['setting_value'] ?? '');
+                if (empty($feedUrl)) continue;
+
+                $podName = str_replace('podcast_feed_', '', $sf['setting_key']);
+
+                $limitKey = 'podcast_limit_' . $podName;
+                $stmtLimit = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = ?");
+                $stmtLimit->execute([$limitKey]);
+                $limitVal = $stmtLimit->fetchColumn();
+                if ($limitVal === false || $limitVal === null) {
+                    $limitVal = '5';
+                }
+
+                $res = syncSinglePodcastFeed($pdo, $feedUrl, $limitVal, $podName);
+                if (!empty($res['success'])) {
+                    $synced[] = [
+                        'podcast' => $res['podcastName'],
+                        'downloaded' => $res['episodeCount'] ?? 0
+                    ];
+                    $totalDownloaded += ($res['episodeCount'] ?? 0);
+                }
+            }
+
+            $now = date('Y-m-d H:i:s');
+            $stmtLast = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES ('podcast_last_auto_sync', ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+            $stmtLast->execute([$now]);
+
+            echo json_encode([
+                'success' => true,
+                'syncedCount' => count($synced),
+                'downloadedTotal' => $totalDownloaded,
+                'lastSync' => $now,
+                'details' => $synced
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Falha na sincronização automática: ' . $e->getMessage()]);
+        }
+        break;
+
+    case 'podcast_config':
+        if ($method === 'GET') {
+            $stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('podcast_auto_sync_enabled', 'podcast_auto_sync_interval', 'podcast_default_retention', 'podcast_last_auto_sync')");
+            $rows = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+            $retentionVal = $rows['podcast_default_retention'] ?? '5';
+            $lastSyncRaw = $rows['podcast_last_auto_sync'] ?? null;
+            echo json_encode([
+                'success' => true,
+                'enabled' => ($rows['podcast_auto_sync_enabled'] ?? '1') === '1',
+                'interval' => intval($rows['podcast_auto_sync_interval'] ?? 3600),
+                'retention' => $retentionVal,
+                'defaultRetention' => $retentionVal,
+                'lastSync' => $lastSyncRaw ? strtotime($lastSyncRaw) : null,
+                'lastSyncDate' => $lastSyncRaw
+            ]);
+        } else if ($method === 'POST') {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true);
+            $enabled = isset($data['enabled']) && ($data['enabled'] === true || $data['enabled'] === '1' || $data['enabled'] === 1) ? '1' : '0';
+            $interval = intval($data['interval'] ?? 3600);
+            if ($interval < 15) $interval = 3600;
+            $retention = $data['retention'] ?? $data['defaultRetention'] ?? '5';
+            if (!in_array($retention, ['5', '10', '15', 'all'])) {
+                $retention = '5';
+            }
+
+            $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+            $stmt->execute(['podcast_auto_sync_enabled', $enabled]);
+            $stmt->execute(['podcast_auto_sync_interval', strval($interval)]);
+            $stmt->execute(['podcast_default_retention', $retention]);
+
+            $stmtLast = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'podcast_last_auto_sync'");
+            $lastSyncRaw = $stmtLast ? $stmtLast->fetchColumn() : null;
+
+            echo json_encode([
+                'success' => true,
+                'enabled' => $enabled === '1',
+                'interval' => $interval,
+                'retention' => $retention,
+                'defaultRetention' => $retention,
+                'lastSync' => $lastSyncRaw ? strtotime($lastSyncRaw) : null,
+                'lastSyncDate' => $lastSyncRaw
+            ]);
+        }
+        break;
+
+    case 'podcast_update_limit':
+        if ($method !== 'POST') {
+            http_response_code(405);
+            exit(json_encode(['error' => 'Apenas requisições POST são permitidas.']));
+        }
+        $rawInput = file_get_contents('php://input');
+        $data = json_decode($rawInput, true);
+        $podcastName = trim($data['podcastName'] ?? '');
+        $limitRaw = $data['limit'] ?? 5;
+
+        if (empty($podcastName)) {
+            http_response_code(400);
+            exit(json_encode(['error' => 'Nome do podcast é obrigatório.']));
+        }
+
+        $isAll = ($limitRaw === 'all' || $limitRaw === 0 || $limitRaw === '0');
+        $limitVal = $isAll ? 'all' : strval(intval($limitRaw));
+        $maxNum = $isAll ? 0 : intval($limitRaw);
+
+        try {
+            $stmtSaveLimit = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+            $stmtSaveLimit->execute(["podcast_limit_" . $podcastName, $limitVal]);
+
+            // Se o limite for numérico e finito, excluir excedentes
+            if ($maxNum > 0) {
+                $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM songs WHERE genre = 'Podcast' AND album = ?");
+                $stmtCount->execute([$podcastName]);
+                $totalEpisodes = intval($stmtCount->fetchColumn());
+
+                if ($totalEpisodes > $maxNum) {
+                    $stmtAll = $pdo->prepare("SELECT id, file_name FROM songs WHERE genre = 'Podcast' AND album = ? ORDER BY created_at DESC, id DESC");
+                    $stmtAll->execute([$podcastName]);
+                    $allEps = $stmtAll->fetchAll(PDO::FETCH_ASSOC);
+
+                    $epsToDelete = array_slice($allEps, $maxNum);
+                    foreach ($epsToDelete as $epToDelete) {
+                        $epId = $epToDelete['id'];
+                        $epFileName = $epToDelete['file_name'];
+                        $fullPathToDelete = UPLOAD_DIR . '/' . $epFileName;
+                        if (!empty($epFileName) && file_exists($fullPathToDelete)) {
+                            @unlink($fullPathToDelete);
+                        }
+                        $stmtDel = $pdo->prepare("DELETE FROM songs WHERE id = ?");
+                        $stmtDel->execute([$epId]);
+                    }
+                }
+            }
+
+            echo json_encode(['success' => true, 'podcastName' => $podcastName, 'limit' => $limitVal]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Erro ao atualizar limite: ' . $e->getMessage()]);
+        }
+        break;
+
+é obrigatório.']));
         }
 
         try {

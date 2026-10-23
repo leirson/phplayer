@@ -1,5 +1,8 @@
 <?php
 $changelog = <<<EOT
+v1.1.22
+- Sistema de atualização automática para podcasts em PHP: sincronização periódica configurável em segundo plano com opções de retenção de episódios selecionáveis (5 últimos, 10 últimos, 15 últimos ou todos), botão de sincronização em lote de todos os canais salvos, alteração dinâmica da retenção por podcast com limpeza imediata de excedentes e interface integrada tanto no desktop quanto no mobile.
+
 v1.1.21
 - Integração com Last.fm na página do artista: busca automática das músicas mais tocadas do artista no Last.fm e exibição em destaque das 10 faixas mais populares que existem na biblioteca local com reprodução direta e em fila contínua.
 

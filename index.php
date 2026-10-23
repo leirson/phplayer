@@ -1494,6 +1494,85 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     </div>
                 </div>
 
+                <!-- Card de Atualização Automática de Podcasts -->
+                <div class="admin-only bg-gradient-to-br from-slate-950/80 via-slate-900/50 to-slate-950/80 p-6 rounded-3xl border border-slate-800/80 shadow-lg space-y-4">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800/60 pb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-orange-400">
+                                <i data-lucide="sparkles" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-black text-white tracking-wide flex items-center gap-2">
+                                    Atualização Automática em Segundo Plano
+                                    <span id="podcast-auto-status-badge" class="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider bg-slate-800 text-slate-400">
+                                        Carregando...
+                                    </span>
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-0.5">
+                                    Verifica e baixa novos episódios periodicamente mantendo a retenção selecionada.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="text-slate-500 text-[11px]" id="podcast-last-sync-time">Última checagem: Nunca</span>
+                            <button
+                                id="btn-auto-sync-now"
+                                onclick="runPodcastAutoSyncNow(this)"
+                                class="px-3.5 py-2 bg-slate-900 hover:bg-slate-850 hover:text-white border border-slate-700/80 text-orange-400 font-bold rounded-xl text-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                                title="Sincronizar todos os feeds de podcasts salvos agora"
+                            >
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Sincronizar Todos Agora
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                        <!-- Toggle Ativar/Desativar -->
+                        <div class="bg-slate-950/60 border border-slate-800/60 p-3.5 rounded-2xl flex items-center justify-between gap-3">
+                            <div>
+                                <div class="text-xs font-bold text-white">Sincronização Ativa</div>
+                                <div class="text-[11px] text-slate-500">Auto-atualizar feeds salvos</div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="podcast-auto-sync-toggle" onchange="savePodcastAutoSyncSettings()" class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                            </label>
+                        </div>
+
+                        <!-- Intervalo de Checagem -->
+                        <div class="bg-slate-950/60 border border-slate-800/60 p-3.5 rounded-2xl flex flex-col justify-between gap-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-white">Frequência de Checagem</span>
+                                <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-500"></i>
+                            </div>
+                            <select id="podcast-auto-interval" onchange="savePodcastAutoSyncSettings()" class="w-full bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-200 rounded-xl px-3 py-1.5 outline-none focus:border-orange-500">
+                                <option value="1800">A cada 30 minutos</option>
+                                <option value="3600" selected>A cada 1 hora</option>
+                                <option value="10800">A cada 3 horas</option>
+                                <option value="21600">A cada 6 horas</option>
+                                <option value="43200">A cada 12 horas</option>
+                                <option value="86400">A cada 24 horas</option>
+                            </select>
+                        </div>
+
+                        <!-- Retenção Padrão -->
+                        <div class="bg-slate-950/60 border border-slate-800/60 p-3.5 rounded-2xl flex flex-col justify-between gap-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-white">Retenção de Episódios</span>
+                                <i data-lucide="archive" class="w-3.5 h-3.5 text-slate-500"></i>
+                            </div>
+                            <select id="podcast-auto-retention" onchange="savePodcastAutoSyncSettings()" class="w-full bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-200 rounded-xl px-3 py-1.5 outline-none focus:border-orange-500">
+                                <option value="5" selected>Manter 5 últimos</option>
+                                <option value="10">Manter 10 últimos</option>
+                                <option value="15">Manter 15 últimos</option>
+                                <option value="all">Manter todos</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="podcast-auto-sync-feedback" class="text-xs p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-300 hidden"></div>
+                </div>
+
                 <div class="bg-slate-950/40 p-6 rounded-3xl border border-slate-900 shadow-md">
                     <h3 class="text-xs font-black text-white tracking-widest uppercase mb-4 text-orange-400">Sincronizar Nova Fonte</h3>
                     
@@ -1506,13 +1585,12 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                                 class="flex-1 bg-slate-900 border border-slate-800 focus:border-orange-500 rounded-xl px-4 py-3 text-xs outline-none transition font-semibold text-white placeholder-slate-500"
                             />
                             <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 shrink-0">
-                                <span class="text-[10px] text-slate-500 uppercase font-black tracking-wider whitespace-nowrap">Máx. episódios:</span>
+                                <span class="text-[10px] text-slate-500 uppercase font-black tracking-wider whitespace-nowrap">Retenção:</span>
                                 <select id="podcast-max-episodes" class="bg-transparent text-xs font-bold text-white outline-none">
-                                    <option value="3" class="bg-slate-950 text-white">3</option>
-                                    <option value="5" selected class="bg-slate-950 text-white">5</option>
-                                    <option value="10" class="bg-slate-950 text-white">10</option>
-                                    <option value="20" class="bg-slate-950 text-white">20</option>
-                                    <option value="50" class="bg-slate-950 text-white">50</option>
+                                    <option value="5" selected class="bg-slate-950 text-white">5 últimos</option>
+                                    <option value="10" class="bg-slate-950 text-white">10 últimos</option>
+                                    <option value="15" class="bg-slate-950 text-white">15 últimos</option>
+                                    <option value="all" class="bg-slate-950 text-white">Todos</option>
                                 </select>
                             </div>
                             <button
@@ -1559,13 +1637,12 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                         </div>
                         <div class="flex flex-wrap items-center gap-3">
                             <div class="admin-only flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 shrink-0">
-                                <span class="text-[10px] text-slate-500 uppercase font-black tracking-wider whitespace-nowrap">Máx. episódios:</span>
+                                <span class="text-[10px] text-slate-500 uppercase font-black tracking-wider whitespace-nowrap">Retenção:</span>
                                 <select id="pod-detail-limit" class="bg-transparent text-xs font-bold text-white outline-none">
-                                    <option value="3" class="bg-slate-950 text-white">3</option>
-                                    <option value="5" class="bg-slate-950 text-white">5</option>
-                                    <option value="10" class="bg-slate-950 text-white">10</option>
-                                    <option value="20" class="bg-slate-950 text-white">20</option>
-                                    <option value="50" class="bg-slate-950 text-white">50</option>
+                                    <option value="5" class="bg-slate-950 text-white">5 últimos</option>
+                                    <option value="10" class="bg-slate-950 text-white">10 últimos</option>
+                                    <option value="15" class="bg-slate-950 text-white">15 últimos</option>
+                                    <option value="all" class="bg-slate-950 text-white">Todos</option>
                                 </select>
                             </div>
                             <button id="pod-detail-update-btn" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-orange-400 hover:text-orange-300 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
@@ -2848,6 +2925,7 @@ let currentUser = null;
                 updateRandomDashboardAlbums();
                 setTab('dashboard');
                 setupDashboardInterval();
+                if (window.initPodcastAutoSyncWatcher) window.initPodcastAutoSyncWatcher();
             } catch (err) {
                 console.error("Erro no bootPlayer:", err);
             } finally {
@@ -4942,6 +5020,7 @@ const updPane = document.getElementById('subtab-pane-updates');
                 if (window.loadLastfmKeyForUI) window.loadLastfmKeyForUI();
             } else if (tabName === 'podcast') {
                 loadPodcastsPhp();
+                if (window.loadPodcastAutoSyncConfig) window.loadPodcastAutoSyncConfig();
                 document.getElementById('pane-podcast').classList.remove('hidden');
             } else if (tabName === 'radios') {
                 loadRadiosPhp();
@@ -9071,11 +9150,14 @@ async function deleteUser(username) {
             const limitSelect = document.getElementById('pod-detail-limit');
             if (limitSelect) {
                 limitSelect.value = String(pod.limit || 5);
+                limitSelect.onchange = async () => {
+                    await window.updateSelectedPodcastLimit(pod.name, limitSelect.value);
+                };
             }
             const updateBtn = document.getElementById('pod-detail-update-btn');
             if (updateBtn) {
                 updateBtn.onclick = async () => {
-                    const currentLimit = limitSelect ? parseInt(limitSelect.value) : 5;
+                    const currentLimit = limitSelect ? (limitSelect.value === 'all' ? 'all' : parseInt(limitSelect.value)) : 5;
                     await window.runPodcastSync(pod.feedUrl, currentLimit, updateBtn);
                 };
             }
@@ -9174,6 +9256,217 @@ async function deleteUser(username) {
             window.runPodcastSync();
         };
 
+        // --- SISTEMA DE ATUALIZAÇÃO AUTOMÁTICA DE PODCASTS ---
+        let podcastAutoSyncConfig = {
+            enabled: false,
+            interval: 3600,
+            retention: '5',
+            lastSync: 0
+        };
+        let podcastAutoSyncTimer = null;
+
+        async function loadPodcastAutoSyncConfig() {
+            try {
+                const res = await fetch(API + '?route=podcast_config');
+                if (res.ok) {
+                    podcastAutoSyncConfig = await res.json();
+                    updatePodcastAutoSyncUI();
+                }
+            } catch (e) {
+                console.error("Erro ao carregar configurações de auto-sync de podcasts:", e);
+            }
+        }
+        window.loadPodcastAutoSyncConfig = loadPodcastAutoSyncConfig;
+
+        function updatePodcastAutoSyncUI() {
+            const toggle = document.getElementById('podcast-auto-sync-toggle');
+            const intervalSel = document.getElementById('podcast-auto-interval');
+            const retentionSel = document.getElementById('podcast-auto-retention');
+            const statusBadge = document.getElementById('podcast-auto-status-badge');
+            const lastSyncEl = document.getElementById('podcast-last-sync-time');
+
+            if (toggle) toggle.checked = !!podcastAutoSyncConfig.enabled;
+            if (intervalSel) intervalSel.value = String(podcastAutoSyncConfig.interval || 3600);
+            if (retentionSel) retentionSel.value = String(podcastAutoSyncConfig.retention || '5');
+
+            if (statusBadge) {
+                if (podcastAutoSyncConfig.enabled) {
+                    statusBadge.className = "text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                    statusBadge.textContent = "Auto-sync Ativo";
+                } else {
+                    statusBadge.className = "text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider bg-slate-800 text-slate-400 border border-slate-700/50";
+                    statusBadge.textContent = "Desativado";
+                }
+            }
+
+            if (lastSyncEl) {
+                if (podcastAutoSyncConfig.lastSync && podcastAutoSyncConfig.lastSync > 0) {
+                    const d = new Date(podcastAutoSyncConfig.lastSync * 1000);
+                    lastSyncEl.textContent = "Última sincronização: " + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + " (" + d.toLocaleDateString() + ")";
+                } else {
+                    lastSyncEl.textContent = "Última sincronização: Nenhuma";
+                }
+            }
+        }
+        window.updatePodcastAutoSyncUI = updatePodcastAutoSyncUI;
+
+        async function savePodcastAutoSyncSettings() {
+            if (currentUser && currentUser.role !== 'admin') return;
+
+            const toggle = document.getElementById('podcast-auto-sync-toggle');
+            const intervalSel = document.getElementById('podcast-auto-interval');
+            const retentionSel = document.getElementById('podcast-auto-retention');
+            const feedbackEl = document.getElementById('podcast-auto-sync-feedback');
+
+            const payload = {
+                enabled: toggle ? toggle.checked : false,
+                interval: intervalSel ? parseInt(intervalSel.value) : 3600,
+                retention: retentionSel ? retentionSel.value : '5'
+            };
+
+            try {
+                const res = await fetch(API + '?route=podcast_config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    podcastAutoSyncConfig = data;
+                    updatePodcastAutoSyncUI();
+                    if (feedbackEl) {
+                        feedbackEl.classList.remove('hidden');
+                        feedbackEl.className = "text-xs p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 flex items-center gap-2";
+                        feedbackEl.innerHTML = '<i data-lucide="check" class="w-4 h-4 shrink-0"></i> Configurações de sincronização automática salvas com sucesso!';
+                        if (window.lucide) lucide.createIcons();
+                        setTimeout(() => feedbackEl.classList.add('hidden'), 4000);
+                    }
+                }
+            } catch (e) {
+                console.error("Erro ao salvar config auto-sync:", e);
+            }
+        }
+        window.savePodcastAutoSyncSettings = savePodcastAutoSyncSettings;
+
+        async function runPodcastAutoSyncNow(btn) {
+            if (currentUser && currentUser.role !== 'admin') {
+                alert("Apenas administradores podem acionar a sincronização.");
+                return;
+            }
+            const originalHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Sincronizando todos...';
+                if (window.lucide) lucide.createIcons();
+            }
+
+            const feedbackEl = document.getElementById('podcast-auto-sync-feedback');
+            if (feedbackEl) {
+                feedbackEl.classList.remove('hidden');
+                feedbackEl.className = "text-xs p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-300 flex items-center gap-2";
+                feedbackEl.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin text-orange-400 shrink-0"></i> Sincronizando todos os feeds de podcasts salvos...';
+                if (window.lucide) lucide.createIcons();
+            }
+
+            try {
+                const res = await fetch(API + '?route=podcasts_auto_sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    podcastAutoSyncConfig.lastSync = data.lastSync || Math.floor(Date.now() / 1000);
+                    updatePodcastAutoSyncUI();
+
+                    if (feedbackEl) {
+                        feedbackEl.className = "text-xs p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 flex items-center gap-2";
+                        feedbackEl.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 shrink-0"></i> ${data.message || 'Sincronização concluída com sucesso!'}`;
+                        if (window.lucide) lucide.createIcons();
+                        setTimeout(() => feedbackEl.classList.add('hidden'), 5000);
+                    }
+                    if (window.loadData) await window.loadData();
+                    await loadPodcastsPhp();
+                } else {
+                    if (feedbackEl) {
+                        feedbackEl.className = "text-xs p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 flex items-center gap-2";
+                        feedbackEl.innerHTML = `<i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> Erro: ${data.error || 'Falha ao sincronizar'}`;
+                        if (window.lucide) lucide.createIcons();
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+                if (feedbackEl) {
+                    feedbackEl.className = "text-xs p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 flex items-center gap-2";
+                    feedbackEl.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> Erro de rede ao sincronizar podcasts.';
+                    if (window.lucide) lucide.createIcons();
+                }
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                    if (window.lucide) lucide.createIcons();
+                }
+            }
+        }
+        window.runPodcastAutoSyncNow = runPodcastAutoSyncNow;
+
+        async function updateSelectedPodcastLimit(podName, newLimit) {
+            if (currentUser && currentUser.role !== 'admin') return;
+            try {
+                const res = await fetch(API + '?route=podcast_update_limit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ podcastName: podName, limit: newLimit })
+                });
+                if (res.ok) {
+                    const pod = allPodcasts.find(p => p.name === podName);
+                    if (pod) pod.limit = newLimit;
+                    if (window.loadData) await window.loadData();
+                    await loadPodcastsPhp();
+                    if (window.showPodcastDetailsPhp) window.showPodcastDetailsPhp(podName);
+                }
+            } catch (e) {
+                console.error("Erro ao atualizar limite do podcast:", e);
+            }
+        }
+        window.updateSelectedPodcastLimit = updateSelectedPodcastLimit;
+
+        function initPodcastAutoSyncWatcher() {
+            if (podcastAutoSyncTimer) clearInterval(podcastAutoSyncTimer);
+            loadPodcastAutoSyncConfig();
+
+            podcastAutoSyncTimer = setInterval(async () => {
+                try {
+                    if (!podcastAutoSyncConfig.enabled) return;
+                    const now = Math.floor(Date.now() / 1000);
+                    const interval = podcastAutoSyncConfig.interval || 3600;
+                    const lastSync = podcastAutoSyncConfig.lastSync || 0;
+
+                    if (now - lastSync >= interval) {
+                        console.log("[Podcast Auto-Sync] Executando sincronização periódica de podcasts...");
+                        const res = await fetch(API + '?route=podcasts_auto_sync', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            podcastAutoSyncConfig.lastSync = data.lastSync || now;
+                            updatePodcastAutoSyncUI();
+                            if (data.syncedCount > 0 && window.loadData) {
+                                await window.loadData();
+                                if (document.getElementById('pane-podcast') && !document.getElementById('pane-podcast').classList.contains('hidden')) {
+                                    await loadPodcastsPhp();
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("[Podcast Auto-Sync Watcher Error]:", e);
+                }
+            }, 60000);
+        }
+        window.initPodcastAutoSyncWatcher = initPodcastAutoSyncWatcher;
+
         window.runPodcastSync = async function(feedUrlOverride = null, maxEpisodesOverride = null, customBtn = null) {
             if (currentUser.role !== 'admin') {
                 alert("Apenas administradores podem gerenciar sincronização de Podcast.");
@@ -9191,7 +9484,9 @@ async function deleteUser(username) {
                 return;
             }
 
-            const maxEpisodesVal = maxEpisodesOverride !== null ? maxEpisodesOverride : (limitSelect ? parseInt(limitSelect.value) : 5);
+            const maxEpisodesVal = maxEpisodesOverride !== null 
+                ? maxEpisodesOverride 
+                : (limitSelect ? (limitSelect.value === 'all' ? 'all' : parseInt(limitSelect.value)) : 5);
 
             btn.disabled = true;
             const originalHtml = btn.innerHTML;
@@ -9202,7 +9497,7 @@ async function deleteUser(username) {
             if (statusEl) {
                 statusEl.classList.remove('hidden');
                 statusEl.className = "mt-4 p-4 rounded-xl text-xs flex items-center gap-2.5 bg-slate-900 border border-slate-800 text-slate-300";
-                statusEl.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin text-orange-500"></i> Baixando e processando áudios no PHP...';
+                statusEl.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin text-orange-500"></i> Baixando e processando episódios no PHP...';
             }
             if (window.lucide) lucide.createIcons();
 

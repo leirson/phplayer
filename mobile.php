@@ -695,6 +695,62 @@ if (!file_exists('config.php')) {
                 </div>
             </div>
 
+            <!-- Admin Podcast Auto-Sync Card -->
+            <div class="admin-only bg-slate-950/40 p-4 border border-slate-900/60 rounded-2xl space-y-3 shadow-md">
+                <div class="flex items-center justify-between">
+                    <h5 class="text-[10px] font-bold text-orange-400 tracking-widest uppercase flex items-center gap-1.5">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Atualização Automática
+                    </h5>
+                    <span id="podcast-auto-status-badge-m" class="text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider bg-slate-800 text-slate-400">
+                        Inativo
+                    </span>
+                </div>
+                
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between bg-slate-900/70 border border-slate-800/80 rounded-xl px-3 py-2 text-xs">
+                        <span class="text-white font-semibold text-[11px]">Sincronização Ativa:</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="podcast-auto-sync-toggle-m" onchange="savePodcastAutoSyncSettingsMobile()" class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-500"></div>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-between bg-slate-900/70 border border-slate-800/80 rounded-xl px-3 py-2 text-xs">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase">Intervalo:</span>
+                        <select id="podcast-auto-interval-m" onchange="savePodcastAutoSyncSettingsMobile()" class="bg-transparent text-xs font-bold text-white outline-none">
+                            <option value="1800" class="bg-slate-950 text-white">30 min</option>
+                            <option value="3600" selected class="bg-slate-950 text-white">1 hora</option>
+                            <option value="10800" class="bg-slate-950 text-white">3 horas</option>
+                            <option value="21600" class="bg-slate-950 text-white">6 horas</option>
+                            <option value="43200" class="bg-slate-950 text-white">12 horas</option>
+                            <option value="86400" class="bg-slate-950 text-white">24 horas</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center justify-between bg-slate-900/70 border border-slate-800/80 rounded-xl px-3 py-2 text-xs">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase">Retenção Padrão:</span>
+                        <select id="podcast-auto-retention-m" onchange="savePodcastAutoSyncSettingsMobile()" class="bg-transparent text-xs font-bold text-white outline-none">
+                            <option value="5" selected class="bg-slate-950 text-white">5 últimos</option>
+                            <option value="10" class="bg-slate-950 text-white">10 últimos</option>
+                            <option value="15" class="bg-slate-950 text-white">15 últimos</option>
+                            <option value="all" class="bg-slate-950 text-white">Todos</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-[9px] text-slate-500" id="podcast-last-sync-time-m">Última checagem: Nunca</span>
+                        <button
+                            id="btn-auto-sync-now-m"
+                            onclick="runPodcastAutoSyncNowMobile(this)"
+                            class="px-2.5 py-1.5 bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 text-orange-400 font-bold rounded-lg text-[10px] flex items-center gap-1 cursor-pointer transition active:scale-95"
+                        >
+                            <i data-lucide="refresh-cw" class="w-3 h-3"></i> Sincronizar Todos
+                        </button>
+                    </div>
+                </div>
+                <div id="podcast-auto-sync-feedback-m" class="p-2.5 rounded-xl text-[10px] border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hidden"></div>
+            </div>
+
             <!-- Admin Podcast Synchronizer Card -->
             <div class="admin-only bg-slate-950/40 p-4 border border-slate-900/60 rounded-2xl space-y-3 shadow-md">
                 <h5 class="text-[10px] font-bold text-orange-400 tracking-widest uppercase flex items-center gap-1.5">
@@ -710,13 +766,12 @@ if (!file_exists('config.php')) {
                         />
                         <div class="flex gap-2">
                             <div class="flex-1 flex items-center justify-between gap-2 bg-slate-900 border border-slate-800/80 rounded-xl px-3 py-2 text-xs">
-                                <span class="text-[9px] text-slate-500 uppercase font-black tracking-wider whitespace-nowrap">Máx:</span>
+                                <span class="text-[9px] text-slate-500 uppercase font-black tracking-wider whitespace-nowrap">Retenção:</span>
                                 <select id="podcast-max-episodes" class="bg-transparent text-xs font-bold text-white outline-none">
-                                    <option value="3" class="bg-slate-950 text-white">3</option>
-                                    <option value="5" selected class="bg-slate-950 text-white">5</option>
-                                    <option value="10" class="bg-slate-950 text-white">10</option>
-                                    <option value="20" class="bg-slate-950 text-white">20</option>
-                                    <option value="50" class="bg-slate-950 text-white">50</option>
+                                    <option value="5" selected class="bg-slate-950 text-white">5 últimos</option>
+                                    <option value="10" class="bg-slate-950 text-white">10 últimos</option>
+                                    <option value="15" class="bg-slate-950 text-white">15 últimos</option>
+                                    <option value="all" class="bg-slate-950 text-white">Todos</option>
                                 </select>
                             </div>
                             <button
@@ -769,13 +824,12 @@ if (!file_exists('config.php')) {
                     </div>
                     <div class="admin-only flex items-center gap-2">
                         <div class="flex-1 flex items-center justify-between gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-[10px]">
-                            <span class="text-[9px] text-slate-500 uppercase font-black tracking-wider whitespace-nowrap">Máx:</span>
+                            <span class="text-[9px] text-slate-500 uppercase font-black tracking-wider whitespace-nowrap">Retenção:</span>
                             <select id="pod-detail-limit" class="bg-transparent font-bold text-white outline-none">
-                                <option value="3" class="bg-slate-950 text-white">3</option>
-                                <option value="5" class="bg-slate-950 text-white">5</option>
-                                <option value="10" class="bg-slate-950 text-white">10</option>
-                                <option value="20" class="bg-slate-950 text-white">20</option>
-                                <option value="50" class="bg-slate-950 text-white">50</option>
+                                <option value="5" class="bg-slate-950 text-white">5 últimos</option>
+                                <option value="10" class="bg-slate-950 text-white">10 últimos</option>
+                                <option value="15" class="bg-slate-950 text-white">15 últimos</option>
+                                <option value="all" class="bg-slate-950 text-white">Todos</option>
                             </select>
                         </div>
                         <button id="pod-detail-update-btn" class="py-2 px-3 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-orange-400 font-bold rounded-xl text-[10px] flex items-center justify-center gap-1 cursor-pointer transition select-none">
@@ -1648,6 +1702,7 @@ if (!file_exists('config.php')) {
             // Load catalogs from PHP API
             await loadCatalogData();
             switchTab('inicio');
+            if (window.initPodcastAutoSyncWatcherMobile) window.initPodcastAutoSyncWatcherMobile();
         }
 
         window.applyOfflineFilter = function() {
@@ -2235,6 +2290,7 @@ if (!file_exists('config.php')) {
                 lucide.createIcons();
             } else if (tabId === 'podcast') {
                 loadPodcastsPhp();
+                if (window.loadPodcastAutoSyncConfigMobile) window.loadPodcastAutoSyncConfigMobile();
                 lucide.createIcons();
             } else if (tabId === 'radios') {
                 loadRadiosPhp();
@@ -2966,11 +3022,14 @@ if (!file_exists('config.php')) {
             const limitSelect = document.getElementById('pod-detail-limit');
             if (limitSelect) {
                 limitSelect.value = String(pod.limit || 5);
+                limitSelect.onchange = async () => {
+                    await window.updateSelectedPodcastLimitMobile(pod.name, limitSelect.value);
+                };
             }
             const updateBtn = document.getElementById('pod-detail-update-btn');
             if (updateBtn) {
                 updateBtn.onclick = async () => {
-                    const currentLimit = limitSelect ? parseInt(limitSelect.value) : 5;
+                    const currentLimit = limitSelect ? (limitSelect.value === 'all' ? 'all' : parseInt(limitSelect.value)) : 5;
                     await window.runPodcastSync(pod.feedUrl, currentLimit, updateBtn);
                 };
             }
@@ -3058,6 +3117,210 @@ if (!file_exists('config.php')) {
             window.runPodcastSync();
         };
 
+        // --- SISTEMA DE ATUALIZAÇÃO AUTOMÁTICA DE PODCASTS (MOBILE) ---
+        let podcastAutoSyncConfigMobile = {
+            enabled: false,
+            interval: 3600,
+            retention: '5',
+            lastSync: 0
+        };
+        let podcastAutoSyncTimerMobile = null;
+
+        async function loadPodcastAutoSyncConfigMobile() {
+            try {
+                const res = await fetch(API + '?route=podcast_config');
+                if (res.ok) {
+                    podcastAutoSyncConfigMobile = await res.json();
+                    updatePodcastAutoSyncUIMobile();
+                }
+            } catch (e) {
+                console.error("Erro ao carregar config auto-sync podcast mobile:", e);
+            }
+        }
+        window.loadPodcastAutoSyncConfigMobile = loadPodcastAutoSyncConfigMobile;
+
+        function updatePodcastAutoSyncUIMobile() {
+            const toggle = document.getElementById('podcast-auto-sync-toggle-m');
+            const intervalSel = document.getElementById('podcast-auto-interval-m');
+            const retentionSel = document.getElementById('podcast-auto-retention-m');
+            const statusBadge = document.getElementById('podcast-auto-status-badge-m');
+            const lastSyncEl = document.getElementById('podcast-last-sync-time-m');
+
+            if (toggle) toggle.checked = !!podcastAutoSyncConfigMobile.enabled;
+            if (intervalSel) intervalSel.value = String(podcastAutoSyncConfigMobile.interval || 3600);
+            if (retentionSel) retentionSel.value = String(podcastAutoSyncConfigMobile.retention || '5');
+
+            if (statusBadge) {
+                if (podcastAutoSyncConfigMobile.enabled) {
+                    statusBadge.className = "text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                    statusBadge.textContent = "Ativo";
+                } else {
+                    statusBadge.className = "text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider bg-slate-800 text-slate-400 border border-slate-700/50";
+                    statusBadge.textContent = "Inativo";
+                }
+            }
+
+            if (lastSyncEl) {
+                if (podcastAutoSyncConfigMobile.lastSync && podcastAutoSyncConfigMobile.lastSync > 0) {
+                    const d = new Date(podcastAutoSyncConfigMobile.lastSync * 1000);
+                    lastSyncEl.textContent = "Última: " + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                } else {
+                    lastSyncEl.textContent = "Última: Nunca";
+                }
+            }
+        }
+        window.updatePodcastAutoSyncUIMobile = updatePodcastAutoSyncUIMobile;
+
+        async function savePodcastAutoSyncSettingsMobile() {
+            if (currentUser && currentUser.role !== 'admin') return;
+
+            const toggle = document.getElementById('podcast-auto-sync-toggle-m');
+            const intervalSel = document.getElementById('podcast-auto-interval-m');
+            const retentionSel = document.getElementById('podcast-auto-retention-m');
+            const feedbackEl = document.getElementById('podcast-auto-sync-feedback-m');
+
+            const payload = {
+                enabled: toggle ? toggle.checked : false,
+                interval: intervalSel ? parseInt(intervalSel.value) : 3600,
+                retention: retentionSel ? retentionSel.value : '5'
+            };
+
+            try {
+                const res = await fetch(API + '?route=podcast_config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    podcastAutoSyncConfigMobile = data;
+                    updatePodcastAutoSyncUIMobile();
+                    if (feedbackEl) {
+                        feedbackEl.classList.remove('hidden');
+                        feedbackEl.textContent = 'Configurações de auto-sync salvas!';
+                        setTimeout(() => feedbackEl.classList.add('hidden'), 3500);
+                    }
+                }
+            } catch (e) {
+                console.error("Erro ao salvar config auto-sync mobile:", e);
+            }
+        }
+        window.savePodcastAutoSyncSettingsMobile = savePodcastAutoSyncSettingsMobile;
+
+        async function runPodcastAutoSyncNowMobile(btn) {
+            if (currentUser && currentUser.role !== 'admin') {
+                showToast("Apenas administradores podem acionar a sincronização.");
+                return;
+            }
+            const originalHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3 h-3 animate-spin"></i> Sincronizando...';
+                if (window.lucide) lucide.createIcons();
+            }
+
+            const feedbackEl = document.getElementById('podcast-auto-sync-feedback-m');
+            if (feedbackEl) {
+                feedbackEl.classList.remove('hidden');
+                feedbackEl.className = "p-2.5 rounded-xl text-[10px] border border-orange-500/20 bg-orange-500/10 text-orange-300";
+                feedbackEl.textContent = 'Sincronizando feeds de podcasts salvos...';
+            }
+
+            try {
+                const res = await fetch(API + '?route=podcasts_auto_sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    podcastAutoSyncConfigMobile.lastSync = data.lastSync || Math.floor(Date.now() / 1000);
+                    updatePodcastAutoSyncUIMobile();
+
+                    if (feedbackEl) {
+                        feedbackEl.className = "p-2.5 rounded-xl text-[10px] border border-emerald-500/20 bg-emerald-500/10 text-emerald-300";
+                        feedbackEl.textContent = data.message || 'Sincronização concluída!';
+                        setTimeout(() => feedbackEl.classList.add('hidden'), 4000);
+                    }
+                    if (window.loadCatalogData) await window.loadCatalogData();
+                    await loadPodcastsPhp();
+                } else {
+                    if (feedbackEl) {
+                        feedbackEl.className = "p-2.5 rounded-xl text-[10px] border border-red-500/20 bg-red-500/10 text-red-300";
+                        feedbackEl.textContent = 'Erro: ' + (data.error || 'Falha ao sincronizar');
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+                if (feedbackEl) {
+                    feedbackEl.className = "p-2.5 rounded-xl text-[10px] border border-red-500/20 bg-red-500/10 text-red-300";
+                    feedbackEl.textContent = 'Erro de rede ao sincronizar.';
+                }
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                    if (window.lucide) lucide.createIcons();
+                }
+            }
+        }
+        window.runPodcastAutoSyncNowMobile = runPodcastAutoSyncNowMobile;
+
+        async function updateSelectedPodcastLimitMobile(podName, newLimit) {
+            if (currentUser && currentUser.role !== 'admin') return;
+            try {
+                const res = await fetch(API + '?route=podcast_update_limit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ podcastName: podName, limit: newLimit })
+                });
+                if (res.ok) {
+                    const pod = allPodcasts.find(p => p.name === podName);
+                    if (pod) pod.limit = newLimit;
+                    if (window.loadCatalogData) await window.loadCatalogData();
+                    await loadPodcastsPhp();
+                    if (window.showPodcastDetailsPhp) window.showPodcastDetailsPhp(podName);
+                }
+            } catch (e) {
+                console.error("Erro ao atualizar limite mobile:", e);
+            }
+        }
+        window.updateSelectedPodcastLimitMobile = updateSelectedPodcastLimitMobile;
+
+        function initPodcastAutoSyncWatcherMobile() {
+            if (podcastAutoSyncTimerMobile) clearInterval(podcastAutoSyncTimerMobile);
+            loadPodcastAutoSyncConfigMobile();
+
+            podcastAutoSyncTimerMobile = setInterval(async () => {
+                try {
+                    if (!podcastAutoSyncConfigMobile.enabled) return;
+                    const now = Math.floor(Date.now() / 1000);
+                    const interval = podcastAutoSyncConfigMobile.interval || 3600;
+                    const lastSync = podcastAutoSyncConfigMobile.lastSync || 0;
+
+                    if (now - lastSync >= interval) {
+                        const res = await fetch(API + '?route=podcasts_auto_sync', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            podcastAutoSyncConfigMobile.lastSync = data.lastSync || now;
+                            updatePodcastAutoSyncUIMobile();
+                            if (data.syncedCount > 0 && window.loadCatalogData) {
+                                await window.loadCatalogData();
+                                if (document.getElementById('pane-podcast') && !document.getElementById('pane-podcast').classList.contains('hidden')) {
+                                    await loadPodcastsPhp();
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("[Mobile Podcast Auto-Sync Error]:", e);
+                }
+            }, 60000);
+        }
+        window.initPodcastAutoSyncWatcherMobile = initPodcastAutoSyncWatcherMobile;
+
         window.runPodcastSync = async function(feedUrlOverride = null, maxEpisodesOverride = null, customBtn = null) {
             if (currentUser.role !== 'admin') {
                 showToast("Apenas administradores podem gerenciar sincronização de Podcast.");
@@ -3072,7 +3335,9 @@ if (!file_exists('config.php')) {
             const feedUrl = feedUrlOverride || (input ? input.value.trim() : '');
             if (!feedUrl) return;
 
-            const maxEpisodesVal = maxEpisodesOverride !== null ? maxEpisodesOverride : (limitSelect ? parseInt(limitSelect.value) : 5);
+            const maxEpisodesVal = maxEpisodesOverride !== null 
+                ? maxEpisodesOverride 
+                : (limitSelect ? (limitSelect.value === 'all' ? 'all' : parseInt(limitSelect.value)) : 5);
 
             const statusEl = document.getElementById('podcast-status-msg');
             if (statusEl) {
@@ -3106,6 +3371,7 @@ if (!file_exists('config.php')) {
                     }
                     if (input && !feedUrlOverride) input.value = '';
                     
+                    if (window.loadCatalogData) await window.loadCatalogData();
                     await loadPodcastsPhp();
 
                     if (data.podcastName && window.showPodcastDetailsPhp) {
