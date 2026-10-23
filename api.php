@@ -4288,7 +4288,7 @@ function syncSinglePodcastFeed($pdo, $feedUrl, $maxEpisodesRaw, $podcastNameOver
 
         // Capa
         $coverUrl = 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=450';
-        if (preg_match('/<itunes:image\s+[^>]*href=["']([^"']+)["']/i', $channelXml, $imgMatch)) {
+        if (preg_match('/<itunes:image\s+[^>]*href=["\']([^"\']+)["\']/i', $channelXml, $imgMatch)) {
             $coverUrl = $imgMatch[1];
         } else {
             if (preg_match('/<image>([\s\S]*?)<\/image>/i', $channelXml, $imgBlock)) {
@@ -4319,10 +4319,10 @@ function syncSinglePodcastFeed($pdo, $feedUrl, $maxEpisodesRaw, $podcastNameOver
             $cleanEpTitle = trim($cleanEpTitle);
 
             $mediaUrl = '';
-            if (preg_match('/<enclosure[^>]+url=["']([^"']+)["']/i', $itemXml, $encMatch)) {
+            if (preg_match('/<enclosure[^>]+url=["\']([^"\']+)["\']/i', $itemXml, $encMatch)) {
                 $mediaUrl = $encMatch[1];
             } else {
-                if (preg_match('/<enclosure[\s\S]*?url=["']([^"']+)["']/i', $itemXml, $fallbackEncMatch)) {
+                if (preg_match('/<enclosure[\s\S]*?url=["\']([^"\']+)["\']/i', $itemXml, $fallbackEncMatch)) {
                     $mediaUrl = $fallbackEncMatch[1];
                 }
             }
@@ -4633,184 +4633,6 @@ function syncSinglePodcastFeed($pdo, $feedUrl, $maxEpisodesRaw, $podcastNameOver
         } catch (Exception $e) {
             http_response_code(500);
             echo json_encode(['error' => 'Erro ao atualizar limite: ' . $e->getMessage()]);
-        }
-        break;
-
-é obrigatório.']));
-        }
-
-        try {
-            $opts = [
-                "http" => [
-                    "method" => "GET",
-                    "header" => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
-"
-                ]
-            ];
-            $context = stream_context_create($opts);
-            $xml = @file_get_contents($feedUrl, false, $context);
-            if ($xml === false) {
-                http_response_code(400);
-                exit(json_encode(['error' => 'Falha ao conectar e ler o feed RSS do Podcast no PHP.']));
-            }
-
-            // 1. Extract Podcast Name
-            $podcastName = "Podcast Desconhecido";
-            if (preg_match('/<channel>([\s\S]*?)<\/channel>/i', $xml, $cMatch)) {
-                $channelXml = $cMatch[1];
-            } else {
-                $channelXml = $xml;
-            }
-            if (preg_match('/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i', $channelXml, $tMatch)) {
-                $podcastName = preg_replace('/\s+/', ' ', trim($tMatch[1]));
-            }
-
-            $safePodcastName = preg_replace('/[\/\\\?%*:|"<>]/', '-', $podcastName);
-            $safePodcastName = trim($safePodcastName);
-
-            // Save feedUrl and limit to Settings
-            try {
-                $pdo->exec("CREATE TABLE IF NOT EXISTS settings (
-                    setting_key VARCHAR(100) PRIMARY KEY,
-                    setting_value TEXT DEFAULT NULL
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-                $stmtSaveFeed = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
-                $stmtSaveFeed->execute(["podcast_feed_" . $podcastName, $feedUrl]);
-                
-                $stmtSaveLimit = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
-                $stmtSaveLimit->execute(["podcast_limit_" . $podcastName, strval($maxEpisodes)]);
-            } catch (Exception $e) {}
-
-            // 2. Extract Cover
-            $coverUrl = 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=450';
-            if (preg_match('/<itunes:image\s+[^>]*href=["\']([^"\']+)["\']/i', $channelXml, $imgMatch)) {
-                $coverUrl = $imgMatch[1];
-            } else {
-                if (preg_match('/<image>([\s\S]*?)<\/image>/i', $channelXml, $imgBlock)) {
-                    if (preg_match('/<url>([\s\S]*?)<\/url>/i', $imgBlock[1], $urlMatch)) {
-                        $coverUrl = trim($urlMatch[1]);
-                    }
-                }
-            }
-
-            // Folder
-            $podcastDir = UPLOAD_DIR . '/podcast/' . $safePodcastName;
-            if (!file_exists($podcastDir)) {
-                @mkdir($podcastDir, 0755, true);
-            }
-
-            // 3. Extract items
-            preg_match_all('/<item>([\s\S]*?)<\/item>/i', $xml, $itemMatches);
-            $items = $itemMatches[1] ?? [];
-            $itemsToProcess = array_slice($items, 0, $maxEpisodes);
-            $downloadedCount = 0;
-
-            foreach ($itemsToProcess as $itemXml) {
-                $epTitleRaw = 'Episódio Desconhecido';
-                if (preg_match('/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i', $itemXml, $epTitleMatch)) {
-                    $epTitleRaw = preg_replace('/\s+/', ' ', trim($epTitleMatch[1]));
-                }
-                $cleanEpTitle = preg_replace('/[\/\\\?%*:|"<>]/', '-', $epTitleRaw);
-                $cleanEpTitle = trim($cleanEpTitle);
-
-                $mediaUrl = '';
-                if (preg_match('/<enclosure[^>]+url=["\']([^"\']+)["\']/i', $itemXml, $encMatch)) {
-                    $mediaUrl = $encMatch[1];
-                } else {
-                    if (preg_match('/<enclosure[\s\S]*?url=["\']([^"\']+)["\']/i', $itemXml, $fallbackEncMatch)) {
-                        $mediaUrl = $fallbackEncMatch[1];
-                    }
-                }
-
-                if (empty($mediaUrl)) continue;
-
-                $episodeFileName = $cleanEpTitle . '.mp3';
-                $filePath = $podcastDir . '/' . $episodeFileName;
-                $fileSize = 0;
-
-                if (!file_exists($filePath)) {
-                    $ch = curl_init($mediaUrl);
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-                    curl_setopt($ch, CURLOPT_USERAGENT, 'PHPlayerPodcastDownloader/1.0 PHP');
-                    curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-                    $fileData = curl_exec($ch);
-                    curl_close($ch);
-
-                    if ($fileData !== false) {
-                        @file_put_contents($filePath, $fileData);
-                        $fileSize = strlen($fileData);
-                        $downloadedCount++;
-                    } else {
-                        continue;
-                    }
-                } else {
-                    $fileSize = filesize($filePath);
-                }
-
-                $durationInSeconds = 1800;
-                if (preg_match('/<itunes:duration>([\s\S]*?)<\/itunes:duration>/i', $itemXml, $durMatch)) {
-                    $durStr = trim($durMatch[1]);
-                    if (strpos($durStr, ':') !== false) {
-                        $pts = explode(':', $durStr);
-                        if (count($pts) === 3) {
-                            $durationInSeconds = intval($pts[0]) * 3600 + intval($pts[1]) * 60 + intval($pts[2]);
-                        } else if (count($pts) === 2) {
-                            $durationInSeconds = intval($pts[0]) * 60 + intval($pts[1]);
-                        }
-                    } else {
-                        $val = intval($durStr);
-                        if ($val > 0) $durationInSeconds = $val;
-                    }
-                }
-
-                $relativeFileName = 'podcast/' . $safePodcastName . '/' . $episodeFileName;
-
-                // Check if already in songs table
-                $stmtCheck = $pdo->prepare("SELECT id FROM songs WHERE file_name = ?");
-                $stmtCheck->execute([$relativeFileName]);
-                $exists = $stmtCheck->fetchColumn();
-
-                if ($exists) {
-                    $stmtUpd = $pdo->prepare("UPDATE songs SET title = ?, artist = ?, album = ?, duration = ?, file_size = ?, cover_url = ? WHERE id = ?");
-                    $stmtUpd->execute([$epTitleRaw, $podcastName, $podcastName, $durationInSeconds, $fileSize, $coverUrl, $exists]);
-                } else {
-                    $stmtIns = $pdo->prepare("INSERT INTO songs (title, artist, album, genre, file_name, file_size, duration, cover_url) VALUES (?, ?, ?, 'Podcast', ?, ?, ?, ?)");
-                    $stmtIns->execute([$epTitleRaw, $podcastName, $podcastName, $relativeFileName, $fileSize, $durationInSeconds, $coverUrl]);
-                }
-            }
-
-            // Excluir episódios excedentes (mais antigos) se o total passar de $maxEpisodes
-            try {
-                $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM songs WHERE genre = 'Podcast' AND album = ?");
-                $stmtCount->execute([$podcastName]);
-                $totalEpisodes = intval($stmtCount->fetchColumn());
-                
-                if ($totalEpisodes > $maxEpisodes) {
-                    $stmtAll = $pdo->prepare("SELECT id, file_name FROM songs WHERE genre = 'Podcast' AND album = ? ORDER BY created_at DESC, id DESC");
-                    $stmtAll->execute([$podcastName]);
-                    $allEps = $stmtAll->fetchAll(PDO::FETCH_ASSOC);
-                    
-                    $epsToDelete = array_slice($allEps, $maxEpisodes);
-                    foreach ($epsToDelete as $epToDelete) {
-                        $epId = $epToDelete['id'];
-                        $epFileName = $epToDelete['file_name'];
-                        
-                        $fullPathToDelete = UPLOAD_DIR . '/' . $epFileName;
-                        if (!empty($epFileName) && file_exists($fullPathToDelete)) {
-                            @unlink($fullPathToDelete);
-                        }
-                        
-                        $stmtDel = $pdo->prepare("DELETE FROM songs WHERE id = ?");
-                        $stmtDel->execute([$epId]);
-                    }
-                }
-            } catch (Exception $delErr) {}
-
-            echo json_encode(['success' => true, 'podcastName' => $podcastName, 'episodeCount' => $downloadedCount]);
-        } catch (Exception $e) {
-            http_response_code(500);
-            echo json_encode(['error' => 'Erro ao sincronizar podcast: ' . $e->getMessage()]);
         }
         break;
 

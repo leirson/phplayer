@@ -1,5 +1,8 @@
 <?php
 $changelog = <<<EOT
+v1.1.23
+- Correção de erro de sintaxe PHP (500 Internal Server Error) no arquivo api.php: corrigido escape de aspas em expressões regulares de feeds de podcasts e remoção de bloco de código residual.
+
 v1.1.22
 - Sistema de atualização automática para podcasts em PHP: sincronização periódica configurável em segundo plano com opções de retenção de episódios selecionáveis (5 últimos, 10 últimos, 15 últimos ou todos), botão de sincronização em lote de todos os canais salvos, alteração dinâmica da retenção por podcast com limpeza imediata de excedentes e interface integrada tanto no desktop quanto no mobile.
 
