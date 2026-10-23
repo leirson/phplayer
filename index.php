@@ -146,30 +146,6 @@ define('DONT_EXIT_ON_DB_ERROR', true);
             -webkit-text-fill-color: #38bdf8 !important;
             transition: background-color 5000s ease-in-out 0s;
         }
-
-        /* Estilos do Player de Vídeo sem Travamentos (Pseudo-Fullscreen) */
-        #video-modal.pseudo-fullscreen-active {
-            padding: 0 !important;
-            background-color: #000000 !important;
-        }
-        #video-modal.pseudo-fullscreen-active #video-modal-container {
-            max-width: 100% !important;
-            width: 100vw !important;
-            height: 100vh !important;
-            border-radius: 0 !important;
-            border: none !important;
-        }
-        #video-modal.pseudo-fullscreen-active #video-viewport-container {
-            aspect-ratio: auto !important;
-            flex-grow: 1 !important;
-            height: calc(100vh - 53px) !important;
-        }
-        video::-webkit-media-controls-fullscreen-button {
-            display: none !important;
-        }
-        video::-picture-in-picture-button {
-            display: none !important;
-        }
         @keyframes spinSlow {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
@@ -425,16 +401,6 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                         <i data-lucide="list-music" class="w-3.5 h-3.5 text-emerald-450"></i> Playlists
                     </button>
                     
-                    <button id="tab-btn-videos" onclick="setTab('videos')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-videos">
-                        <i data-lucide="film" class="w-3.5 h-3.5 text-sky-450"></i> Galeria de Vídeos
-                    </button>
-                    <button id="tab-btn-movies" onclick="setTab('movies')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition hidden">
-                        <i data-lucide="clapperboard" class="w-3.5 h-3.5 text-purple-450"></i> Filmes
-                    </button>
-                    <button id="tab-btn-series" onclick="setTab('series')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition hidden">
-                        <i data-lucide="tv" class="w-3.5 h-3.5 text-indigo-450"></i> Séries
-                    </button>
-
                     <button id="tab-btn-podcast" onclick="setTab('podcast')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition">
                         <i data-lucide="podcast" class="w-3.5 h-3.5 text-orange-400"></i> Podcast
                     </button>
@@ -664,7 +630,7 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     <h2 class="text-xl font-black text-white flex items-center gap-2">
                         <i data-lucide="settings" class="text-sky-400 w-5 h-5"></i> <span data-i18n="config-panel-title">Painel de Configurações</span>
                     </h2>
-                    <p class="text-xs text-slate-500 mt-0.5 font-medium" data-i18n="config-panel-sub">Personalize as cores do site e gerencie a biblioteca local de músicas e vídeos.</p>
+                    <p class="text-xs text-slate-500 mt-0.5 font-medium" data-i18n="config-panel-sub">Personalize as cores do site e gerencie a biblioteca local de músicas.</p>
                 </div>
  
                 <!-- SUBTABS NAVIGATION -->
@@ -946,63 +912,6 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                                     <i data-lucide="file-text" class="w-3.5 h-3.5"></i> Ver Log de Sincronização
                                 </button>
                             </div>
-                        </div>
-
-                        <!-- Video scan -->
-                        <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left">
-                            <div class="space-y-1.5">
-                                <div class="flex items-center justify-between">
-                                    <span class="bg-violet-500/10 text-violet-400 border border-violet-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Vídeo Library</span>
-                                    <label class="relative inline-flex items-center cursor-pointer gap-2" title="Ativar/Desativar no menu lateral">
-                                        <span class="text-[10px] font-bold text-slate-400">Ativo</span>
-                                        <input type="checkbox" class="sr-only peer feature-enable-videos" onchange="toggleFeature('videos', this.checked)">
-                                        <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600"></div>
-                                    </label>
-                                </div>
-                                <h3 class="text-sm font-bold text-white">Sincronizar Pasta /videos</h3>
-                                <p class="text-[11px] text-slate-400 leading-relaxed">Varre recursivamente o diretório de vídeos no disco do servidor para listar arquivos .mp4 ou .mkv.</p>
-                            </div>
-                            <button onclick="runVideoDirectoryScan(this)" class="w-full py-2.5 bg-violet-500 hover:bg-violet-600 font-extrabold text-white rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
-                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Sincronizar Vídeos
-                            </button>
-                        </div>
-
-                        <!-- Movies scan -->
-                        <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left">
-                            <div class="space-y-1.5">
-                                <div class="flex items-center justify-between">
-                                    <span class="bg-amber-500/10 text-amber-400 border border-amber-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Movies Library</span>
-                                    <label class="relative inline-flex items-center cursor-pointer gap-2" title="Ativar/Desativar no menu lateral">
-                                        <span class="text-[10px] font-bold text-slate-400">Ativo</span>
-                                        <input type="checkbox" class="sr-only peer feature-enable-movies" onchange="toggleFeature('movies', this.checked)">
-                                        <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
-                                    </label>
-                                </div>
-                                <h3 class="text-sm font-bold text-white">Sincronizar Pasta /movies</h3>
-                                <p class="text-[11px] text-slate-400 leading-relaxed">Varre o diretório de filmes no disco do servidor para listar arquivos por gênero (.mp4, .mkv, .webm, .avi, .mov).</p>
-                            </div>
-                            <button onclick="runMoviesDirectoryScan(this)" class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 font-extrabold text-white rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
-                                <i data-lucide="film" class="w-3.5 h-3.5"></i> Sincronizar Filmes
-                            </button>
-                        </div>
-
-                        <!-- Series scan -->
-                        <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left">
-                            <div class="space-y-1.5">
-                                <div class="flex items-center justify-between">
-                                    <span class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Series Library</span>
-                                    <label class="relative inline-flex items-center cursor-pointer gap-2" title="Ativar/Desativar no menu lateral">
-                                        <span class="text-[10px] font-bold text-slate-400">Ativo</span>
-                                        <input type="checkbox" class="sr-only peer feature-enable-series" onchange="toggleFeature('series', this.checked)">
-                                        <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                                    </label>
-                                </div>
-                                <h3 class="text-sm font-bold text-white">Sincronizar Pasta /series</h3>
-                                <p class="text-[11px] text-slate-400 leading-relaxed">Varre o diretório de séries no disco do servidor para listar séries, temporadas e episódios (.mp4, .mkv, .webm, .avi, .mov).</p>
-                            </div>
-                            <button onclick="runSeriesDirectoryScan(this)" class="w-full py-2.5 bg-indigo-500 hover:bg-indigo-600 font-extrabold text-white rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
-                                <i data-lucide="tv" class="w-3.5 h-3.5"></i> Sincronizar Séries
-                            </button>
                         </div>
 
                         <!-- Last.fm Sync Card -->
@@ -1333,25 +1242,8 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                         <label class="block text-xs font-medium text-slate-400 mb-1">Tempo de Atualização (Segundos)</label>
                         <div class="flex gap-2">
                            <input type="number" id="dashboard-rotate-time" placeholder="8" class="w-full bg-slate-900 border border-slate-800 text-white text-sm rounded-lg py-2 px-3 focus:outline-none focus:border-sky-500 transition">
-                           <button onclick="saveDashboardSettings()" class="bg-sky-500 hover:bg-sky-600 focus:scale-95 text-white px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap">Salvar Todos</button>
+                            <button onclick="saveDashboardSettings()" class="bg-sky-500 hover:bg-sky-600 focus:scale-95 text-white px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap">Salvar Todos</button>
                         </div>
-                        <hr class="border-slate-900 my-4">
-                        <h3 class="text-xs font-black uppercase text-white mb-4">Menus Adicionais (Vídeos)</h3>
-                        <div class="flex items-center justify-between bg-slate-900/50 p-3 rounded-lg border border-slate-800 mb-2">
-                            <span class="text-xs text-white font-bold">Habilitar Galeria de Filmes</span>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="feature-enable-movies" class="sr-only peer" onchange="toggleFeature('movies', this.checked)">
-                                <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
-                            </label>
-                        </div>
-                        <div class="flex items-center justify-between bg-slate-900/50 p-3 rounded-lg border border-slate-800">
-                            <span class="text-xs text-white font-bold">Habilitar Galeria de Séries</span>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="feature-enable-series" class="sr-only peer" onchange="toggleFeature('series', this.checked)">
-                                <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
-                            </label>
-                        </div>
-
                     </div>
                 </div>
 
@@ -1560,71 +1452,6 @@ define('DONT_EXIT_ON_DB_ERROR', true);
             </section>
 
             
-            <!-- VIEW: MOVIES -->
-            <section id="pane-movies" class="space-y-6 flex-1 hidden tab-transition">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-900 pb-5">
-                    <div>
-                        <h2 class="text-xl font-black text-white flex items-center gap-2">
-                            <i data-lucide="clapperboard" class="text-purple-400 w-5 h-5"></i> Filmes
-                        </h2>
-                        <p class="text-xs text-slate-400 mt-1">Coleção de Filmes organizados por Gênero</p>
-                    </div>
-                </div>
-                <div id="movies-container" class="space-y-8">
-                    <div class="flex items-center justify-center p-12 text-slate-500">
-                        <i data-lucide="loader" class="w-6 h-6 animate-spin"></i>
-                    </div>
-                </div>
-            </section>
-
-            <!-- VIEW: SERIES -->
-            <section id="pane-series" class="space-y-6 flex-1 hidden tab-transition">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-900 pb-5">
-                    <div>
-                        <h2 class="text-xl font-black text-white flex items-center gap-2">
-                            <i data-lucide="tv" class="text-indigo-400 w-5 h-5"></i> Séries
-                        </h2>
-                        <p class="text-xs text-slate-400 mt-1">Sua coleção de séries e episódios</p>
-                    </div>
-                </div>
-                <div id="series-container" class="space-y-8">
-                    <div class="flex items-center justify-center p-12 text-slate-500">
-                        <i data-lucide="loader" class="w-6 h-6 animate-spin"></i>
-                    </div>
-                </div>
-            </section>
-
-            <!-- VIEW: VIDEO GALLERY -->
-            <section id="pane-videos" class="space-y-6 flex-1 hidden tab-transition">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-900 pb-5">
-                    <div>
-                        <h2 class="text-xl font-black text-white flex items-center gap-2">
-                            <i data-lucide="film" class="text-sky-400 w-5 h-5"></i> Galeria de Vídeos
-                        </h2>
-                        <p class="text-xs text-slate-500 mt-0.5">
-                            Coleção de arquivos de vídeo localizados sob /videos
-                        </p>
-                    </div>
-
-                    <!-- Search -->
-                    <div class="relative w-full sm:w-72">
-                        <input id="video-search-input" oninput="renderVideoGallery()" type="text" placeholder="Pesquisar vídeos..." class="w-full bg-slate-900 border border-slate-800 focus:border-sky-500 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white outline-none font-semibold">
-                        <i data-lucide="search" class="absolute left-3 top-3 w-4 h-4 text-slate-500 flex items-center justify-center pointer-events-none"></i>
-                    </div>
-                </div>
-
-                <div id="video-loading" class="py-24 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
-                    <i data-lucide="loader" class="w-6 h-6 animate-spin text-sky-450"></i>
-                    Escaneando pasta /videos no servidor de mídia...
-                </div>
-
-                <div id="video-empty" class="py-24 text-center text-xs text-slate-500 italic bg-slate-950/20 border border-slate-900 border-dashed rounded-3xl hidden">
-                    Nenhum arquivo de vídeo encontrado. Toque alguns vídeos (.mp4, .webm, .mkv, .mov, .avi) na pasta /videos do sistema para listá-los.
-                </div>
-
-                <div id="video-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
-            </section>
-
             <!-- VIEW: PLAYLISTS -->
             <section id="pane-playlists" class="space-y-6 flex-1 hidden tab-transition">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-900 pb-5">
@@ -2133,32 +1960,6 @@ define('DONT_EXIT_ON_DB_ERROR', true);
 
     <audio id="real-audio" class="hidden" preload="auto"></audio>
 
-    <!-- VIDEO PLAYER MODAL -->
-    <div id="video-modal" class="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4 hidden">
-        <div id="video-modal-container" class="relative w-full max-w-4xl bg-slate-950 border border-slate-900 rounded-3xl overflow-hidden shadow-2xl flex flex-col font-sans">
-            <!-- Modal Title bar -->
-            <div class="flex items-center justify-between p-4 border-b border-slate-900 bg-[#0d131f]/15">
-                <div class="flex items-center gap-2 min-w-0">
-                    <i data-lucide="film" class="w-4 h-4 text-sky-450 shrink-0"></i>
-                    <span id="video-modal-title" class="text-xs font-bold text-white max-w-sm sm:max-w-md truncate">Video</span>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <button id="video-maximize-btn" onclick="toggleVideoMaximize()" class="p-1 text-slate-500 hover:text-white hover:bg-slate-900 rounded-lg transition" title="Tela Cheia">
-                        <i data-lucide="maximize" class="w-4 h-4"></i>
-                    </button>
-                    <button onclick="closeVideoModal()" class="p-1 text-slate-500 hover:text-white hover:bg-slate-900 rounded-lg transition">
-                        <i data-lucide="x" class="w-4 h-4"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Video core viewport -->
-            <div id="video-viewport-container" class="aspect-video bg-black flex items-center justify-center relative">
-                <video id="modal-video-player" controls class="w-full h-full object-contain" style="will-change: transform; transform: translate3d(0,0,0);"></video>
-            </div>
-        </div>
-    </div>
-
     <!-- IMAGE SEARCH MODAL -->
     <div id="image-search-modal" class="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4 backdrop-blur-sm hidden">
         <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl max-w-xl w-full flex flex-col max-h-[85vh] overflow-hidden shadow-2xl">
@@ -2652,114 +2453,6 @@ define('DONT_EXIT_ON_DB_ERROR', true);
         </div>
     </div>
 
-    <!-- MOVIE EDIT MODAL (Admin Only) -->
-    <div id="movie-edit-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-[60] p-4 backdrop-blur-sm hidden font-sans">
-        <div class="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-md p-6 relative shadow-2xl space-y-5 animate-fade-in text-left">
-            <div class="flex justify-between items-center border-b border-slate-900 pb-4">
-                <div class="flex items-center gap-2">
-                    <i data-lucide="clapperboard" class="w-5 h-5 text-purple-400"></i>
-                    <h3 class="text-sm font-bold text-white">
-                        Editar Filme: <span id="movie-edit-modal-name" class="text-purple-300"></span>
-                    </h3>
-                </div>
-                <button onclick="closeMovieEditModal()" class="text-slate-400 hover:text-white p-1.5 hover:bg-slate-900 rounded-lg transition cursor-pointer">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </div>
-
-            <input type="hidden" id="movie-edit-name-input">
-
-            <!-- Cover Photo Section -->
-            <div class="space-y-2">
-                <label class="block text-xs font-bold text-slate-300">Foto / Capa do Filme</label>
-                <div id="movie-edit-cover-preview-container" class="relative w-full h-44 bg-slate-900/80 rounded-2xl border border-slate-800 overflow-hidden flex items-center justify-center group">
-                    <img id="movie-edit-cover-img" src="" class="w-full h-full object-cover hidden">
-                    <div id="movie-edit-cover-placeholder" class="text-center p-4">
-                        <i data-lucide="image" class="w-8 h-8 text-slate-600 mx-auto mb-1"></i>
-                        <p class="text-[11px] text-slate-500">Nenhuma capa definida</p>
-                    </div>
-                </div>
-                <div class="flex gap-2 pt-1">
-                    <input type="file" id="movie-edit-file-input" accept="image/*" class="hidden" onchange="handleMovieFileSelect(this)">
-                    <button type="button" onclick="document.getElementById('movie-edit-file-input').click()" class="flex-1 py-2 px-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
-                        <i data-lucide="upload" class="w-3.5 h-3.5"></i> Enviar do Computador
-                    </button>
-                </div>
-                <div class="space-y-1 pt-1">
-                    <span class="text-[10px] text-slate-500">Ou informe a URL da Imagem:</span>
-                    <input type="text" id="movie-edit-url-input" placeholder="https://exemplo.com/capa.jpg" oninput="handleMovieUrlInput(this.value)" class="w-full bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-xl p-2.5 outline-none focus:border-purple-500 transition">
-                </div>
-            </div>
-
-            <!-- Buttons -->
-            <div class="flex items-center justify-end gap-3 pt-2">
-                <button type="button" onclick="closeMovieEditModal()" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition cursor-pointer">
-                    Cancelar
-                </button>
-                <button type="button" id="btn-save-movie-meta" onclick="saveMovieMetadata()" class="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-lg shadow-purple-600/20">
-                    <i data-lucide="save" class="w-4 h-4"></i> Salvar
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- SERIES EDIT MODAL (Admin Only) -->
-    <div id="series-edit-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-[60] p-4 backdrop-blur-sm hidden font-sans">
-        <div class="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-md p-6 relative shadow-2xl space-y-5 animate-fade-in text-left">
-            <div class="flex justify-between items-center border-b border-slate-900 pb-4">
-                <div class="flex items-center gap-2">
-                    <i data-lucide="tv" class="w-5 h-5 text-indigo-400"></i>
-                    <h3 class="text-sm font-bold text-white">
-                        Editar Série: <span id="series-edit-modal-name" class="text-indigo-300"></span>
-                    </h3>
-                </div>
-                <button onclick="closeSeriesEditModal()" class="text-slate-400 hover:text-white p-1.5 hover:bg-slate-900 rounded-lg transition cursor-pointer">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </div>
-
-            <input type="hidden" id="series-edit-name-input">
-
-            <!-- Cover Photo Section -->
-            <div class="space-y-2">
-                <label class="block text-xs font-bold text-slate-300">Foto / Capa da Série</label>
-                <div id="series-edit-cover-preview-container" class="relative w-full h-44 bg-slate-900/80 rounded-2xl border border-slate-800 overflow-hidden flex items-center justify-center group">
-                    <img id="series-edit-cover-img" src="" class="w-full h-full object-cover hidden">
-                    <div id="series-edit-cover-placeholder" class="text-center p-4">
-                        <i data-lucide="image" class="w-8 h-8 text-slate-600 mx-auto mb-1"></i>
-                        <p class="text-[11px] text-slate-500">Nenhuma capa definida</p>
-                    </div>
-                </div>
-                <div class="flex gap-2 pt-1">
-                    <input type="file" id="series-edit-file-input" accept="image/*" class="hidden" onchange="handleSeriesFileSelect(this)">
-                    <button type="button" onclick="document.getElementById('series-edit-file-input').click()" class="flex-1 py-2 px-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
-                        <i data-lucide="upload" class="w-3.5 h-3.5"></i> Enviar do Computador
-                    </button>
-                </div>
-                <div class="space-y-1 pt-1">
-                    <span class="text-[10px] text-slate-500">Ou informe a URL da Imagem:</span>
-                    <input type="text" id="series-edit-url-input" placeholder="https://exemplo.com/capa.jpg" oninput="handleSeriesUrlInput(this.value)" class="w-full bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-xl p-2.5 outline-none focus:border-indigo-500 transition">
-                </div>
-            </div>
-
-            <!-- Description Section -->
-            <div class="space-y-1.5">
-                <label class="block text-xs font-bold text-slate-300">Descrição / Sinopse</label>
-                <textarea id="series-edit-description-input" rows="4" placeholder="Escreva um resumo ou sinopse da série..." class="w-full bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-xl p-3 outline-none focus:border-indigo-500 transition resize-none"></textarea>
-            </div>
-
-            <!-- Buttons -->
-            <div class="flex items-center justify-end gap-3 pt-2">
-                <button type="button" onclick="closeSeriesEditModal()" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition cursor-pointer">
-                    Cancelar
-                </button>
-                <button type="button" id="btn-save-series-meta" onclick="saveSeriesMetadata()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-lg shadow-indigo-600/20">
-                    <i data-lucide="save" class="w-4 h-4"></i> Salvar
-                </button>
-            </div>
-        </div>
-    </div>
-
     <script>
 
         // Garantir que chamadas ao lucide não quebrem a aplicação caso o CDN falhe ou atrase
@@ -2804,8 +2497,6 @@ let currentUser = null;
         let allPlaylists = [];
         let allFavorites = [];
         let filteredTracks = [];
-        let allVideos = [];
-        let uploadingVideoId = null;
         
         let selectedArtist = '';
         let phpSelectedArtist = '';
@@ -2983,22 +2674,14 @@ let currentUser = null;
                 const isSlash = e.key === '/';
                 if (isCtrlF || isSlash) {
                     e.preventDefault();
-                    if (typeof activeTab !== 'undefined' && activeTab === 'videos') {
-                        const vSearch = document.getElementById('video-search-input');
-                        if (vSearch) {
-                            vSearch.focus();
-                            vSearch.select();
+                    setTab('tracks');
+                    setTimeout(() => {
+                        const mSearch = document.getElementById('search-input');
+                        if (mSearch) {
+                            mSearch.focus();
+                            mSearch.select();
                         }
-                    } else {
-                        setTab('tracks');
-                        setTimeout(() => {
-                            const mSearch = document.getElementById('search-input');
-                            if (mSearch) {
-                                mSearch.focus();
-                                mSearch.select();
-                            }
-                        }, 80);
-                    }
+                    }, 80);
                     return;
                 }
 
@@ -3031,16 +2714,6 @@ let currentUser = null;
                         let newVol = Math.max(0, audio.volume - 0.05);
                         audio.volume = newVol;
                         if (volSlider) volSlider.value = newVol;
-                    }
-                } else if (e.key === 'Escape') {
-                    const videoModal = document.getElementById('video-modal');
-                    if (videoModal && !videoModal.classList.contains('hidden')) {
-                        e.preventDefault();
-                        if (videoModal.classList.contains('pseudo-fullscreen-active')) {
-                            toggleVideoMaximize();
-                        } else {
-                            closeVideoModal();
-                        }
                     }
                 }
             });
@@ -3267,11 +2940,9 @@ let currentUser = null;
             if (paneTracks) paneTracks.classList.remove('hidden');
             if (document.getElementById('pane-playlists')) document.getElementById('pane-playlists').classList.add('hidden');
             if (document.getElementById('pane-config')) document.getElementById('pane-config').classList.add('hidden');
-            const paneVideos = document.getElementById('pane-videos');
-            if (paneVideos) paneVideos.classList.add('hidden');
 
             // Highlight track tab correctly inside sidebar
-            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'playlists', 'podcast', 'radios'];
+            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'playlists', 'podcast', 'radios'];
             btns.forEach(b => {
                 const el = document.getElementById('tab-btn-' + b);
                 if (el) {
@@ -4283,7 +3954,7 @@ const updPane = document.getElementById('subtab-pane-updates');
 
         function handleFileManagerUpload(files) {
             if (fileManagerCurrentPath === '') {
-                alert('Não é permitido enviar arquivos diretamente na pasta raiz virtual. Entre em /music ou /videos primeiro.');
+                alert('Não é permitido enviar arquivos diretamente na pasta raiz virtual. Entre em /music primeiro.');
                 return;
             }
             if (!files || files.length === 0) return;
@@ -4524,7 +4195,6 @@ const updPane = document.getElementById('subtab-pane-updates');
                 "sidebar-dashboard": "Dashboard",
                 "sidebar-songs": "Minhas Músicas",
                 "sidebar-favorites": "Favoritos",
-                "sidebar-videos": "Galeria de Vídeos",
                 "sidebar-settings": "Configurações",
                 "sidebar-artists": "Artistas",
                 "sidebar-playlists": "Playlists",
@@ -4585,7 +4255,6 @@ const updPane = document.getElementById('subtab-pane-updates');
                 "sidebar-dashboard": "Dashboard",
                 "sidebar-songs": "My Music",
                 "sidebar-favorites": "Favorites",
-                "sidebar-videos": "Video Gallery",
                 "sidebar-settings": "Settings",
                 "sidebar-artists": "Artists",
                 "sidebar-playlists": "Playlists",
@@ -4613,7 +4282,7 @@ const updPane = document.getElementById('subtab-pane-updates');
                 "col-operations": "Operations",
                 
                 "config-panel-title": "Settings Panel",
-                "config-panel-sub": "Customize site colors and manage the local music and video library.",
+                "config-panel-sub": "Customize site colors and manage the local music library.",
                 
                 "subnav-themes": "Colors & Themes",
                 "subnav-sync": "Sync & Media",
@@ -4646,7 +4315,6 @@ const updPane = document.getElementById('subtab-pane-updates');
                 "sidebar-dashboard": "Dashboard",
                 "sidebar-songs": "Mis Canciones",
                 "sidebar-favorites": "Favoritos",
-                "sidebar-videos": "Galería de Videos",
                 "sidebar-settings": "Configuraciones",
                 "sidebar-artists": "Artistas",
                 "sidebar-playlists": "Listas de reproducción",
@@ -4674,7 +4342,7 @@ const updPane = document.getElementById('subtab-pane-updates');
                 "col-operations": "Operaciones",
                 
                 "config-panel-title": "Panel de Configuraciones",
-                "config-panel-sub": "Personaliza los colores del sitio y gestiona la biblioteca local de música y videos.",
+                "config-panel-sub": "Personaliza los colores del sitio y gestiona la biblioteca local de música.",
                 
                 "subnav-themes": "Colores y Temas",
                 "subnav-sync": "Sincronización y Medios",
@@ -5046,29 +4714,6 @@ const updPane = document.getElementById('subtab-pane-updates');
         }
         window.clearMusicScanLog = clearMusicScanLog;
 
-        async function runVideoDirectoryScan(btn) {
-            const origText = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Sincronizando...';
-            lucide.createIcons();
-            try {
-                const res = await fetch('api.php?route=videos_scan', { method: 'POST' });
-                const data = await res.json();
-                if (res.ok) {
-                    alert('Sincronização de vídeos concluída com sucesso! Encontrados ' + (data.count || 0) + ' novos vídeos ou capas sincronizados.');
-                } else {
-                    alert('Erro ao varrer diretório de vídeos.');
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Erro de rede ao escanear pasta /videos.');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = origText;
-                lucide.createIcons();
-            }
-        }
-
         async function runLastfmSync(btn) {
             const origText = btn.innerHTML;
             btn.disabled = true;
@@ -5225,14 +4870,13 @@ const updPane = document.getElementById('subtab-pane-updates');
             document.getElementById('pane-dashboard').classList.add('hidden');
             document.getElementById('pane-tracks').classList.add('hidden');
             if (document.getElementById('pane-config')) document.getElementById('pane-config').classList.add('hidden');
-            document.getElementById('pane-videos').classList.add('hidden');
             if (document.getElementById('pane-playlists')) document.getElementById('pane-playlists').classList.add('hidden');
             if (document.getElementById('pane-podcast')) document.getElementById('pane-podcast').classList.add('hidden');
             if (document.getElementById('pane-radios')) document.getElementById('pane-radios').classList.add('hidden');
             if (document.getElementById('pane-reprodutor')) document.getElementById('pane-reprodutor').classList.add('hidden');
             
             // Clear navigation classes
-            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'playlists', 'podcast', 'radios', 'reprodutor'];
+            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'playlists', 'podcast', 'radios', 'reprodutor'];
             btns.forEach(b => {
                 const el = document.getElementById('tab-btn-' + b);
                 if (el) {
@@ -5296,9 +4940,6 @@ const updPane = document.getElementById('subtab-pane-updates');
                     if (text) text.value = currentBg;
                 }
                 if (window.loadLastfmKeyForUI) window.loadLastfmKeyForUI();
-            } else if (tabName === 'videos') {
-                renderVideoGallery();
-                document.getElementById('pane-videos').classList.remove('hidden');
             } else if (tabName === 'podcast') {
                 loadPodcastsPhp();
                 document.getElementById('pane-podcast').classList.remove('hidden');
@@ -5510,8 +5151,6 @@ const updPane = document.getElementById('subtab-pane-updates');
             if (paneTracks) paneTracks.classList.remove('hidden');
             if (document.getElementById('pane-playlists')) document.getElementById('pane-playlists').classList.add('hidden');
             if (document.getElementById('pane-config')) document.getElementById('pane-config').classList.add('hidden');
-            const paneVideos = document.getElementById('pane-videos');
-            if (paneVideos) paneVideos.classList.add('hidden');
 
             renderLeftSidebar();
             renderTracksTable();
@@ -7357,6 +6996,223 @@ document.addEventListener('fullscreenchange', (event) => {
                         </div>
                     `;
                 }
+                // --- TOP MÚSICAS DO ARTISTA (LAST.FM & BIBLIOTECA) ---
+                let topTracksBlock = '';
+                const matchedTop10 = [];
+                const seenTrackIds = new Set();
+                const seenNormalizedTitles = new Set();
+
+                function cleanTitleForMatching(str) {
+                    if (!str) return '';
+                    return str
+                        .toLowerCase()
+                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                        .replace(/\((remastered|remaster|live|deluxe|version|edit|mono|stereo|bonus|feat\.|acoustic|radio edit)[^)]*\)/gi, '')
+                        .replace(/\[(remastered|remaster|live|deluxe|version|edit|mono|stereo|bonus|feat\.|acoustic|radio edit)[^\]]*\]/gi, '')
+                        .replace(/[-–—]\s*(remastered|remaster|live|deluxe|version|edit|mono|stereo|bonus|feat\.|acoustic|radio edit).*/gi, '')
+                        .replace(/[^\w\s]/g, '')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                }
+
+                const currentArtistTracks = allTracks.filter(t => t.artist && t.artist.trim().toLowerCase() === selectedArtist.trim().toLowerCase());
+
+                if (Array.isArray(artistTopTracks) && artistTopTracks.length > 0) {
+                    for (const item of artistTopTracks) {
+                        if (matchedTop10.length >= 10) break;
+                        const lfmName = typeof item === 'string' ? item : (item.name || '');
+                        if (!lfmName) continue;
+                        const normLfm = cleanTitleForMatching(lfmName);
+                        if (!normLfm) continue;
+
+                        let found = null;
+                        // 1. Match exato normalizado
+                        for (const t of currentArtistTracks) {
+                            if (seenTrackIds.has(String(t.id))) continue;
+                            if (cleanTitleForMatching(t.title) === normLfm) {
+                                found = t;
+                                break;
+                            }
+                        }
+                        // 2. StartsWith match
+                        if (!found) {
+                            for (const t of currentArtistTracks) {
+                                if (seenTrackIds.has(String(t.id))) continue;
+                                const normLib = cleanTitleForMatching(t.title);
+                                if (normLib && normLfm && (normLib.startsWith(normLfm) || normLfm.startsWith(normLib))) {
+                                    found = t;
+                                    break;
+                                }
+                            }
+                        }
+                        // 3. Substring match
+                        if (!found && normLfm.length >= 4) {
+                            for (const t of currentArtistTracks) {
+                                if (seenTrackIds.has(String(t.id))) continue;
+                                const normLib = cleanTitleForMatching(t.title);
+                                if (normLib && normLib.length >= 4 && (normLib.includes(normLfm) || normLfm.includes(normLib))) {
+                                    found = t;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (found) {
+                            const normFound = cleanTitleForMatching(found.title);
+                            if (!seenNormalizedTitles.has(normFound)) {
+                                seenTrackIds.add(String(found.id));
+                                seenNormalizedTitles.add(normFound);
+                                matchedTop10.push({
+                                    track: found,
+                                    playcount: typeof item === 'object' ? item.playcount : null,
+                                    rank: typeof item === 'object' && item.rank ? item.rank : (matchedTop10.length + 1)
+                                });
+                            }
+                        }
+                    }
+                }
+
+                window.currentArtistTopTracks = matchedTop10.map(m => m.track);
+
+                if (loadingArtistBio) {
+                    topTracksBlock = `
+                        <div class="bg-slate-900/30 border border-slate-900 rounded-2xl p-6 relative shadow-md animate-pulse space-y-3">
+                            <div class="flex items-center justify-between border-b border-slate-900 pb-2">
+                                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                                    <i data-lucide="loader" class="w-3.5 h-3.5 text-sky-400 animate-spin"></i>
+                                    Top Músicas (Buscando no Last.fm...)
+                                </h3>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="h-9 bg-slate-900/50 rounded-xl"></div>
+                                <div class="h-9 bg-slate-900/50 rounded-xl"></div>
+                                <div class="h-9 bg-slate-900/50 rounded-xl"></div>
+                            </div>
+                        </div>
+                    `;
+                } else if (matchedTop10.length > 0) {
+                    topTracksBlock = `
+                        <div class="bg-slate-950/40 border border-slate-900 rounded-2xl overflow-hidden p-5 shadow-xl space-y-4">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-900/60 pb-3">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="p-1 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                                            <i data-lucide="flame" class="w-4 h-4"></i>
+                                        </span>
+                                        <h3 class="text-sm font-extrabold text-white tracking-wide uppercase">Top Músicas</h3>
+                                        <span class="text-[9px] uppercase font-mono font-bold px-1.5 py-0.5 rounded bg-slate-900 text-sky-400 border border-sky-500/20">
+                                            Last.fm
+                                        </span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400 mt-1">
+                                        As ${matchedTop10.length} músicas mais populares deste artista presentes na sua biblioteca
+                                    </p>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="window.playTop10Tracks(false)" class="px-3.5 py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-[11px] font-bold transition flex items-center gap-1.5 shadow-lg shadow-sky-500/15 cursor-pointer">
+                                        <i data-lucide="play" class="w-3 h-3 fill-current"></i> Tocar Top Músicas
+                                    </button>
+                                    <button onclick="window.playTop10Tracks(true)" class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center gap-1 border border-slate-800 cursor-pointer" title="Aleatório nas Top Músicas">
+                                        <i data-lucide="shuffle" class="w-3.5 h-3.5 text-sky-400"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="overflow-x-auto custom-scroll">
+                                <table class="w-full text-left text-xs text-slate-300">
+                                    <thead>
+                                        <tr class="border-b border-slate-900/60 text-slate-500 font-mono tracking-wider text-[9px] uppercase">
+                                            <th class="py-2 px-3 w-10 text-center">#</th>
+                                            <th class="py-2 px-3">Faixa</th>
+                                            <th class="py-2 px-3 hidden md:table-cell">Álbum</th>
+                                            <th class="py-2 px-3 hidden sm:table-cell text-right">Popularidade</th>
+                                            <th class="py-2 px-3 text-center w-16">Duração</th>
+                                            <th class="py-2 px-3 text-right w-16">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-900/40">
+                    `;
+
+                    matchedTop10.forEach((item, idx) => {
+                        const trk = item.track;
+                        const isFav = allFavorites.includes(String(trk.id));
+                        const isCurrentPlaying = activeQueue[activeQueueIdx] && String(activeQueue[activeQueueIdx].id) === String(trk.id);
+                        const coverImg = trk.coverUrl || trk.cover_url || loadedCoversCache[trk.album] || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100';
+
+                        let rankEl = '';
+                        if (idx === 0) {
+                            rankEl = '<span class="w-5 h-5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center justify-center font-black text-[10px] mx-auto">1</span>';
+                        } else if (idx === 1) {
+                            rankEl = '<span class="w-5 h-5 rounded-md bg-slate-300/20 text-slate-200 border border-slate-300/30 flex items-center justify-center font-black text-[10px] mx-auto">2</span>';
+                        } else if (idx === 2) {
+                            rankEl = '<span class="w-5 h-5 rounded-md bg-amber-700/25 text-amber-500 border border-amber-700/30 flex items-center justify-center font-black text-[10px] mx-auto">3</span>';
+                        } else {
+                            rankEl = `<span class="w-5 h-5 flex items-center justify-center text-slate-500 font-mono text-xs font-bold mx-auto">${idx + 1}</span>`;
+                        }
+
+                        let popEl = '';
+                        if (item.playcount) {
+                            const pc = item.playcount;
+                            const pcStr = pc >= 1000000 ? (pc / 1000000).toFixed(1) + 'M' : (pc >= 1000 ? (pc / 1000).toFixed(0) + 'K' : pc);
+                            popEl = `<span class="text-[10px] font-mono text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800" title="${pc.toLocaleString()} reproduções">${pcStr} scrobbles</span>`;
+                        } else {
+                            popEl = `<span class="text-[10px] text-slate-500 font-mono">Top ${idx + 1}</span>`;
+                        }
+
+                        topTracksBlock += `
+                            <tr class="hover:bg-slate-900/30 group/top transition duration-150 cursor-pointer ${isCurrentPlaying ? 'bg-sky-500/10' : ''}" onclick="window.playTopTrackByIndex(${idx})">
+                                <td class="py-2 px-3 text-center">
+                                    ${rankEl}
+                                </td>
+                                <td class="py-2 px-3">
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="relative w-8 h-8 rounded-lg overflow-hidden shrink-0 border border-slate-800 bg-slate-900">
+                                            <img src="${coverImg}" referrerpolicy="no-referrer" class="w-full h-full object-cover">
+                                            <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/top:opacity-100 transition">
+                                                <i data-lucide="play" class="w-3.5 h-3.5 text-white fill-white"></i>
+                                            </div>
+                                        </div>
+                                        <div class="truncate max-w-[200px] sm:max-w-xs md:max-w-md">
+                                            <div class="font-bold text-white group-hover/top:text-sky-400 transition truncate ${isCurrentPlaying ? 'text-sky-450 font-black' : ''}">
+                                                ${trk.title}
+                                            </div>
+                                            <div class="text-[10px] text-slate-500 truncate md:hidden">
+                                                ${trk.album || 'Single'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-2 px-3 hidden md:table-cell text-slate-400 truncate max-w-xs text-[11px]">
+                                    ${trk.album || 'Single'}
+                                </td>
+                                <td class="py-2 px-3 hidden sm:table-cell text-right">
+                                    ${popEl}
+                                </td>
+                                <td class="py-2 px-3 text-center text-slate-400 font-mono text-[11px]">
+                                    ${formatSecs(trk.duration || 180)}
+                                </td>
+                                <td class="py-2 px-3 text-right" onclick="event.stopPropagation()">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <button onclick="toggleFav(event, '${trk.id}')" class="p-1 rounded-lg border border-transparent hover:bg-slate-900 transition ${isFav ? 'text-[#f43f5e]' : 'text-slate-500 hover:text-white'} cursor-pointer" title="${isFav ? 'Remover dos Favoritos' : 'Marcar como Favorito'}">
+                                            <i data-lucide="heart" class="w-3 h-3 ${isFav ? 'fill-current' : ''}"></i>
+                                        </button>
+                                        <button onclick="addToPlaylistDropdown(event, '${trk.id}')" class="p-1 text-slate-500 hover:text-sky-400 hover:bg-slate-900 rounded-lg transition cursor-pointer" title="Adicionar à Playlist">
+                                            <i data-lucide="list-plus" class="w-3.5 h-3.5"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+
+                    topTracksBlock += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                }
+
 
                 let html = `
                     <div class="space-y-8 animate-fade-in text-slate-100">
@@ -7396,6 +7252,9 @@ document.addEventListener('fullscreenchange', (event) => {
 
                         <!-- Biography block -->
                         ${bioBlock}
+
+                        <!-- Top Músicas (Last.fm) -->
+                        ${topTracksBlock}
 
                         <!-- Album divider section -->
                         <div class="flex items-center justify-between border-b border-slate-900 pb-3">
@@ -7864,6 +7723,39 @@ document.addEventListener('fullscreenchange', (event) => {
             loadTrack(track);
         }
 
+
+        window.playTopTrackByIndex = function(index) {
+            if (!window.currentArtistTopTracks || !window.currentArtistTopTracks[index]) return;
+            activeQueue = [...window.currentArtistTopTracks];
+            activeQueueIdx = index;
+            loadTrack(activeQueue[index]);
+            if (audio.paused) audio.play();
+            isPlaying = true;
+            const playBtn = document.getElementById('player-play-btn');
+            if (playBtn) playBtn.innerHTML = '<i data-lucide="pause" class="w-4 h-4 fill-current"></i>';
+            renderPlayerMiniQueue();
+            renderTracksTable();
+            if (window.lucide) lucide.createIcons();
+        };
+
+        window.playTop10Tracks = function(isShuffle) {
+            if (!window.currentArtistTopTracks || window.currentArtistTopTracks.length === 0) return;
+            const list = [...window.currentArtistTopTracks];
+            if (isShuffle) {
+                list.sort(() => Math.random() - 0.5);
+            }
+            activeQueue = list;
+            activeQueueIdx = 0;
+            loadTrack(activeQueue[0]);
+            if (audio.paused) audio.play();
+            isPlaying = true;
+            const playBtn = document.getElementById('player-play-btn');
+            if (playBtn) playBtn.innerHTML = '<i data-lucide="pause" class="w-4 h-4 fill-current"></i>';
+            renderPlayerMiniQueue();
+            renderTracksTable();
+            if (window.lucide) lucide.createIcons();
+        };
+
         function playImmediateFromAlbum(trackId) {
             const track = allTracks.find(t => String(t.id) === String(trackId));
             if (!track) return;
@@ -8304,7 +8196,7 @@ document.addEventListener('fullscreenchange', (event) => {
             if (!track || !track.album) return;
             
             // Highlight tracks tab visually
-            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'playlists', 'podcast', 'radios', 'reprodutor'];
+            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'playlists', 'podcast', 'radios', 'reprodutor'];
             btns.forEach(b => {
                 const el = document.getElementById('tab-btn-' + b);
                 if (el) {
@@ -8324,7 +8216,7 @@ document.addEventListener('fullscreenchange', (event) => {
             const titleEl = document.getElementById('table-view-title');
             if (titleEl) titleEl.textContent = "Álbum: " + track.album;
             
-            const panes = ['dashboard', 'tracks', 'config', 'videos', 'playlists', 'podcast', 'radios', 'reprodutor'];
+            const panes = ['dashboard', 'tracks', 'config', 'playlists', 'podcast', 'radios', 'reprodutor'];
             panes.forEach(p => {
                 const el = document.getElementById('pane-' + p);
                 if (el) {
@@ -8348,7 +8240,7 @@ document.addEventListener('fullscreenchange', (event) => {
             if (!track || !track.artist) return;
             
             // Highlight tracks tab visually
-            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'playlists', 'podcast', 'radios', 'reprodutor'];
+            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'playlists', 'podcast', 'radios', 'reprodutor'];
             btns.forEach(b => {
                 const el = document.getElementById('tab-btn-' + b);
                 if (el) {
@@ -8433,7 +8325,7 @@ document.addEventListener('fullscreenchange', (event) => {
             activePlaylistAlbum = '';
             document.getElementById('table-view-title').textContent = "Playlist: " + playlistName;
             
-            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'videos', 'playlists', 'podcast', 'radios'];
+            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'playlists', 'podcast', 'radios'];
             btns.forEach(b => {
                 const el = document.getElementById('tab-btn-' + b);
                 if (el) el.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition";
@@ -9065,173 +8957,6 @@ async function deleteUser(username) {
             document.getElementById('player-toolbar').classList.add('hidden');
             document.getElementById('login-panel').classList.remove('hidden');
             lucide.createIcons();
-        }
-
-        // VIDEO GALLERY ENGINE
-        async function renderVideoGallery() {
-            const loadingEl = document.getElementById('video-loading');
-            const emptyEl = document.getElementById('video-empty');
-            const gridEl = document.getElementById('video-grid');
-            
-            loadingEl.classList.remove('hidden');
-            emptyEl.classList.add('hidden');
-            gridEl.innerHTML = '';
-            
-            try {
-                const res = await fetch(API + '?route=videos');
-                allVideos = await res.json();
-                
-                loadingEl.classList.add('hidden');
-                
-                const searchVal = document.getElementById('video-search-input').value.toLowerCase();
-                const filtered = allVideos.filter(v => v.title.toLowerCase().includes(searchVal));
-                
-                if (filtered.length === 0) {
-                    emptyEl.classList.remove('hidden');
-                    return;
-                }
-                
-                filtered.forEach(vid => {
-                    const cell = document.createElement('div');
-                    cell.className = "group bg-slate-950/60 border border-slate-900/40 rounded-2xl overflow-hidden hover:border-sky-500/40 cursor-pointer transition flex flex-col justify-between";
-                    
-                    const coverImg = vid.coverUrl || 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=350';
-                    const sizeMB = (vid.fileSize / (1024 * 1024)).toFixed(1);
-                    
-                    let adminCoverBtn = '';
-                    if (currentUser && currentUser.role === 'admin') {
-                        adminCoverBtn = `
-                            <div class="pt-2 border-t border-slate-900/40 flex items-center">
-                                <button onclick="event.stopPropagation(); document.getElementById('upload-video-cover-input-${vid.id}').click();" id="btn-cov-${vid.id}" class="w-full py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1.5 border border-slate-800">
-                                    <i data-lucide="image" class="w-3.5 h-3.5"></i> Alterar Capa
-                                </button>
-                                <input id="upload-video-cover-input-${vid.id}" type="file" accept="image/*" class="hidden" onchange="uploadVideoCover(this, '${vid.id}')">
-                            </div>
-                        `;
-                    }
-                    
-                    cell.innerHTML = `
-                        <div onclick="playVideo('${vid.id}')" class="relative aspect-video bg-slate-900 overflow-hidden flex items-center justify-center border-b border-slate-905/45 text-slate-700">
-                            <img id="vid-cover-img-${vid.id}" src="${coverImg}" class="w-full h-full object-cover group-hover:scale-105 duration-300 transition filter brightness-90 group-hover:brightness-100">
-                            <div class="absolute inset-0 bg-black/45 opacity-30 group-hover:opacity-0 transition duration-300"></div>
-                            <div class="absolute inset-x-0 bottom-3 left-3 opacity-0 group-hover:opacity-100 transition duration-300 flex">
-                                <span class="p-2 bg-sky-500 text-white rounded-xl shadow-lg flex items-center justify-center">
-                                    <i data-lucide="play" class="w-4 h-4 fill-white text-white"></i>
-                                </span>
-                            </div>
-                        </div>
-                        <div class="p-3.5 space-y-3 text-left">
-                            <div onclick="playVideo('${vid.id}')">
-                                <h3 class="font-extrabold text-[#ffffff] text-[13px] truncate group-hover:text-sky-400 transition" title="${vid.title}">${vid.title}</h3>
-                                <div class="flex justify-between items-center mt-1 text-[10px] text-slate-500 font-mono uppercase tracking-wider">
-                                    <span>${sizeMB} MB</span>
-                                    <span>Video</span>
-                                </div>
-                            </div>
-                            ${adminCoverBtn}
-                        </div>
-                    `;
-                    
-                    gridEl.appendChild(cell);
-                });
-                lucide.createIcons();
-            } catch (err) {
-                console.error(err);
-                loadingEl.classList.add('hidden');
-                emptyEl.classList.remove('hidden');
-            }
-        }
-
-        function playVideo(id) {
-            const vid = allVideos.find(v => v.id === id);
-            if (!vid) return;
-            
-            // stop audio player if playing
-            if (isPlaying) {
-                audio.pause();
-                isPlaying = false;
-                document.getElementById('player-play-btn').innerHTML = '<i data-lucide="play" class="w-4 h-4 fill-current"></i>';
-                lucide.createIcons();
-            }
-            
-            const player = document.getElementById('modal-video-player');
-            player.src = 'api.php?route=stream_video&id=' + encodeURIComponent(vid.id);
-            if (vid.coverUrl) {
-                player.poster = vid.coverUrl;
-            } else {
-                player.removeAttribute('poster');
-            }
-            
-            document.getElementById('video-modal-title').textContent = vid.title;
-            document.getElementById('video-modal').classList.remove('hidden');
-            player.play();
-            lucide.createIcons();
-        }
-
-        function closeVideoModal() {
-            const player = document.getElementById('modal-video-player');
-            player.pause();
-            player.src = '';
-            const modal = document.getElementById('video-modal');
-            modal.classList.add('hidden');
-            modal.classList.remove('pseudo-fullscreen-active');
-            const btn = document.getElementById('video-maximize-btn');
-            if (btn) btn.innerHTML = '<i data-lucide="maximize" class="w-4 h-4"></i>';
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-        }
-
-        function toggleVideoMaximize() {
-            const modal = document.getElementById('video-modal');
-            const btn = document.getElementById('video-maximize-btn');
-            if (modal.classList.contains('pseudo-fullscreen-active')) {
-                modal.classList.remove('pseudo-fullscreen-active');
-                if (btn) btn.innerHTML = '<i data-lucide="maximize" class="w-4 h-4"></i>';
-            } else {
-                modal.classList.add('pseudo-fullscreen-active');
-                if (btn) btn.innerHTML = '<i data-lucide="minimize" class="w-4 h-4"></i>';
-            }
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-        }
-
-        async function uploadVideoCover(input, id) {
-            const file = input.files[0];
-            if (!file) return;
-            
-            const btn = document.getElementById('btn-cov-' + id);
-            const originalHtml = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin text-sky-450"></i> Carregando...';
-            lucide.createIcons();
-            
-            const formData = new FormData();
-            formData.append('cover', file);
-            
-            try {
-                const res = await fetch(API + '?route=videos_upload_cover&id=' + encodeURIComponent(id), {
-                    method: 'POST',
-                    body: formData
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    document.getElementById('vid-cover-img-' + id).src = data.cover_url;
-                    // update local list
-                    const vid = allVideos.find(v => v.id === id);
-                    if (vid) vid.coverUrl = data.cover_url;
-                } else {
-                    const err = await res.json();
-                    alert(err.error || 'Erro ao carregar capa');
-                }
-            } catch(e) {
-                alert('Falha de rede.');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalHtml;
-                lucide.createIcons();
-            }
         }
 
         // ================= PODCASTS & RADIOS =================
@@ -9958,290 +9683,6 @@ async function deleteUser(username) {
                     }
                 }, 300);
             }, 3500);
-        };
-
-        function playMediaFile(path, title) {
-            if (isPlaying) {
-                audio.pause();
-                isPlaying = false;
-                const btn = document.getElementById('player-play-btn');
-                if (btn) btn.innerHTML = '<i data-lucide="play" class="w-4 h-4 fill-current"></i>';
-                if (window.lucide) lucide.createIcons();
-            }
-            
-            const player = document.getElementById('modal-video-player');
-            if (player) {
-                player.src = 'api.php?route=stream_media&path=' + encodeURIComponent(path);
-                player.removeAttribute('poster');
-            }
-            
-            const tEl = document.getElementById('video-modal-title');
-            if (tEl) tEl.textContent = title;
-            
-            const modal = document.getElementById('video-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                const inner = modal.querySelector('> div');
-                if (inner) inner.classList.remove('scale-95', 'opacity-0');
-            }
-            
-            if (player) player.play().catch(e => console.log('Auto-play prevent', e));
-        }
-
-        function playVideo(id) {
-            const vid = (allVideos || []).find(v => v.id === id);
-            if (!vid) return;
-            playMediaFile(vid.file_name || vid.path, vid.title);
-        }
-
-        async function loadMovies() {
-            const container = document.getElementById('movies-container');
-            if (!container) return;
-            try {
-                const res = await fetch(API + '?route=movies');
-                const data = await res.json();
-                if (data.success) {
-                    const movies = data.movies;
-                    if (movies.length === 0) {
-                        container.innerHTML = '<div class="text-center text-slate-500 py-12">Nenhum filme encontrado.</div>';
-                        return;
-                    }
-                    
-                    const byGenre = {};
-                    movies.forEach(m => {
-                        if (!byGenre[m.genre]) byGenre[m.genre] = [];
-                        byGenre[m.genre].push(m);
-                    });
-                    
-                    let html = '';
-                    window.moviesByGenre = byGenre;
-                    for (const genre in byGenre) {
-                        html += `
-                            <div class="mb-8">
-                                <h3 class="text-lg font-bold text-white mb-4">${genre}</h3>
-                                <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
-                                    ${byGenre[genre].map((m, mIdx) => {
-                                        const hasCover = m.cover_url && m.cover_url.trim() !== '';
-                                        const isAdmin = currentUser && currentUser.role === 'admin';
-                                        
-                                        return `
-                                            <div class="bg-slate-900/50 rounded-xl overflow-hidden border border-slate-800 hover:border-purple-500/50 transition cursor-pointer group relative">
-                                                <div class="aspect-[2/3] bg-slate-800 flex items-center justify-center relative" onclick="playMediaFile('${m.file_name}', '${m.title}')">
-                                                    ${hasCover ? `
-                                                        <img src="${API_BASE_URL + m.cover_url}" class="w-full h-full object-cover transition duration-500 group-hover:scale-105" alt="${m.title}" loading="lazy" />
-                                                    ` : `
-                                                        <i data-lucide="clapperboard" class="w-6 h-6 text-slate-600"></i>
-                                                    `}
-                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
-                                                        <div class="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
-                                                            <i data-lucide="play" class="w-4 h-4 text-white ml-0.5 fill-current"></i>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="p-2.5 pb-3">
-                                                    <div class="text-[11px] font-bold text-slate-200 leading-tight line-clamp-2" title="${m.title}">${m.title}</div>
-                                                </div>
-                                                ${isAdmin ? `
-                                                    <button onclick="event.stopPropagation(); openMovieEditModal(${mIdx}, '${genre}')" class="absolute top-2 right-2 p-1.5 bg-slate-950/80 hover:bg-purple-600 text-white rounded-lg backdrop-blur-md border border-white/10 transition shadow-lg flex items-center gap-1 text-[10px] font-bold cursor-pointer opacity-0 group-hover:opacity-100" title="Editar Capa">
-                                                        <i data-lucide="pencil" class="w-3 h-3"></i>
-                                                    </button>
-                                                ` : ''}
-                                            </div>
-                                        `;
-                                    }).join('')}
-                                </div>
-                            </div>
-                        `;
-                    }
-                    container.innerHTML = html;
-                    if (window.lucide) lucide.createIcons();
-                }
-            } catch(e) {
-                container.innerHTML = '<div class="text-center text-red-500 py-12">Erro ao carregar filmes.</div>';
-            }
-        }
-
-        async function loadSeries() {
-            const container = document.getElementById('series-container');
-            if (!container) return;
-            try {
-                const res = await fetch(API + '?route=series');
-                const data = await res.json();
-                if (data.success) {
-                    const series = data.series;
-                    if (series.length === 0) {
-                        container.innerHTML = '<div class="text-center text-slate-500 py-12">Nenhuma série encontrada.</div>';
-                        return;
-                    }
-                    
-                    let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">';
-                    series.forEach((s, sIdx) => {
-                        html += `
-                            <div class="bg-slate-900/50 rounded-xl border border-slate-800 overflow-hidden">
-                                <div class="p-4 border-b border-slate-800 bg-slate-900">
-                                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                                        <i data-lucide="tv" class="w-5 h-5 text-indigo-400"></i> ${s.name}
-                                    </h3>
-                                </div>
-                                <div class="p-4 space-y-4 max-h-64 overflow-y-auto custom-scrollbar">
-                                    ${s.seasons.map((season, seasonIdx) => `
-                                        <div>
-                                            <h4 class="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-2">${season.name}</h4>
-                                            <div class="space-y-1">
-                                                ${season.episodes.map(ep => `
-                                                    <div class="flex items-center gap-2 p-2 hover:bg-slate-800 rounded-lg cursor-pointer transition group" onclick="playMediaFile('${ep.file_name}', '${ep.title}')">
-                                                        <i data-lucide="play-circle" class="w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition shrink-0"></i>
-                                                        <span class="text-sm text-slate-300 group-hover:text-white truncate">${ep.title}</span>
-                                                    </div>
-                                                `).join('')}
-                                            </div>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            </div>
-                        `;
-                    });
-                    html += '</div>';
-                    
-                    container.innerHTML = html;
-                    if (window.lucide) lucide.createIcons();
-                }
-            } catch(e) {
-                container.innerHTML = '<div class="text-center text-red-500 py-12">Erro ao carregar séries.</div>';
-            }
-        }
-
-        window.openMovieEditModal = function(mIdx, genre) {
-            if (!window.moviesByGenre || !window.moviesByGenre[genre] || !window.moviesByGenre[genre][mIdx]) return;
-            const m = window.moviesByGenre[genre][mIdx];
-            window.currentEditingMovie = m;
-            
-            document.getElementById('movie-edit-title-label').textContent = m.title;
-            document.getElementById('movie-edit-name-input').value = m.title;
-            document.getElementById('movie-edit-url-input').value = m.cover_url || '';
-            
-            const prev = document.getElementById('movie-edit-preview');
-            const prevIcon = document.getElementById('movie-edit-preview-icon');
-            if (m.cover_url && m.cover_url.trim() !== '') {
-                prev.src = API_BASE_URL + m.cover_url.trim();
-                prev.classList.remove('hidden');
-                prevIcon.classList.add('hidden');
-            } else {
-                prev.classList.add('hidden');
-                prevIcon.classList.remove('hidden');
-            }
-            
-            const modal = document.getElementById('movie-edit-modal');
-            if (modal) modal.classList.remove('hidden');
-            if (window.lucide) lucide.createIcons();
-        };
-
-        window.closeMovieEditModal = function() {
-            const modal = document.getElementById('movie-edit-modal');
-            if (modal) modal.classList.add('hidden');
-            window.currentEditingMovie = null;
-        };
-
-        window.handleMovieUrlInput = function(url) {
-            const img = document.getElementById('movie-edit-preview');
-            const icon = document.getElementById('movie-edit-preview-icon');
-            if (url && url.trim() !== '') {
-                if (url.startsWith('http://') || url.startsWith('https://')) {
-                    img.src = url.trim();
-                } else {
-                    img.src = API_BASE_URL + url.trim();
-                }
-                img.classList.remove('hidden');
-                icon.classList.add('hidden');
-            } else {
-                img.classList.add('hidden');
-                icon.classList.remove('hidden');
-            }
-        };
-
-        window.triggerMovieCoverUpload = function() {
-            const fi = document.getElementById('movie-cover-file-input');
-            if (fi) fi.click();
-        };
-
-        window.uploadMovieCover = async function(file) {
-            if (!file) return;
-            const btn = document.getElementById('btn-upload-movie-cover');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Enviando...';
-            btn.disabled = true;
-            if (window.lucide) lucide.createIcons();
-            
-            try {
-                const form = new FormData();
-                form.append('cover_file', file);
-                form.append('movie_title', document.getElementById('movie-edit-name-input').value);
-                
-                const res = await fetch(API + '?route=upload_movie_cover', {
-                    method: 'POST',
-                    headers: { 'X-Username': currentUsername || '' },
-                    body: form
-                });
-                const data = await res.json();
-                if (data.success) {
-                    document.getElementById('movie-edit-url-input').value = data.cover_url;
-                    handleMovieUrlInput(data.cover_url);
-                } else {
-                    alert(data.error || 'Erro ao enviar capa.');
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Erro na requisição.');
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-                if (window.lucide) lucide.createIcons();
-            }
-        };
-
-        window.saveMovieMetadata = async function() {
-            const movieTitle = document.getElementById('movie-edit-name-input').value;
-            const coverUrl = document.getElementById('movie-edit-url-input').value;
-            
-            const btn = document.getElementById('btn-save-movie-meta');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Salvando...';
-            btn.disabled = true;
-            if (window.lucide) lucide.createIcons();
-            
-            try {
-                const form = new URLSearchParams();
-                form.append('movie_title', movieTitle);
-                form.append('cover_url', coverUrl);
-                
-                const res = await fetch(API + '?route=save_movie_metadata', {
-                    method: 'POST',
-                    headers: { 
-                        'X-Username': currentUsername || '',
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
-                    body: form.toString()
-                });
-                const data = await res.json();
-                if (data.success) {
-                    closeMovieEditModal();
-                    loadMovies();
-                } else {
-                    alert(data.error || 'Erro ao salvar.');
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Erro na requisição.');
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-                if (window.lucide) lucide.createIcons();
-            }
-        };
-
-        window.closeSeriesEditModal = function() {
-            const modal = document.getElementById('series-edit-modal');
-            if (modal) modal.classList.add('hidden');
         };
 
         window.bootPublicSharedPlayer = async function(hash) {

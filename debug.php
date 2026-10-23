@@ -35,14 +35,6 @@ if (file_exists($musicDir)) {
 }
 echo "</li>";
 
-echo "<li>Pasta de Vídeos (videos/): ";
-$videosDir = __DIR__ . '/videos/';
-if (file_exists($videosDir)) {
-    echo "Existe " . (is_writable($videosDir) ? "<span class='success'>[E é Gravável (0755/0777)]</span>" : "<span class='warning'>[Mas NÃO é Gravável! Defina permissões para 0755 ou 0777]</span>");
-} else {
-    echo "<span class='warning'>Não existe (será criada automaticamente ao escanear vídeos)</span>";
-}
-echo "</li>";
 
 echo "<li>Pasta Geral de Uploads (uploads/): ";
 $uploadsDir = __DIR__ . '/uploads/';
@@ -62,14 +54,6 @@ if (file_exists($coversDir)) {
 }
 echo "</li>";
 
-echo "<li>Subpasta de Capas de Vídeo (uploads/videos_covers/): ";
-$vCoversDir = __DIR__ . '/uploads/videos_covers/';
-if (file_exists($vCoversDir)) {
-    echo "Existe " . (is_writable($vCoversDir) ? "<span class='success'>[E é Gravável]</span>" : "<span class='warning'>[Mas NÃO é Gravável!]</span>");
-} else {
-    echo "<span class='warning'>Não existe (será criada automaticamente ao escanear/carregar capas de vídeos)</span>";
-}
-echo "</li>";
 
 echo "<li>Subpasta de Podcasts (uploads/podcast/): ";
 $podcastDir = __DIR__ . '/uploads/podcast/';
@@ -106,7 +90,7 @@ if (!file_exists('config.php')) {
         echo "<p class='success'>✓ Conexão com o banco de dados MySQL realizada com absoluto SUCESSO!</p>";
         
         echo "<h3>3. Verificação de Tabelas (Importação database.sql)</h3>";
-        $tabelasRequeridas = ['users', 'songs', 'playlists', 'playlist_songs', 'favorites', 'videos', 'settings', 'artist_metadata', 'radios'];
+        $tabelasRequeridas = ['users', 'songs', 'playlists', 'playlist_songs', 'favorites', 'settings', 'artist_metadata', 'radios'];
         $tabelasFaltando = [];
         
         foreach ($tabelasRequeridas as $tab) {

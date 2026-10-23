@@ -81,11 +81,8 @@ register_shutdown_function(function () {
 require_once 'config.php';
 if (!defined('UPLOAD_DIR')) define('UPLOAD_DIR', __DIR__ . '/uploads/');
 if (!defined('IMAGES_DIR')) define('IMAGES_DIR', __DIR__ . '/images/');
-if (!defined('VIDEOS_DIR')) define('VIDEOS_DIR', __DIR__ . '/videos/');
-if (!defined('MOVIES_DIR')) define('MOVIES_DIR', __DIR__ . '/movies/');
-if (!defined('SERIES_DIR')) define('SERIES_DIR', __DIR__ . '/series/');
 
-foreach ([UPLOAD_DIR, IMAGES_DIR, VIDEOS_DIR, MOVIES_DIR, SERIES_DIR] as $dirPathCheck) {
+foreach ([UPLOAD_DIR, IMAGES_DIR] as $dirPathCheck) {
     if (!file_exists($dirPathCheck)) {
         @mkdir($dirPathCheck, 0755, true);
     }
@@ -162,26 +159,10 @@ try {
               PRIMARY KEY (id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
-            $pdo->exec("CREATE TABLE IF NOT EXISTS videos (
-              id varchar(50) NOT NULL,
-              title varchar(255) NOT NULL,
-              file_name varchar(255) NOT NULL,
-              file_size bigint(20) NOT NULL,
-              cover_url varchar(500) DEFAULT NULL,
-              created_at datetime DEFAULT CURRENT_TIMESTAMP,
-              PRIMARY KEY (id)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
             $pdo->exec("CREATE TABLE IF NOT EXISTS settings (
               setting_key varchar(100) NOT NULL,
               setting_value text DEFAULT NULL,
               PRIMARY KEY (setting_key)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-            $pdo->exec("CREATE TABLE IF NOT EXISTS series_metadata (
-              series_name varchar(255) NOT NULL,
-              cover_url varchar(1000) DEFAULT NULL,
-              description text DEFAULT NULL,
-              PRIMARY KEY (series_name)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
             $pdo->exec("CREATE TABLE IF NOT EXISTS artist_metadata (
@@ -668,7 +649,7 @@ try {
         'dlna_status', 'toggle_dlna', 'search_images', 'search_artist_logo',
         'update_album_cover_url', 'update_artist_banner_url',
         'get_settings', 'save_settings', 'lastfm_sync', 'deezer_sync',
-        'google_images_sync', 'videos_scan', 'videos_upload_cover', 'movies_scan', 'series_scan', 'save_series_metadata', 'upload_series_cover', 'save_movie_metadata', 'upload_movie_cover',
+        'google_images_sync',
         'files_list', 'files_create_dir', 'files_delete', 'files_rename', 'files_upload',
         'podcasts_sync'
     ];
@@ -2402,7 +2383,7 @@ Accept: */*
         }
         
         if (empty($bioText) || empty($artistPhoto)) {
-            $apiKey = getenv('LASTFM_API_KEY') ?: '4cb074e4b8ec4ee9b6eb6caae250ec4b';
+            $apiKey = getenv('LASTFM_API_KEY') ?: 'b25b959554ed76058ac220b7b2e0a026';
             try {
                 $stmtKey = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'lastfm_api_key'");
                 $stmtKey->execute();
@@ -2486,7 +2467,7 @@ Accept: */*
         }
         
         $topTracks = [];
-        $apiKey = getenv('LASTFM_API_KEY') ?: '4cb074e4b8ec4ee9b6eb6caae250ec4b';
+        $apiKey = getenv('LASTFM_API_KEY') ?: 'b25b959554ed76058ac220b7b2e0a026';
         try {
             $stmtKey = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'lastfm_api_key'");
             $stmtKey->execute();
@@ -2496,10 +2477,10 @@ Accept: */*
             }
         } catch (Exception $e) {}
             
-        $urlTracks = 'http://ws.audioscrobbler.com/2.0/?method=artist.gettoptracks&artist=' . urlencode($artist) . '&api_key=' . $apiKey . '&format=json&limit=50';
+        $urlTracks = 'http://ws.audioscrobbler.com/2.0/?method=artist.gettoptracks&artist=' . urlencode($artist) . '&api_key=' . $apiKey . '&format=json&limit=100';
         $ch2 = curl_init($urlTracks);
         curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch2, CURLOPT_TIMEOUT, 4);
+        curl_setopt($ch2, CURLOPT_TIMEOUT, 6);
         $res2 = curl_exec($ch2);
         $http_code2 = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
         curl_close($ch2);
@@ -2509,7 +2490,12 @@ Accept: */*
             if (isset($dataTracks['toptracks']['track']) && is_array($dataTracks['toptracks']['track'])) {
                 foreach ($dataTracks['toptracks']['track'] as $tt) {
                     if (!empty($tt['name'])) {
-                        $topTracks[] = $tt['name'];
+                        $topTracks[] = [
+                            'name' => $tt['name'],
+                            'playcount' => isset($tt['playcount']) ? (int)$tt['playcount'] : null,
+                            'listeners' => isset($tt['listeners']) ? (int)$tt['listeners'] : null,
+                            'rank' => isset($tt['@attr']['rank']) ? (int)$tt['@attr']['rank'] : null
+                        ];
                     }
                 }
             }
@@ -2590,7 +2576,7 @@ Accept: */*
             $stmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'lastfm_api_key'");
             $stmt->execute();
             $customKey = $stmt->fetchColumn();
-            $apiKey = $customKey ?: '4cb074e4b8ec4ee9b6eb6caae250ec4b';
+            $apiKey = $customKey ?: 'b25b959554ed76058ac220b7b2e0a026';
 
             if (!empty($artist) && !empty($album)) {
                 $lastfmUrl = 'http://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=' . urlencode($artist) . '&album=' . urlencode($album) . '&api_key=' . $apiKey . '&format=json';
@@ -2823,7 +2809,7 @@ Accept: */*
             $stmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'lastfm_api_key'");
             $stmt->execute();
             $customKey = $stmt->fetchColumn();
-            $apiKey = $customKey ?: '4cb074e4b8ec4ee9b6eb6caae250ec4b';
+            $apiKey = $customKey ?: 'b25b959554ed76058ac220b7b2e0a026';
             
             $lastfmUrl = 'http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=' . urlencode($cleanArtistParams) . '&api_key=' . $apiKey . '&format=json';
             $ch = curl_init($lastfmUrl);
@@ -3065,7 +3051,7 @@ Accept: */*
             exit(json_encode(['error' => 'Apenas requisições POST são permitidas.']));
         }
         
-        $apiKey = getenv('LASTFM_API_KEY') ?: '4cb074e4b8ec4ee9b6eb6caae250ec4b';
+        $apiKey = getenv('LASTFM_API_KEY') ?: 'b25b959554ed76058ac220b7b2e0a026';
         try {
             $pdo->exec("CREATE TABLE IF NOT EXISTS settings (
                 setting_key VARCHAR(100) PRIMARY KEY,
@@ -3653,7 +3639,7 @@ Accept: */*
             }
         } else {
             // Fetch cover from Last.fm
-            $apiKey = getenv('LASTFM_API_KEY') ?: '4cb074e4b8ec4ee9b6eb6caae250ec4b';
+            $apiKey = getenv('LASTFM_API_KEY') ?: 'b25b959554ed76058ac220b7b2e0a026';
             try {
                 $stmtKey = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'lastfm_api_key'");
                 $stmtKey->execute();
@@ -3876,604 +3862,6 @@ Accept: */*
         }
 
     
-    case 'stream_media':
-        $path = $_GET['path'] ?? '';
-        if (empty($path)) {
-            http_response_code(400);
-            exit("Path inválido");
-        }
-        
-        // Decode
-        $path = rawurldecode($path);
-        
-        $filePath = '';
-        if (strpos($path, 'movies/') === 0) {
-            $filePath = __DIR__ . '/' . $path;
-        } elseif (strpos($path, 'series/') === 0) {
-            $filePath = __DIR__ . '/' . $path;
-        } else {
-            http_response_code(400);
-            exit("Path restrito");
-        }
-        
-        // Security check
-        if (strpos($filePath, '..') !== false || !file_exists($filePath)) {
-            http_response_code(404);
-            exit("Arquivo não encontrado");
-        }
-
-        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-        $contentType = 'video/mp4';
-        if ($ext === 'webm') $contentType = 'video/webm';
-        elseif ($ext === 'mkv') $contentType = 'video/x-matroska';
-        elseif ($ext === 'avi') $contentType = 'video/x-msvideo';
-        
-        $size = filesize($filePath);
-        $time = filemtime($filePath);
-        
-        $fp = @fopen($filePath, 'rb');
-        if (!$fp) {
-            http_response_code(500);
-            exit("Erro ao ler o arquivo");
-        }
-
-        $start = 0;
-        $end = $size - 1;
-        
-        if (isset($_SERVER['HTTP_RANGE'])) {
-            $c_start = $start;
-            $c_end = $end;
-            list(, $range) = explode('=', $_SERVER['HTTP_RANGE'], 2);
-            if (strpos($range, ',') !== false) {
-                http_response_code(416);
-                exit("Range inválido");
-            }
-            if ($range == '-') {
-                $c_start = $size - substr($range, 1);
-            } else {
-                $range = explode('-', $range);
-                $c_start = $range[0];
-                $c_end = (isset($range[1]) && is_numeric($range[1])) ? $range[1] : $size - 1;
-            }
-            $c_end = ($c_end > $end) ? $end : $c_end;
-            if ($c_start > $c_end || $c_start > $size - 1 || $c_end >= $size) {
-                http_response_code(416);
-                exit("Range inválido");
-            }
-            $start = $c_start;
-            $end = $c_end;
-            $length = $end - $start + 1;
-            fseek($fp, $start);
-            http_response_code(206);
-            header("Content-Length: " . $length);
-            header("Content-Range: bytes $start-$end/$size");
-        } else {
-            header("Content-Length: " . $size);
-        }
-
-        header("Content-Type: " . $contentType);
-        header("Accept-Ranges: bytes");
-        header("Last-Modified: " . gmdate('D, d M Y H:i:s', $time) . ' GMT');
-        
-        $buffer = 1024 * 8;
-        while (!feof($fp) && ($p = ftell($fp)) <= $end) {
-            if (connection_aborted()) break;
-            $chunk = min($buffer, $end - $p + 1);
-            echo fread($fp, $chunk);
-            flush();
-        }
-        fclose($fp);
-        exit;
-
-    case 'stream_video':
-        $id = $_GET['id'] ?? '';
-        if (empty($id)) {
-            http_response_code(400);
-            exit("ID do vídeo inválido");
-        }
-        $stmt = $pdo->prepare("SELECT file_name FROM videos WHERE id = ?");
-        $stmt->execute([$id]);
-        $video = $stmt->fetch();
-        if (!$video) {
-            http_response_code(404);
-            exit("Vídeo não encontrado no catálogo");
-        }
-        $filePath = VIDEOS_DIR . $video['file_name'];
-        if (!file_exists($filePath)) {
-            http_response_code(404);
-            exit("Arquivo de vídeo físico não encontrado");
-        }
-
-        // Detectar o Content-Type ideal baseado na extensão do arquivo de vídeo
-        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-        $mimeTypes = [
-            'mp4'  => 'video/mp4',
-            'webm' => 'video/webm',
-            'mkv'  => 'video/x-matroska',
-            'mov'  => 'video/quicktime',
-            'avi'  => 'video/x-msvideo',
-            'ogv'  => 'video/ogg'
-        ];
-        $contentType = $mimeTypes[$ext] ?? 'video/mp4';
-
-        // Desativar qualquer buffer de saída do PHP para economizar memória RAM e começar o envio de bytes na hora
-        if (ob_get_level()) {
-            ob_end_clean();
-        }
-
-        // Tentar desativar compressão extra Gzip (evita carregar vídeo todo na memória antes do chunk)
-        if (ini_get('zlib.output_compression')) {
-            ini_set('zlib.output_compression', 'Off');
-        }
-
-        $size = filesize($filePath);
-        $fp = fopen($filePath, 'rb');
-        if (!$fp) {
-            http_response_code(500);
-            exit("Erro crítico ao abrir arquivo de vídeo");
-        }
-
-        $start = 0;
-        $end = $size - 1;
-
-        // Gerenciar requisições HTTP parciais (Bytes Ranges) - Essencial para buscar tempo (seeking) e reproduzir sem travar
-        if (isset($_SERVER['HTTP_RANGE'])) {
-            $range = $_SERVER['HTTP_RANGE'];
-            if (preg_match('/bytes=h*(d+)-(d*)[D.*]?/i', $range, $matches)) {
-                $start = intval($matches[1]);
-                if (!empty($matches[2])) {
-                    $end = intval($matches[2]);
-                }
-            }
-            header('HTTP/1.1 206 Partial Content');
-            header("Content-Range: bytes $start-$end/$size");
-            header("Content-Length: " . ($end - $start + 1));
-            fseek($fp, $start);
-        } else {
-            header('HTTP/1.1 200 OK');
-            header("Content-Length: $size");
-        }
-
-        // Enviar os cabeçalhos de controle ideais de cache e mídia
-        header("Content-Type: $contentType");
-        header("Accept-Ranges: bytes");
-        header("Cache-Control: public, max-age=604800, no-transform"); // Cacheia por 1 semana no navegador/dispositivo
-        header("Connection: keep-alive");
-
-        // Loop de transmissão em blocos (buffers) de alto rendimento de 128KB
-        $chunkSize = 131072; // 128KB por bloco
-        while (!feof($fp) && ($start <= $end)) {
-            $chunk = min($chunkSize, $end - $start + 1);
-            echo fread($fp, $chunk);
-            flush();
-            $start += $chunk;
-        }
-        fclose($fp);
-        exit;
-
-    
-    case 'movies':
-        $movies = [];
-        $pdo->exec("CREATE TABLE IF NOT EXISTS movies_metadata (
-            movie_title varchar(255) NOT NULL,
-            cover_url varchar(1000) DEFAULT NULL,
-            PRIMARY KEY (movie_title)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-        $metaMap = [];
-        try {
-            $stmtMeta = $pdo->query("SELECT * FROM movies_metadata");
-            foreach ($stmtMeta->fetchAll() as $mRow) {
-                $metaMap[$mRow['movie_title']] = $mRow;
-            }
-        } catch (Exception $e) {}
-        if (file_exists(MOVIES_DIR)) {
-            $items = array_diff(scandir(MOVIES_DIR), array('..', '.'));
-            foreach ($items as $item) {
-                if (is_dir(MOVIES_DIR . $item)) {
-                    $genre = $item;
-                    $files = array_diff(scandir(MOVIES_DIR . $genre), array('..', '.'));
-                    foreach ($files as $file) {
-                        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-                        if (in_array($ext, ['mp4', 'mkv', 'webm', 'avi', 'mov'])) {
-                            $mTitle = pathinfo($file, PATHINFO_FILENAME);
-                            $movies[] = [
-                                'title' => $mTitle,
-                                'genre' => $genre,
-                                'file_name' => 'movies/' . rawurlencode($genre) . '/' . rawurlencode($file),
-                                'cover_url' => $metaMap[$mTitle]['cover_url'] ?? null,
-                                'type' => 'movie'
-                            ];
-                        }
-                    }
-                } else {
-                    // Arquivo solto na pasta raiz de movies
-                    $ext = strtolower(pathinfo($item, PATHINFO_EXTENSION));
-                    if (in_array($ext, ['mp4', 'mkv', 'webm', 'avi', 'mov'])) {
-                        $mTitle = pathinfo($item, PATHINFO_FILENAME);
-                        $movies[] = [
-                            'title' => $mTitle,
-                            'genre' => 'Filmes',
-                            'file_name' => 'movies/' . rawurlencode($item),
-                            'cover_url' => $metaMap[$mTitle]['cover_url'] ?? null,
-                            'type' => 'movie'
-                        ];
-                    }
-                }
-            }
-        }
-        echo json_encode(['success' => true, 'movies' => $movies]);
-        break;
-
-    case 'series':
-        $series = [];
-        $pdo->exec("CREATE TABLE IF NOT EXISTS series_metadata (
-            series_name varchar(255) NOT NULL,
-            cover_url varchar(1000) DEFAULT NULL,
-            description text DEFAULT NULL,
-            PRIMARY KEY (series_name)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-        $metaMap = [];
-        try {
-            $stmtMeta = $pdo->query("SELECT * FROM series_metadata");
-            foreach ($stmtMeta->fetchAll() as $mRow) {
-                $metaMap[$mRow['series_name']] = $mRow;
-            }
-        } catch (Exception $e) {}
-
-        if (file_exists(SERIES_DIR)) {
-            $seriesNames = array_diff(scandir(SERIES_DIR), array('..', '.'));
-            foreach ($seriesNames as $serie) {
-                if (is_dir(SERIES_DIR . $serie)) {
-                    $seasonsList = [];
-                    $seasons = array_diff(scandir(SERIES_DIR . $serie), array('..', '.'));
-                    foreach ($seasons as $season) {
-                        if (is_dir(SERIES_DIR . $serie . '/' . $season)) {
-                            $episodesList = [];
-                            $episodes = array_diff(scandir(SERIES_DIR . $serie . '/' . $season), array('..', '.'));
-                            foreach ($episodes as $episode) {
-                                $ext = strtolower(pathinfo($episode, PATHINFO_EXTENSION));
-                                if (in_array($ext, ['mp4', 'mkv', 'webm', 'avi', 'mov'])) {
-                                    $episodesList[] = [
-                                        'title' => pathinfo($episode, PATHINFO_FILENAME),
-                                        'file_name' => 'series/' . rawurlencode($serie) . '/' . rawurlencode($season) . '/' . rawurlencode($episode)
-                                    ];
-                                }
-                            }
-                            if (count($episodesList) > 0) {
-                                // Sort episodes alphabetically (01 - episode, 02 - episode)
-                                usort($episodesList, function($a, $b) {
-                                    return strnatcasecmp($a['title'], $b['title']);
-                                });
-                                $seasonsList[] = [
-                                    'name' => $season,
-                                    'episodes' => $episodesList
-                                ];
-                            }
-                        }
-                    }
-                    if (count($seasonsList) > 0) {
-                        // Sort seasons (Season 1, Season 2...)
-                        usort($seasonsList, function($a, $b) {
-                            return strnatcasecmp($a['name'], $b['name']);
-                        });
-                        $series[] = [
-                            'name' => $serie,
-                            'seasons' => $seasonsList,
-                            'cover_url' => $metaMap[$serie]['cover_url'] ?? null,
-                            'description' => $metaMap[$serie]['description'] ?? null
-                        ];
-                    }
-                }
-            }
-        }
-        echo json_encode(['success' => true, 'series' => $series]);
-        break;
-
-    case 'save_movie_metadata':
-        if ($method !== 'POST') {
-            http_response_code(405);
-            exit(json_encode(['error' => 'Apenas requisições POST são permitidas.']));
-        }
-        $pdo->exec("CREATE TABLE IF NOT EXISTS movies_metadata (
-            movie_title varchar(255) NOT NULL,
-            cover_url varchar(1000) DEFAULT NULL,
-            PRIMARY KEY (movie_title)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-        $movieTitle = trim($input['movie_title'] ?? $_POST['movie_title'] ?? '');
-        $coverUrl = trim($input['cover_url'] ?? $_POST['cover_url'] ?? '');
-
-        if (empty($movieTitle)) {
-            http_response_code(400);
-            exit(json_encode(['error' => 'Título do filme não informado.']));
-        }
-
-        $stmt = $pdo->prepare("INSERT INTO movies_metadata (movie_title, cover_url) VALUES (?, ?) ON DUPLICATE KEY UPDATE cover_url = VALUES(cover_url)");
-        $stmt->execute([$movieTitle, $coverUrl ?: null]);
-
-        echo json_encode(['success' => true, 'message' => 'Capa do filme salva com sucesso!']);
-        break;
-
-    case 'upload_movie_cover':
-        if ($method !== 'POST') {
-            http_response_code(405);
-            exit(json_encode(['error' => 'Apenas requisições POST são permitidas.']));
-        }
-        if (!isset($_FILES['cover'])) {
-            http_response_code(400);
-            exit(json_encode(['error' => 'Arquivo de imagem não fornecido.']));
-        }
-        $movieTitle = trim($_POST['movie_title'] ?? '');
-        if (empty($movieTitle)) {
-            http_response_code(400);
-            exit(json_encode(['error' => 'O título do filme é obrigatório.']));
-        }
-        
-        $file = $_FILES['cover'];
-        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'gif'])) {
-            http_response_code(400);
-            exit(json_encode(['error' => 'Formato não suportado. Use PNG, JPG, JPEG, WEBP ou GIF.']));
-        }
-        
-        if (!file_exists(IMAGES_DIR)) @mkdir(IMAGES_DIR, 0755, true);
-        
-        $newFilename = 'movie_' . md5($movieTitle . time()) . '.' . $ext;
-        $dest = IMAGES_DIR . $newFilename;
-        
-        if (move_uploaded_file($file['tmp_name'], $dest)) {
-            $coverUrl = 'images/' . $newFilename;
-            echo json_encode(['success' => true, 'cover_url' => $coverUrl]);
-        } else {
-            http_response_code(500);
-            echo json_encode(['error' => 'Falha ao mover arquivo enviado.']);
-        }
-        break;
-
-    case 'save_series_metadata':
-        if ($method !== 'POST') {
-            http_response_code(405);
-            exit(json_encode(['error' => 'Apenas requisições POST são permitidas.']));
-        }
-        $pdo->exec("CREATE TABLE IF NOT EXISTS series_metadata (
-            series_name varchar(255) NOT NULL,
-            cover_url varchar(1000) DEFAULT NULL,
-            description text DEFAULT NULL,
-            PRIMARY KEY (series_name)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-        $seriesName = trim($input['series_name'] ?? '');
-        $coverUrl = trim($input['cover_url'] ?? '');
-        $description = trim($input['description'] ?? '');
-
-        if (empty($seriesName)) {
-            http_response_code(400);
-            exit(json_encode(['error' => 'Nome da série não informado.']));
-        }
-
-        $stmt = $pdo->prepare("INSERT INTO series_metadata (series_name, cover_url, description) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE cover_url = VALUES(cover_url), description = VALUES(description)");
-        $stmt->execute([$seriesName, $coverUrl ?: null, $description ?: null]);
-
-        echo json_encode(['success' => true, 'message' => 'Metadados da série salvos com sucesso!']);
-        break;
-
-    case 'upload_series_cover':
-        if ($method !== 'POST') {
-            http_response_code(405);
-            exit(json_encode(['error' => 'Apenas requisições POST são permitidas.']));
-        }
-        if (!isset($_FILES['cover'])) {
-            http_response_code(400);
-            exit(json_encode(['error' => 'Arquivo de imagem não fornecido.']));
-        }
-        $seriesName = trim($_POST['series_name'] ?? '');
-        if (empty($seriesName)) {
-            http_response_code(400);
-            exit(json_encode(['error' => 'O nome da série é obrigatório.']));
-        }
-        
-        $file = $_FILES['cover'];
-        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'gif'])) {
-            http_response_code(400);
-            exit(json_encode(['error' => 'Formato não suportado. Use PNG, JPG, JPEG, WEBP ou GIF.']));
-        }
-        
-        $newFileName = 'series_' . md5($seriesName) . '_' . uniqid() . '.' . $ext;
-        if (move_uploaded_file($file['tmp_name'], IMAGES_DIR . $newFileName)) {
-            $coverUrl = 'images/' . $newFileName;
-            $pdo->exec("CREATE TABLE IF NOT EXISTS series_metadata (
-                series_name varchar(255) NOT NULL,
-                cover_url varchar(1000) DEFAULT NULL,
-                description text DEFAULT NULL,
-                PRIMARY KEY (series_name)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-            
-            $stmt = $pdo->prepare("INSERT INTO series_metadata (series_name, cover_url) VALUES (?, ?) ON DUPLICATE KEY UPDATE cover_url = VALUES(cover_url)");
-            $stmt->execute([$seriesName, $coverUrl]);
-            echo json_encode(['success' => true, 'cover_url' => $coverUrl]);
-        } else {
-            http_response_code(500);
-            echo json_encode(['error' => 'Não foi possível mover a imagem para a pasta /images. Verifique permissões de escrita.']);
-        }
-        break;
-
-    case 'videos':
-        if ($method === 'GET') {
-            if (!file_exists(VIDEOS_DIR)) {
-                @mkdir(VIDEOS_DIR, 0755, true);
-            }
-            $stmt = $pdo->query("SELECT * FROM videos");
-            $knownVideos = [];
-            foreach ($stmt->fetchAll() as $row) {
-                $knownVideos[$row['id']] = $row;
-            }
-            
-            $results = [];
-            if (file_exists(VIDEOS_DIR)) {
-                $directory = new RecursiveDirectoryIterator(VIDEOS_DIR);
-                $iterator = new RecursiveIteratorIterator($directory);
-                foreach ($iterator as $fileinfo) {
-                    if ($fileinfo->isFile()) {
-                        $ext = strtolower(pathinfo($fileinfo->getFilename(), PATHINFO_EXTENSION));
-                        if (in_array($ext, ['mp4', 'webm', 'mkv', 'mov', 'avi'])) {
-                            $absolutePath = $fileinfo->getPathname();
-                            $relativePath = str_replace(chr(92), '/', substr($absolutePath, strlen(VIDEOS_DIR)));
-                            $id = 'vid-' . md5($relativePath);
-                            $title = pathinfo($fileinfo->getFilename(), PATHINFO_FILENAME);
-                            $title = str_replace(['_', '-'], ' ', $title);
-                            $fileSize = $fileinfo->getSize();
-                            
-                            $coverUrl = isset($knownVideos[$id]) ? $knownVideos[$id]['cover_url'] : null;
-                            $createdAt = date('Y-m-d H:i:s', $fileinfo->getMTime());
-                            
-                            if (!isset($knownVideos[$id])) {
-                                $stmtInsert = $pdo->prepare("INSERT INTO videos (id, title, file_name, file_size, cover_url, created_at) VALUES (?, ?, ?, ?, ?, ?)");
-                                $stmtInsert->execute([$id, $title, $relativePath, $fileSize, $coverUrl, $createdAt]);
-                            }
-                            
-                            $results[] = [
-                                'id' => $id,
-                                'title' => $title,
-                                'fileName' => $relativePath,
-                                'fileSize' => intval($fileSize),
-                                'coverUrl' => $coverUrl,
-                                'createdAt' => $createdAt
-                            ];
-                        }
-                    }
-                }
-            }
-            echo json_encode($results);
-        }
-        break;
-
-    case 'videos_scan':
-        $videosDir = VIDEOS_DIR;
-        if (!file_exists($videosDir)) {
-            @mkdir($videosDir, 0755, true);
-        }
-        $stmt = $pdo->query("SELECT * FROM videos");
-        $knownVideos = [];
-        foreach ($stmt->fetchAll() as $row) {
-            $knownVideos[$row['id']] = $row;
-        }
-        $newVideos = 0;
-        $totalVideos = 0;
-        if (file_exists($videosDir)) {
-            $directory = new RecursiveDirectoryIterator($videosDir);
-            $iterator = new RecursiveIteratorIterator($directory);
-            foreach ($iterator as $fileinfo) {
-                if ($fileinfo->isFile()) {
-                    $ext = strtolower(pathinfo($fileinfo->getFilename(), PATHINFO_EXTENSION));
-                    if (in_array($ext, ['mp4', 'webm', 'mkv', 'mov', 'avi'])) {
-                        $absolutePath = $fileinfo->getPathname();
-                        $relativePath = str_replace(chr(92), '/', substr($absolutePath, strlen($videosDir)));
-                        $id = 'vid-' . md5($relativePath);
-                        $totalVideos++;
-                        if (!isset($knownVideos[$id])) {
-                            $title = pathinfo($fileinfo->getFilename(), PATHINFO_FILENAME);
-                            $title = str_replace(['_', '-'], ' ', $title);
-                            $fileSize = $fileinfo->getSize();
-                            $createdAt = date('Y-m-d H:i:s', $fileinfo->getMTime());
-                            $stmtInsert = $pdo->prepare("INSERT INTO videos (id, title, file_name, file_size, cover_url, created_at) VALUES (?, ?, ?, ?, NULL, ?)");
-                            $stmtInsert->execute([$id, $title, $relativePath, $fileSize, $createdAt]);
-                            $newVideos++;
-                        }
-                    }
-                }
-            }
-        }
-        echo json_encode(['success' => true, 'count' => $newVideos, 'total' => $totalVideos]);
-        break;
-
-    case 'movies_scan':
-        $moviesDir = MOVIES_DIR;
-        if (!file_exists($moviesDir)) {
-            @mkdir($moviesDir, 0755, true);
-        }
-        $count = 0;
-        if (file_exists($moviesDir)) {
-            $directory = new RecursiveDirectoryIterator($moviesDir);
-            $iterator = new RecursiveIteratorIterator($directory);
-            foreach ($iterator as $fileinfo) {
-                if ($fileinfo->isFile()) {
-                    $ext = strtolower(pathinfo($fileinfo->getFilename(), PATHINFO_EXTENSION));
-                    if (in_array($ext, ['mp4', 'mkv', 'webm', 'avi', 'mov'])) {
-                        $count++;
-                    }
-                }
-            }
-        }
-        echo json_encode([
-            'success' => true,
-            'count' => $count,
-            'total' => $count,
-            'message' => "Sincronização de filmes concluída! {$count} filme(s) encontrado(s) na pasta /movies."
-        ]);
-        break;
-
-    case 'series_scan':
-        $seriesDir = SERIES_DIR;
-        if (!file_exists($seriesDir)) {
-            @mkdir($seriesDir, 0755, true);
-        }
-        $count = 0;
-        if (file_exists($seriesDir)) {
-            $directory = new RecursiveDirectoryIterator($seriesDir);
-            $iterator = new RecursiveIteratorIterator($directory);
-            foreach ($iterator as $fileinfo) {
-                if ($fileinfo->isFile()) {
-                    $ext = strtolower(pathinfo($fileinfo->getFilename(), PATHINFO_EXTENSION));
-                    if (in_array($ext, ['mp4', 'mkv', 'webm', 'avi', 'mov'])) {
-                        $count++;
-                    }
-                }
-            }
-        }
-        echo json_encode([
-            'success' => true,
-            'count' => $count,
-            'total' => $count,
-            'message' => "Sincronização de séries concluída! {$count} episódio(s) encontrado(s) na pasta /series."
-        ]);
-        break;
-
-    case 'videos_upload_cover':
-        if ($method !== 'POST') {
-            http_response_code(405);
-            exit(json_encode(['error' => 'Apenas requisições POST são permitidas.']));
-        }
-        if (!isset($_FILES['cover'])) {
-            http_response_code(400);
-            exit(json_encode(['error' => 'Arquivo de imagem não fornecido.']));
-        }
-        $id = trim($_GET['id'] ?? '');
-        if (empty($id)) {
-            http_response_code(400);
-            exit(json_encode(['error' => 'ID do vídeo não especificado.']));
-        }
-        
-        $file = $_FILES['cover'];
-        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'gif'])) {
-            http_response_code(400);
-            exit(json_encode(['error' => 'Formato não suportado. Use PNG, JPG, JPEG, WEBP ou GIF.']));
-        }
-        
-        $newFileName = 'cover_' . md5($id) . '_' . uniqid() . '.' . $ext;
-        if (move_uploaded_file($file['tmp_name'], IMAGES_DIR . $newFileName)) {
-            $coverUrl = 'images/' . $newFileName;
-            $stmt = $pdo->prepare("UPDATE videos SET cover_url = ? WHERE id = ?");
-            $stmt->execute([$coverUrl, $id]);
-            echo json_encode(['success' => true, 'cover_url' => $coverUrl]);
-        } else {
-            http_response_code(500);
-            echo json_encode(['error' => 'Não foi possível mover a imagem para a pasta /images. Verifique permissões de escrita.']);
-        }
-        break;
 
     case 'files_list':
         $subpath = isset($_GET['path']) ? $_GET['path'] : '';
@@ -4486,31 +3874,10 @@ Accept: */*
             }
             $musicDir = $realBase . '/music';
             if (!file_exists($musicDir)) { @mkdir($musicDir, 0777, true); }
-            $videosDir = $realBase . '/videos';
-            if (!file_exists($videosDir)) { @mkdir($videosDir, 0777, true); }
-            $moviesDir = $realBase . '/movies';
-            if (!file_exists($moviesDir)) { @mkdir($moviesDir, 0777, true); }
-            $seriesDir = $realBase . '/series';
-            if (!file_exists($seriesDir)) { @mkdir($seriesDir, 0777, true); }
-            
             $targetPath = realpath($realBase . '/' . $subpath);
             if ($targetPath === false) { return false; }
-            
             $allowedMusic = realpath($musicDir);
-            $allowedVideos = realpath($videosDir);
-            $allowedMovies = realpath($moviesDir);
-            $allowedSeries = realpath($seriesDir);
-            
             if ($allowedMusic !== false && ($targetPath === $allowedMusic || strpos($targetPath, $allowedMusic . '/') === 0 || strpos($targetPath, $allowedMusic . '\\') === 0)) {
-                return $targetPath;
-            }
-            if ($allowedVideos !== false && ($targetPath === $allowedVideos || strpos($targetPath, $allowedVideos . '/') === 0 || strpos($targetPath, $allowedVideos . '\\') === 0)) {
-                return $targetPath;
-            }
-            if ($allowedMovies !== false && ($targetPath === $allowedMovies || strpos($targetPath, $allowedMovies . '/') === 0 || strpos($targetPath, $allowedMovies . '\\') === 0)) {
-                return $targetPath;
-            }
-            if ($allowedSeries !== false && ($targetPath === $allowedSeries || strpos($targetPath, $allowedSeries . '/') === 0 || strpos($targetPath, $allowedSeries . '\\') === 0)) {
                 return $targetPath;
             }
             return false;
@@ -4519,18 +3886,12 @@ Accept: */*
         $resolved = $is_valid_file_path($subpath, $realBase);
         if ($resolved === false) {
             http_response_code(403);
-            exit(json_encode(['error' => 'Acesso negado ou diretório fora do escopo (/music, /videos, /movies ou /series).']));
+            exit(json_encode(['error' => 'Acesso negado ou diretório fora do escopo (/music).']));
         }
         
         if ($resolved === 'root') {
             $musicDir = $realBase . '/music';
-            $videosDir = $realBase . '/videos';
-            $moviesDir = $realBase . '/movies';
-            $seriesDir = $realBase . '/series';
             if (!file_exists($musicDir)) { @mkdir($musicDir, 0777, true); }
-            if (!file_exists($videosDir)) { @mkdir($videosDir, 0777, true); }
-            if (!file_exists($moviesDir)) { @mkdir($moviesDir, 0777, true); }
-            if (!file_exists($seriesDir)) { @mkdir($seriesDir, 0777, true); }
             
             $items = [
                 [
@@ -4539,27 +3900,6 @@ Accept: */*
                     'is_dir' => true,
                     'size' => 0,
                     'mtime' => @filemtime($musicDir) ?: time()
-                ],
-                [
-                    'name' => 'videos',
-                    'path' => 'videos',
-                    'is_dir' => true,
-                    'size' => 0,
-                    'mtime' => @filemtime($videosDir) ?: time()
-                ],
-                [
-                    'name' => 'movies',
-                    'path' => 'movies',
-                    'is_dir' => true,
-                    'size' => 0,
-                    'mtime' => @filemtime($moviesDir) ?: time()
-                ],
-                [
-                    'name' => 'series',
-                    'path' => 'series',
-                    'is_dir' => true,
-                    'size' => 0,
-                    'mtime' => @filemtime($seriesDir) ?: time()
                 ]
             ];
             echo json_encode([
@@ -4618,31 +3958,10 @@ Accept: */*
             }
             $musicDir = $realBase . '/music';
             if (!file_exists($musicDir)) { @mkdir($musicDir, 0777, true); }
-            $videosDir = $realBase . '/videos';
-            if (!file_exists($videosDir)) { @mkdir($videosDir, 0777, true); }
-            $moviesDir = $realBase . '/movies';
-            if (!file_exists($moviesDir)) { @mkdir($moviesDir, 0777, true); }
-            $seriesDir = $realBase . '/series';
-            if (!file_exists($seriesDir)) { @mkdir($seriesDir, 0777, true); }
-            
             $targetPath = realpath($realBase . '/' . $subpath);
             if ($targetPath === false) { return false; }
-            
             $allowedMusic = realpath($musicDir);
-            $allowedVideos = realpath($videosDir);
-            $allowedMovies = realpath($moviesDir);
-            $allowedSeries = realpath($seriesDir);
-            
             if ($allowedMusic !== false && ($targetPath === $allowedMusic || strpos($targetPath, $allowedMusic . '/') === 0 || strpos($targetPath, $allowedMusic . '\\') === 0)) {
-                return $targetPath;
-            }
-            if ($allowedVideos !== false && ($targetPath === $allowedVideos || strpos($targetPath, $allowedVideos . '/') === 0 || strpos($targetPath, $allowedVideos . '\\') === 0)) {
-                return $targetPath;
-            }
-            if ($allowedMovies !== false && ($targetPath === $allowedMovies || strpos($targetPath, $allowedMovies . '/') === 0 || strpos($targetPath, $allowedMovies . '\\') === 0)) {
-                return $targetPath;
-            }
-            if ($allowedSeries !== false && ($targetPath === $allowedSeries || strpos($targetPath, $allowedSeries . '/') === 0 || strpos($targetPath, $allowedSeries . '\\') === 0)) {
                 return $targetPath;
             }
             return false;
@@ -4684,38 +4003,17 @@ Accept: */*
             }
             $musicDir = $realBase . '/music';
             if (!file_exists($musicDir)) { @mkdir($musicDir, 0777, true); }
-            $videosDir = $realBase . '/videos';
-            if (!file_exists($videosDir)) { @mkdir($videosDir, 0777, true); }
-            $moviesDir = $realBase . '/movies';
-            if (!file_exists($moviesDir)) { @mkdir($moviesDir, 0777, true); }
-            $seriesDir = $realBase . '/series';
-            if (!file_exists($seriesDir)) { @mkdir($seriesDir, 0777, true); }
-            
             $targetPath = realpath($realBase . '/' . $subpath);
             if ($targetPath === false) { return false; }
-            
             $allowedMusic = realpath($musicDir);
-            $allowedVideos = realpath($videosDir);
-            $allowedMovies = realpath($moviesDir);
-            $allowedSeries = realpath($seriesDir);
-            
             if ($allowedMusic !== false && ($targetPath === $allowedMusic || strpos($targetPath, $allowedMusic . '/') === 0 || strpos($targetPath, $allowedMusic . '\\') === 0)) {
-                return $targetPath;
-            }
-            if ($allowedVideos !== false && ($targetPath === $allowedVideos || strpos($targetPath, $allowedVideos . '/') === 0 || strpos($targetPath, $allowedVideos . '\\') === 0)) {
-                return $targetPath;
-            }
-            if ($allowedMovies !== false && ($targetPath === $allowedMovies || strpos($targetPath, $allowedMovies . '/') === 0 || strpos($targetPath, $allowedMovies . '\\') === 0)) {
-                return $targetPath;
-            }
-            if ($allowedSeries !== false && ($targetPath === $allowedSeries || strpos($targetPath, $allowedSeries . '/') === 0 || strpos($targetPath, $allowedSeries . '\\') === 0)) {
                 return $targetPath;
             }
             return false;
         };
 
         $resolved = $is_valid_file_path($subpath, $realBase);
-        if ($resolved === false || $resolved === 'root' || $resolved === realpath($realBase . '/music') || $resolved === realpath($realBase . '/videos') || $resolved === realpath($realBase . '/movies') || $resolved === realpath($realBase . '/series')) {
+        if ($resolved === false || $resolved === 'root' || $resolved === realpath($realBase . '/music')) {
             http_response_code(403);
             exit(json_encode(['error' => 'Acesso negado: pasta raiz do sistema ou protegida.']));
         }
@@ -4782,38 +4080,17 @@ Accept: */*
             }
             $musicDir = $realBase . '/music';
             if (!file_exists($musicDir)) { @mkdir($musicDir, 0777, true); }
-            $videosDir = $realBase . '/videos';
-            if (!file_exists($videosDir)) { @mkdir($videosDir, 0777, true); }
-            $moviesDir = $realBase . '/movies';
-            if (!file_exists($moviesDir)) { @mkdir($moviesDir, 0777, true); }
-            $seriesDir = $realBase . '/series';
-            if (!file_exists($seriesDir)) { @mkdir($seriesDir, 0777, true); }
-            
             $targetPath = realpath($realBase . '/' . $subpath);
             if ($targetPath === false) { return false; }
-            
             $allowedMusic = realpath($musicDir);
-            $allowedVideos = realpath($videosDir);
-            $allowedMovies = realpath($moviesDir);
-            $allowedSeries = realpath($seriesDir);
-            
             if ($allowedMusic !== false && ($targetPath === $allowedMusic || strpos($targetPath, $allowedMusic . '/') === 0 || strpos($targetPath, $allowedMusic . '\\') === 0)) {
-                return $targetPath;
-            }
-            if ($allowedVideos !== false && ($targetPath === $allowedVideos || strpos($targetPath, $allowedVideos . '/') === 0 || strpos($targetPath, $allowedVideos . '\\') === 0)) {
-                return $targetPath;
-            }
-            if ($allowedMovies !== false && ($targetPath === $allowedMovies || strpos($targetPath, $allowedMovies . '/') === 0 || strpos($targetPath, $allowedMovies . '\\') === 0)) {
-                return $targetPath;
-            }
-            if ($allowedSeries !== false && ($targetPath === $allowedSeries || strpos($targetPath, $allowedSeries . '/') === 0 || strpos($targetPath, $allowedSeries . '\\') === 0)) {
                 return $targetPath;
             }
             return false;
         };
 
         $resolvedOld = $is_valid_file_path($oldSubpath, $realBase);
-        if ($resolvedOld === false || $resolvedOld === 'root' || $resolvedOld === realpath($realBase . '/music') || $resolvedOld === realpath($realBase . '/videos') || $resolvedOld === realpath($realBase . '/movies') || $resolvedOld === realpath($realBase . '/series')) {
+        if ($resolvedOld === false || $resolvedOld === 'root' || $resolvedOld === realpath($realBase . '/music')) {
             http_response_code(403);
             exit(json_encode(['error' => 'Acesso negado à pasta de origem ou protegida.']));
         }
@@ -4826,7 +4103,7 @@ Accept: */*
         $resolvedNewParent = $is_valid_file_path($newParentSub, $realBase);
         if ($resolvedNewParent === false || $resolvedNewParent === 'root') {
             http_response_code(403);
-            exit(json_encode(['error' => 'Destino inválido ou fora dos limites (/music, /videos, /movies ou /series).']));
+            exit(json_encode(['error' => 'Destino inválido ou fora dos limites (/music).']));
         }
         
         $oldPath = $resolvedOld;
@@ -4856,12 +4133,7 @@ Accept: */*
                         }
                     }
                 }
-                $oldRelVideo = preg_replace('#^videos/#i', '', $oldSubpath);
-                $newRelVideo = preg_replace('#^videos/#i', '', $newSubpath);
-                if ($oldSubpath !== $oldRelVideo) {
-                    $stmt = $pdo->prepare("UPDATE videos SET file_name = REPLACE(file_name, ?, ?) WHERE file_name = ? OR file_name LIKE ?");
-                    $stmt->execute([$oldRelVideo, $newRelVideo, $oldRelVideo, $oldRelVideo . '/%']);
-                }
+
             } catch (Exception $dbErr) {
                 // Ignore DB update errors if tables do not exist
             }
@@ -4889,31 +4161,10 @@ Accept: */*
             }
             $musicDir = $realBase . '/music';
             if (!file_exists($musicDir)) { @mkdir($musicDir, 0777, true); }
-            $videosDir = $realBase . '/videos';
-            if (!file_exists($videosDir)) { @mkdir($videosDir, 0777, true); }
-            $moviesDir = $realBase . '/movies';
-            if (!file_exists($moviesDir)) { @mkdir($moviesDir, 0777, true); }
-            $seriesDir = $realBase . '/series';
-            if (!file_exists($seriesDir)) { @mkdir($seriesDir, 0777, true); }
-            
             $targetPath = realpath($realBase . '/' . $subpath);
             if ($targetPath === false) { return false; }
-            
             $allowedMusic = realpath($musicDir);
-            $allowedVideos = realpath($videosDir);
-            $allowedMovies = realpath($moviesDir);
-            $allowedSeries = realpath($seriesDir);
-            
             if ($allowedMusic !== false && ($targetPath === $allowedMusic || strpos($targetPath, $allowedMusic . '/') === 0 || strpos($targetPath, $allowedMusic . '\\') === 0)) {
-                return $targetPath;
-            }
-            if ($allowedVideos !== false && ($targetPath === $allowedVideos || strpos($targetPath, $allowedVideos . '/') === 0 || strpos($targetPath, $allowedVideos . '\\') === 0)) {
-                return $targetPath;
-            }
-            if ($allowedMovies !== false && ($targetPath === $allowedMovies || strpos($targetPath, $allowedMovies . '/') === 0 || strpos($targetPath, $allowedMovies . '\\') === 0)) {
-                return $targetPath;
-            }
-            if ($allowedSeries !== false && ($targetPath === $allowedSeries || strpos($targetPath, $allowedSeries . '/') === 0 || strpos($targetPath, $allowedSeries . '\\') === 0)) {
                 return $targetPath;
             }
             return false;
@@ -4922,7 +4173,7 @@ Accept: */*
         $resolved = $is_valid_file_path($subpath, $realBase);
         if ($resolved === 'root' || $resolved === false) {
             http_response_code(400);
-            exit(json_encode(['error' => 'Acesso negado: Selecione uma pasta específica (music, videos, movies, series) para enviar os arquivos.']));
+            exit(json_encode(['error' => 'Acesso negado: Selecione uma pasta específica (music) para enviar os arquivos.']));
         }
         $targetDir = $resolved;
         if (!isset($_FILES['file'])) {

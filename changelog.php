@@ -1,5 +1,11 @@
 <?php
 $changelog = <<<EOT
+v1.1.21
+- Integração com Last.fm na página do artista: busca automática das músicas mais tocadas do artista no Last.fm e exibição em destaque das 10 faixas mais populares que existem na biblioteca local com reprodução direta e em fila contínua.
+
+v1.1.19
+- Remoção completa dos recursos de Séries, Filmes e Galeria de Vídeos do sistema PHP. Foco exclusivo na biblioteca e reprodução de música, podcasts e rádios.
+
 v1.1.10
 - Corrigido problema onde a tela de splash "Iniciando sistema..." não era ocultada para usuários deslogados.
 

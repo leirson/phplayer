@@ -248,29 +248,6 @@ if (!file_exists('config.php')) {
             transform: translateY(0);
         }
 
-        /* Estilos do Player de Vídeo sem Travamentos (Pseudo-Fullscreen) */
-        #video-modal.pseudo-fullscreen-active {
-            padding: 0 !important;
-            background-color: #000000 !important;
-        }
-        #video-modal.pseudo-fullscreen-active #video-modal-container {
-            max-width: 100% !important;
-            width: 100vw !important;
-            height: 100vh !important;
-            border-radius: 0 !important;
-            border: none !important;
-        }
-        #video-modal.pseudo-fullscreen-active #video-viewport-container {
-            aspect-ratio: auto !important;
-            flex-grow: 1 !important;
-            height: calc(100vh - 53px) !important;
-        }
-        video::-webkit-media-controls-fullscreen-button {
-            display: none !important;
-        }
-        video::-picture-in-picture-button {
-            display: none !important;
-        }
     </style>
 </head>
 <body class="h-screen w-full flex flex-col justify-between overflow-hidden select-none safe-pb">
@@ -878,9 +855,6 @@ if (!file_exists('config.php')) {
             </div>
         </section>
 
-        <!-- Hidden Videos container to prevent JS errors -->
-        <div id="mobile-videos-container" class="hidden"></div>
-
     </main>
 
     <!-- FLOATING ALBUM COMPACT BOTTOM SHEET / COMPONENT -->
@@ -955,9 +929,36 @@ if (!file_exists('config.php')) {
                 </button>
             </div>
 
-            <!-- Albums list inside artist sheet in bento format -->
-            <div class="overflow-y-auto p-4 grid grid-cols-2 gap-3 custom-scroll" id="sheet-artist-albums-container">
-                <!-- Populated dynamically via JS -->
+            <!-- Content scroll inside artist sheet -->
+            <div class="overflow-y-auto p-4 space-y-4 custom-scroll flex-1">
+                <!-- Top tracks section from Last.fm -->
+                <div id="sheet-artist-top-tracks-section" class="hidden space-y-2">
+                    <div class="flex items-center justify-between pb-1.5 border-b border-slate-900/60">
+                        <div class="flex items-center gap-1.5">
+                            <span class="p-1 rounded bg-rose-500/10 text-rose-400">
+                                <i data-lucide="flame" class="w-3.5 h-3.5"></i>
+                            </span>
+                            <h5 class="text-[10px] font-black uppercase text-white tracking-wider">Top Músicas (Last.fm)</h5>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="window.playMobileTop10(false)" class="p-1 px-2 bg-sky-500 text-white rounded-lg text-[9px] font-bold flex items-center gap-1">
+                                <i data-lucide="play" class="w-2.5 h-2.5 fill-current"></i> Tocar Top 10
+                            </button>
+                            <button onclick="window.playMobileTop10(true)" class="p-1 px-1.5 bg-slate-900 text-slate-300 rounded-lg text-[9px] border border-slate-800">
+                                <i data-lucide="shuffle" class="w-2.5 h-2.5 text-sky-400"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="sheet-artist-top-tracks-list" class="space-y-1"></div>
+                </div>
+
+                <!-- Albums list -->
+                <div>
+                    <h5 class="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Discografia e Álbuns</h5>
+                    <div class="grid grid-cols-2 gap-3" id="sheet-artist-albums-container">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1196,7 +1197,7 @@ if (!file_exists('config.php')) {
                         <i data-lucide="cast" class="w-3.5 h-3.5 text-sky-400"></i> Servidor DLNA (UPnP)
                     </h5>
                     <p class="text-[9px] text-slate-500 leading-tight">
-                        Ative o suporte a DLNA no seu servidor PHPlayer para parear e reproduzir músicas e vídeos em Smart TVs, consoles de videogame ou receptores de áudio compatíveis na sua rede doméstica.
+                        Ative o suporte a DLNA no seu servidor PHPlayer para parear e reproduzir músicas em Smart TVs, consoles de videogame ou receptores de áudio compatíveis na sua rede doméstica.
                     </p>
                     
                     <div class="space-y-3">
@@ -1444,31 +1445,6 @@ if (!file_exists('config.php')) {
     </div>
     </div>
 
-    <!-- VIDEO PLAYER MODAL FOR MOBILE -->
-    <div id="video-modal" class="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4 hidden">
-        <div id="video-modal-container" class="relative w-full max-w-4xl bg-slate-950 border border-slate-900 rounded-3xl overflow-hidden shadow-2xl flex flex-col font-sans">
-            <!-- Modal Title bar -->
-            <div class="flex items-center justify-between p-4 border-b border-slate-900 bg-[#0d131f]/15">
-                <div class="flex items-center gap-2 max-w-[65vw]">
-                    <i data-lucide="film" class="w-4 h-4 text-sky-450 shrink-0"></i>
-                    <span id="video-modal-title" class="text-xs font-bold text-white truncate">Video</span>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <button id="video-maximize-btn" onclick="toggleVideoMaximize()" class="p-1 text-slate-500 hover:text-white hover:bg-slate-900 rounded-lg transition" title="Tela Cheia">
-                        <i data-lucide="maximize" class="w-4 h-4"></i>
-                    </button>
-                    <button onclick="closeVideoModal()" class="p-1 text-slate-500 hover:text-white hover:bg-slate-900 rounded-lg transition">
-                        <i data-lucide="x" class="w-4 h-4"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Video core viewport -->
-            <div id="video-viewport-container" class="aspect-video bg-black flex items-center justify-center relative">
-                <video id="modal-video-player" controls class="w-full h-full object-contain" style="will-change: transform; transform: translate3d(0,0,0);"></video>
-            </div>
-        </div>
-    </div>
 
     <!-- CORE PLAYBACK SYSTEM IMPLEMENTATION -->
     <script>
@@ -1519,7 +1495,6 @@ if (!file_exists('config.php')) {
         const mobileAlbumsPageSize = 10;
         let mobileArtistsPage = 1;
         const mobileArtistsPageSize = 10;
-        let allVideos = [];
         let activeTab = 'inicio';
         
         // Playlist/Queue states
@@ -1594,16 +1569,6 @@ if (!file_exists('config.php')) {
                         let newVol = Math.max(0, audio.volume - 0.05);
                         audio.volume = newVol;
                         if (volSlider) volSlider.value = newVol;
-                    }
-                } else if (e.key === 'Escape') {
-                    const videoModal = document.getElementById('video-modal');
-                    if (videoModal && !videoModal.classList.contains('hidden')) {
-                        e.preventDefault();
-                        if (videoModal.classList.contains('pseudo-fullscreen-active')) {
-                            window.toggleVideoMaximize();
-                        } else {
-                            window.closeVideoModal();
-                        }
                     }
                 }
             });
@@ -2899,105 +2864,6 @@ if (!file_exists('config.php')) {
             performArtistsSearch();
         };
 
-        // Render Videos in Mobile Tab
-        async function renderMobileVideos() {
-            const container = document.getElementById('mobile-videos-container');
-            if (!container) return;
-
-            container.innerHTML = '<div class="col-span-1 text-center text-xs text-slate-650 py-12"><i class="w-6 h-6 animate-spin mx-auto text-sky-500"></i><p class="mt-2">Carregando vídeos...</p></div>';
-
-            try {
-                const res = await fetch(API + '?route=videos');
-                allVideos = await res.json();
-
-                if (allVideos.length === 0) {
-                    container.innerHTML = '<div class="col-span-1 text-center text-xs text-slate-650 py-12">Nenhum vídeo encontrado no catálogo.</div>';
-                    return;
-                }
-
-                let html = '';
-                allVideos.forEach(vid => {
-                    const coverImg = vid.coverUrl || 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=350';
-                    const sizeMB = (vid.fileSize / (1024 * 1024)).toFixed(1);
-
-                    html += `
-                        <div onclick="playVideo('${vid.id}')" class="bg-[#0e1726]/40 border border-slate-900 p-3 rounded-2xl flex flex-col gap-3 shadow hover:border-sky-500/20 active:scale-95 transition duration-200">
-                            <div class="relative aspect-video w-full rounded-xl overflow-hidden bg-slate-900 border border-slate-800/40">
-                                <img src="${coverImg}" class="w-full h-full object-cover" referrerpolicy="no-referrer">
-                                <div class="absolute inset-0 bg-black/45 flex items-center justify-center">
-                                    <span class="p-2.5 bg-sky-500 text-white rounded-full shadow-lg">
-                                        <i data-lucide="play" class="w-4 h-4 fill-white text-white"></i>
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="px-1 select-none">
-                                <h5 class="text-xs font-bold leading-tight text-white pr-1 truncate">${vid.title}</h5>
-                                <div class="flex justify-between items-center mt-1 text-[8px] text-slate-500 font-mono">
-                                    <span>${sizeMB} MB</span>
-                                    <span class="text-sky-455 font-bold">VÍDEO</span>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-
-                container.innerHTML = html;
-                lucide.createIcons();
-            } catch (err) {
-                console.error(err);
-                container.innerHTML = '<div class="col-span-1 text-center text-xs text-red-500 py-12">Falha ao carregar a galeria de vídeos.</div>';
-            }
-        }
-
-        window.playVideo = function(id) {
-            const vid = allVideos.find(v => v.id === id);
-            if (!vid) return;
-
-            if (audio && !audio.paused) {
-                audio.pause();
-                const miniBtn = document.getElementById('mini-play-btn');
-                const fullBtn = document.getElementById('full-play-btn');
-                if (miniBtn) miniBtn.innerHTML = '<i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>';
-                if (fullBtn) fullBtn.innerHTML = '<i data-lucide="play" class="w-6 h-6 fill-current text-white"></i>';
-                lucide.createIcons();
-            }
-
-            const player = document.getElementById('modal-video-player');
-            if (player) {
-                player.src = window.getAbsoluteUrl('api.php?route=stream_video&id=' + encodeURIComponent(vid.id));
-                if (vid.coverUrl) {
-                    player.poster = window.getAbsoluteUrl(vid.coverUrl);
-                } else {
-                    player.removeAttribute('poster');
-                }
-            }
-
-            const modalTitle = document.getElementById('video-modal-title');
-            if (modalTitle) modalTitle.textContent = vid.title;
-
-            const modal = document.getElementById('video-modal');
-            if (modal) modal.classList.remove('hidden');
-        };
-
-        window.closeVideoModal = function() {
-            const player = document.getElementById('modal-video-player');
-            if (player) {
-                player.pause();
-                player.removeAttribute('src');
-                player.load();
-            }
-            const modal = document.getElementById('video-modal');
-            if (modal) {
-                modal.classList.add('hidden');
-                modal.classList.remove('pseudo-fullscreen-active');
-            }
-            const btn = document.getElementById('video-maximize-btn');
-            if (btn) btn.innerHTML = '<i data-lucide="maximize" class="w-4 h-4"></i>';
-            if (window.lucide) {
-                window.lucide.createIcons();
-            }
-        };
-
         const PODCAST_PRESETS_POOL = [
             { name: 'NerdCast', url: 'https://jnfilter.gabrielgio.me/' },
             { name: 'Inteligência Ltda', url: 'https://anchor.fm/s/6cf4d5a0/podcast/rss' },
@@ -3456,22 +3322,6 @@ if (!file_exists('config.php')) {
             loadRadiosPhp();
         };
 
-        window.toggleVideoMaximize = function() {
-            const modal = document.getElementById('video-modal');
-            const btn = document.getElementById('video-maximize-btn');
-            if (!modal) return;
-            if (modal.classList.contains('pseudo-fullscreen-active')) {
-                modal.classList.remove('pseudo-fullscreen-active');
-                if (btn) btn.innerHTML = '<i data-lucide="maximize" class="w-4 h-4"></i>';
-            } else {
-                modal.classList.add('pseudo-fullscreen-active');
-                if (btn) btn.innerHTML = '<i data-lucide="minimize" class="w-4 h-4"></i>';
-            }
-            if (window.lucide) {
-                window.lucide.createIcons();
-            }
-        };
-
         window.openArtistSheet = function(encodedArtistName) {
             const artistName = decodeURIComponent(encodedArtistName);
             const sheet = document.getElementById('artist-sheet');
@@ -3521,6 +3371,115 @@ if (!file_exists('config.php')) {
                     playFullQueueListShuffled(tracks);
                 };
             }
+
+            // Top tracks from Last.fm logic
+            const topSection = document.getElementById('sheet-artist-top-tracks-section');
+            const topList = document.getElementById('sheet-artist-top-tracks-list');
+            if (topSection && topList) {
+                topSection.classList.remove('hidden');
+                topList.innerHTML = `<div class="p-3 text-center text-xs text-slate-500 animate-pulse flex items-center justify-center gap-2"><i data-lucide="loader" class="w-3.5 h-3.5 animate-spin text-sky-400"></i> Buscando mais tocadas no Last.fm...</div>`;
+                if (window.lucide) lucide.createIcons();
+                
+                fetch(API_BASE + 'api.php?route=artist_bio&artist=' + encodeURIComponent(artistName))
+                    .then(res => res.json())
+                    .then(data => {
+                        const topTracks = data.top_tracks || [];
+                        const artistSongs = allTracks.filter(t => t.artist && t.artist.trim().toLowerCase() === artistName.trim().toLowerCase());
+                        
+                        function cleanStr(s) {
+                            if (!s) return '';
+                            return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\((remastered|remaster|live|deluxe|version|edit|mono|stereo|bonus|feat\.|acoustic|radio edit)[^)]*\)/gi, '').replace(/\[(remastered|remaster|live|deluxe|version|edit|mono|stereo|bonus|feat\.|acoustic|radio edit)[^\]]*\]/gi, '').replace(/[-–—]\s*(remastered|remaster|live|deluxe|version|edit|mono|stereo|bonus|feat\.|acoustic|radio edit).*/gi, '').replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+                        }
+                        
+                        const matched = [];
+                        const seenIds = new Set();
+                        const seenTitles = new Set();
+                        
+                        for (const item of topTracks) {
+                            if (matched.length >= 10) break;
+                            const lfmName = typeof item === 'string' ? item : (item.name || '');
+                            const normLfm = cleanStr(lfmName);
+                            if (!normLfm) continue;
+                            
+                            let found = null;
+                            for (const s of artistSongs) {
+                                if (seenIds.has(String(s.id))) continue;
+                                if (cleanStr(s.title) === normLfm) { found = s; break; }
+                            }
+                            if (!found) {
+                                for (const s of artistSongs) {
+                                    if (seenIds.has(String(s.id))) continue;
+                                    const normS = cleanStr(s.title);
+                                    if (normS && (normS.startsWith(normLfm) || normLfm.startsWith(normS))) { found = s; break; }
+                                }
+                            }
+                            if (!found && normLfm.length >= 4) {
+                                for (const s of artistSongs) {
+                                    if (seenIds.has(String(s.id))) continue;
+                                    const normS = cleanStr(s.title);
+                                    if (normS && normS.length >= 4 && (normS.includes(normLfm) || normLfm.includes(normS))) { found = s; break; }
+                                }
+                            }
+                            
+                            if (found) {
+                                const normT = cleanStr(found.title);
+                                if (!seenTitles.has(normT)) {
+                                    seenIds.add(String(found.id));
+                                    seenTitles.add(normT);
+                                    matched.push(found);
+                                }
+                            }
+                        }
+                        
+                        window.currentMobileArtistTopTracks = matched;
+                        if (matched.length === 0) {
+                            topSection.classList.add('hidden');
+                        } else {
+                            topSection.classList.remove('hidden');
+                            let tHtml = '';
+                            matched.forEach((trk, idx) => {
+                                const durText = trk.duration ? Math.floor(trk.duration / 60) + ':' + String(Math.floor(trk.duration % 60)).padStart(2, '0') : '--:--';
+                                const cover = trk.coverUrl || trk.cover_url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100';
+                                const rankColor = idx === 0 ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : (idx === 1 ? 'bg-slate-300/20 text-slate-200 border-slate-300/30' : (idx === 2 ? 'bg-amber-700/20 text-amber-500 border-amber-700/30' : 'text-slate-500 font-mono'));
+                                
+                                tHtml += `
+                                    <div onclick="window.playMobileTopTrackIndex(${idx})" class="p-2 bg-slate-950/40 border border-slate-900/60 rounded-xl flex items-center justify-between gap-2.5 active:bg-sky-500/10 cursor-pointer">
+                                        <div class="flex items-center gap-2.5 min-w-0">
+                                            <span class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-black shrink-0 border border-transparent ${rankColor}">${idx + 1}</span>
+                                            <img src="${cover}" class="w-8 h-8 rounded-lg object-cover shrink-0 border border-slate-800" referrerpolicy="no-referrer">
+                                            <div class="min-w-0 truncate">
+                                                <div class="text-[11px] font-bold text-white truncate leading-tight">${trk.title}</div>
+                                                <div class="text-[9px] text-slate-500 truncate mt-0.5">${trk.album || 'Single'}</div>
+                                            </div>
+                                        </div>
+                                        <span class="text-[9px] font-mono text-slate-500 shrink-0">${durText}</span>
+                                    </div>
+                                `;
+                            });
+                            topList.innerHTML = tHtml;
+                            if (window.lucide) lucide.createIcons();
+                        }
+                    })
+                    .catch(() => {
+                        topSection.classList.add('hidden');
+                    });
+            }
+
+            window.playMobileTopTrackIndex = function(idx) {
+                if (!window.currentMobileArtistTopTracks || !window.currentMobileArtistTopTracks[idx]) return;
+                closeArtistSheet();
+                playFullQueueList(window.currentMobileArtistTopTracks, idx);
+            };
+
+            window.playMobileTop10 = function(isShuffle) {
+                if (!window.currentMobileArtistTopTracks || window.currentMobileArtistTopTracks.length === 0) return;
+                closeArtistSheet();
+                if (isShuffle) {
+                    playFullQueueListShuffled(window.currentMobileArtistTopTracks);
+                } else {
+                    playFullQueueList(window.currentMobileArtistTopTracks, 0);
+                }
+            };
 
             // Render all albums of this artist
             const albumsContainer = document.getElementById('sheet-artist-albums-container');
