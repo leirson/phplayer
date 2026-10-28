@@ -8,7 +8,6 @@ define('DB_USER', 'u123196074_music');
 define('DB_PASS', 'WinIpCfg95@260213');
 define('UPLOAD_DIR', __DIR__ . '/uploads/');
 define('IMAGES_DIR', __DIR__ . '/images/');
-define('VIDEOS_DIR', __DIR__ . '/videos/');
 
 if (!function_exists('exitWithJsonError')) {
     function exitWithJsonError($msg, $statusCode = 200) {
@@ -48,7 +47,4 @@ if (!file_exists(UPLOAD_DIR)) {
 }
 if (!file_exists(IMAGES_DIR)) {
     @mkdir(IMAGES_DIR, 0755, true);
-}
-if (!file_exists(VIDEOS_DIR)) {
-    @mkdir(VIDEOS_DIR, 0755, true);
 }

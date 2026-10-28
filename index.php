@@ -1397,8 +1397,8 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                             <button id="file-manager-btn-new-folder" onclick="openNewFolderModal()" class="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition select-none cursor-pointer">
                                 <i data-lucide="folder-plus" class="w-4 h-4 text-emerald-400"></i> Nova Pasta
                             </button>
-                            <button id="file-manager-btn-upload-artist" onclick="document.getElementById('file-manager-artist-upload-input').click()" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition select-none cursor-pointer shadow-lg shadow-purple-500/10" title="Enviar pasta completa do Artista com subpastas de Álbuns e Músicas">
-                                <i data-lucide="folder-up" class="w-4 h-4 text-purple-200"></i> Enviar Pasta do Artista
+                            <button id="file-manager-btn-upload-artist" onclick="document.getElementById('file-manager-artist-upload-input').click()" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition select-none cursor-pointer shadow-lg shadow-purple-500/10" title="Enviar pasta completa com subpastas de álbuns e músicas">
+                                <i data-lucide="folder-up" class="w-4 h-4 text-purple-200"></i> Enviar Pasta
                             </button>
                             <button id="file-manager-btn-upload" onclick="document.getElementById('file-manager-upload-input').click()" class="px-4 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition select-none cursor-pointer shadow-lg shadow-sky-500/10">
                                 <i data-lucide="upload" class="w-4 h-4"></i> Enviar Arquivos
@@ -3782,23 +3782,13 @@ const updPane = document.getElementById('subtab-pane-updates');
             if (!tbody) return;
             tbody.innerHTML = '';
 
-            // Toggle new folder & upload buttons visibility at virtual root
+            // Ensure new folder & upload buttons are available
             const btnNewFolder = document.getElementById('file-manager-btn-new-folder');
             const btnUpload = document.getElementById('file-manager-btn-upload');
-            if (btnNewFolder) {
-                if (data.is_root) {
-                    btnNewFolder.classList.add('hidden');
-                } else {
-                    btnNewFolder.classList.remove('hidden');
-                }
-            }
-            if (btnUpload) {
-                if (data.is_root) {
-                    btnUpload.classList.add('hidden');
-                } else {
-                    btnUpload.classList.remove('hidden');
-                }
-            }
+            const btnUploadArtist = document.getElementById('file-manager-btn-upload-artist');
+            if (btnNewFolder) btnNewFolder.classList.remove('hidden');
+            if (btnUpload) btnUpload.classList.remove('hidden');
+            if (btnUploadArtist) btnUploadArtist.classList.remove('hidden');
 
             // Breadcrumbs rendering
             const crumbsEl = document.getElementById('file-manager-breadcrumbs');
@@ -3951,12 +3941,18 @@ const updPane = document.getElementById('subtab-pane-updates');
 
         async function createNewFolder(name) {
             try {
+                const u = (currentUser && currentUser.username) ? currentUser.username : 'admin';
                 const formData = new FormData();
                 formData.append('path', fileManagerCurrentPath);
                 formData.append('name', name);
+                formData.append('username', u);
+                formData.append('admin_username', u);
 
-                const res = await fetch('api.php?route=files_create_dir', {
+                const res = await fetch(`api.php?route=files_create_dir&username=${encodeURIComponent(u)}&admin_username=${encodeURIComponent(u)}`, {
                     method: 'POST',
+                    headers: {
+                        'X-Username': u
+                    },
                     body: formData
                 });
                 const data = await res.json();
@@ -3984,12 +3980,18 @@ const updPane = document.getElementById('subtab-pane-updates');
 
         async function renameItem(oldPath, newPath) {
             try {
+                const u = (currentUser && currentUser.username) ? currentUser.username : 'admin';
                 const formData = new FormData();
                 formData.append('old_path', oldPath);
                 formData.append('new_path', newPath);
+                formData.append('username', u);
+                formData.append('admin_username', u);
 
-                const res = await fetch('api.php?route=files_rename', {
+                const res = await fetch(`api.php?route=files_rename&username=${encodeURIComponent(u)}&admin_username=${encodeURIComponent(u)}`, {
                     method: 'POST',
+                    headers: {
+                        'X-Username': u
+                    },
                     body: formData
                 });
                 const data = await res.json();
@@ -4011,11 +4013,17 @@ const updPane = document.getElementById('subtab-pane-updates');
             if (!confirm(msg)) return;
 
             try {
+                const u = (currentUser && currentUser.username) ? currentUser.username : 'admin';
                 const formData = new FormData();
                 formData.append('path', itemPath);
+                formData.append('username', u);
+                formData.append('admin_username', u);
 
-                const res = await fetch('api.php?route=files_delete', {
+                const res = await fetch(`api.php?route=files_delete&username=${encodeURIComponent(u)}&admin_username=${encodeURIComponent(u)}`, {
                     method: 'POST',
+                    headers: {
+                        'X-Username': u
+                    },
                     body: formData
                 });
                 const data = await res.json();
@@ -4030,15 +4038,39 @@ const updPane = document.getElementById('subtab-pane-updates');
             }
         }
 
-        function handleFileManagerUpload(files) {
-            if (fileManagerCurrentPath === '') {
-                alert('Não é permitido enviar arquivos diretamente na pasta raiz virtual. Entre em /music primeiro.');
-                return;
-            }
+        function handleArtistFolderUpload(files) {
             if (!files || files.length === 0) return;
+            const targetPath = (!fileManagerCurrentPath || fileManagerCurrentPath === 'root') ? 'music' : fileManagerCurrentPath;
             for (let i = 0; i < files.length; i++) {
-                fileUploadQueue.push(files[i]);
+                const f = files[i];
+                fileUploadQueue.push({
+                    file: f,
+                    targetPath: targetPath,
+                    relativePath: f.webkitRelativePath || ''
+                });
             }
+            const input = document.getElementById('file-manager-artist-upload-input');
+            if (input) input.value = '';
+            processNextUpload();
+        }
+
+        function handleFileManagerUpload(files) {
+            if (!files || files.length === 0) return;
+            const targetPath = (!fileManagerCurrentPath || fileManagerCurrentPath === 'root') ? 'music' : fileManagerCurrentPath;
+            for (let i = 0; i < files.length; i++) {
+                const f = files[i];
+                if (f.file) {
+                    fileUploadQueue.push(f);
+                } else {
+                    fileUploadQueue.push({
+                        file: f,
+                        targetPath: targetPath,
+                        relativePath: f.webkitRelativePath || f.fullRelativePath || ''
+                    });
+                }
+            }
+            const input = document.getElementById('file-manager-upload-input');
+            if (input) input.value = '';
             processNextUpload();
         }
 
@@ -4048,27 +4080,37 @@ const updPane = document.getElementById('subtab-pane-updates');
                     setTimeout(() => {
                         const progressEl = document.getElementById('file-manager-upload-progress');
                         if (progressEl) progressEl.classList.add('hidden');
-                    }, 1000);
+                    }, 1200);
                 }
                 return;
             }
 
             currentlyUploading = true;
-            const file = fileUploadQueue.shift();
+            const item = fileUploadQueue.shift();
+            const file = item.file || item;
+            const targetPath = item.targetPath || fileManagerCurrentPath || 'music';
+            const relativePath = item.relativePath || file.webkitRelativePath || file.fullRelativePath || '';
 
             const progressEl = document.getElementById('file-manager-upload-progress');
             if (progressEl) progressEl.classList.remove('hidden');
 
             const pText = document.getElementById('upload-progress-text');
-            if (pText) pText.textContent = `Enviando: ${file.name} (${formatBytes(file.size)}) ... [Pendentes: ${fileUploadQueue.length}]`;
+            const relDisplay = relativePath ? ` [${relativePath}]` : '';
+            if (pText) pText.textContent = `Enviando: ${file.name}${relDisplay} ... [Restantes: ${fileUploadQueue.length}]`;
 
             try {
+                const u = (currentUser && currentUser.username) ? currentUser.username : 'admin';
                 const formData = new FormData();
-                formData.append('path', fileManagerCurrentPath);
+                formData.append('path', targetPath);
+                formData.append('relative_path', relativePath);
+                formData.append('username', u);
+                formData.append('admin_username', u);
                 formData.append('file', file);
 
                 const xhr = new XMLHttpRequest();
-                xhr.open('POST', 'api.php?route=files_upload', true);
+                xhr.open('POST', `api.php?route=files_upload&username=${encodeURIComponent(u)}&admin_username=${encodeURIComponent(u)}`, true);
+                xhr.setRequestHeader('X-Username', u);
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
 
                 xhr.upload.onprogress = (e) => {
                     if (e.lengthComputable) {
@@ -4095,16 +4137,25 @@ const updPane = document.getElementById('subtab-pane-updates');
                             console.error(e);
                         }
                     } else {
-                        alert(`Erro no servidor (${xhr.status}) ao enviar ${file.name}`);
+                        let errMsg = `Erro no servidor (${xhr.status}) ao enviar ${file.name}`;
+                        try {
+                            const errObj = JSON.parse(xhr.responseText);
+                            if (errObj && errObj.error) {
+                                errMsg += `: ${errObj.error}`;
+                            }
+                        } catch(e) {}
+                        alert(errMsg);
                     }
 
-                    loadFileManager(fileManagerCurrentPath);
+                    if (fileUploadQueue.length === 0) {
+                        loadFileManager(fileManagerCurrentPath);
+                    }
                     processNextUpload();
                 };
 
                 xhr.onerror = function() {
                     currentlyUploading = false;
-                    alert(`Falha na rede para ${file.name}`);
+                    alert(`Falha de rede ao enviar ${file.name}`);
                     processNextUpload();
                 };
 
@@ -4137,7 +4188,44 @@ const updPane = document.getElementById('subtab-pane-updates');
             }
         }
 
-        function handleFileDrop(e) {
+        async function extractDropEntries(dataTransfer) {
+            const queue = [];
+            const items = dataTransfer.items;
+            if (items && items.length > 0 && items[0].webkitGetAsEntry) {
+                async function traverse(entry, parentPath = '') {
+                    if (entry.isFile) {
+                        const f = await new Promise((resolve) => entry.file(resolve));
+                        f.fullRelativePath = parentPath + f.name;
+                        queue.push(f);
+                    } else if (entry.isDirectory) {
+                        const dirReader = entry.createReader();
+                        const readBatch = () => new Promise((resolve) => dirReader.readEntries(resolve));
+                        let batch;
+                        do {
+                            batch = await readBatch();
+                            if (batch && batch.length > 0) {
+                                for (const child of batch) {
+                                    await traverse(child, parentPath + entry.name + '/');
+                                }
+                            }
+                        } while (batch && batch.length > 0);
+                    }
+                }
+                for (let i = 0; i < items.length; i++) {
+                    const entry = items[i].webkitGetAsEntry();
+                    if (entry) {
+                        await traverse(entry);
+                    }
+                }
+            } else if (dataTransfer.files && dataTransfer.files.length > 0) {
+                for (let i = 0; i < dataTransfer.files.length; i++) {
+                    queue.push(dataTransfer.files[i]);
+                }
+            }
+            return queue;
+        }
+
+        async function handleFileDrop(e) {
             e.preventDefault();
             e.stopPropagation();
             const overlay = document.getElementById('file-manager-drag-overlay');
@@ -4146,8 +4234,17 @@ const updPane = document.getElementById('subtab-pane-updates');
                 overlay.style.pointerEvents = 'none';
             }
 
-            const files = e.dataTransfer.files;
-            handleFileManagerUpload(files);
+            try {
+                const files = await extractDropEntries(e.dataTransfer);
+                if (files && files.length > 0) {
+                    handleFileManagerUpload(files);
+                }
+            } catch (err) {
+                console.error("Erro ao processar drop:", err);
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    handleFileManagerUpload(e.dataTransfer.files);
+                }
+            }
         }
 
         async function loadMusicFolders() {

@@ -408,6 +408,10 @@ try {
     $current_username = '';
     if (!empty($_SERVER['HTTP_X_USERNAME'])) {
         $current_username = trim($_SERVER['HTTP_X_USERNAME']);
+    } elseif (!empty($_POST['username'])) {
+        $current_username = trim($_POST['username']);
+    } elseif (!empty($_POST['admin_username'])) {
+        $current_username = trim($_POST['admin_username']);
     } elseif (!empty($_GET['admin_username'])) {
         $current_username = trim($_GET['admin_username']);
     } elseif (!empty($_GET['username'])) {
@@ -419,6 +423,15 @@ try {
     } elseif (function_exists('getallheaders')) {
         $allHeaders = getallheaders();
         foreach ($allHeaders as $hKey => $hVal) {
+            if (strtolower($hKey) === 'x-username' && !empty($hVal)) {
+                $current_username = trim($hVal);
+                break;
+            }
+        }
+    }
+    if (empty($current_username) && function_exists('apache_request_headers')) {
+        $apacheHeaders = apache_request_headers();
+        foreach ($apacheHeaders as $hKey => $hVal) {
             if (strtolower($hKey) === 'x-username' && !empty($hVal)) {
                 $current_username = trim($hVal);
                 break;
@@ -625,15 +638,40 @@ try {
     if (!function_exists('is_admin_user')) {
         function is_admin_user($pdo) {
             global $current_username;
-            $username = !empty($current_username) ? $current_username : ($_SERVER['HTTP_X_USERNAME'] ?? $_GET['admin_username'] ?? $_GET['username'] ?? '');
+            $username = !empty($current_username) ? $current_username : (
+                $_SERVER['HTTP_X_USERNAME'] ??
+                $_POST['username'] ??
+                $_POST['admin_username'] ??
+                $_GET['admin_username'] ??
+                $_GET['username'] ??
+                ''
+            );
+            if (empty($username) && function_exists('getallheaders')) {
+                $allHeaders = getallheaders();
+                foreach ($allHeaders as $hKey => $hVal) {
+                    if (strtolower($hKey) === 'x-username' && !empty($hVal)) {
+                        $username = trim($hVal);
+                        break;
+                    }
+                }
+            }
+            if (empty($username) && function_exists('apache_request_headers')) {
+                $apacheHeaders = apache_request_headers();
+                foreach ($apacheHeaders as $hKey => $hVal) {
+                    if (strtolower($hKey) === 'x-username' && !empty($hVal)) {
+                        $username = trim($hVal);
+                        break;
+                    }
+                }
+            }
             if (empty($username)) {
                 return false;
             }
             try {
-                $stmt = $pdo->prepare("SELECT role FROM users WHERE username = ?");
+                $stmt = $pdo->prepare("SELECT role FROM users WHERE LOWER(username) = LOWER(?)");
                 $stmt->execute([$username]);
                 $role = $stmt->fetchColumn();
-                return ($role === 'admin');
+                return ($role !== false && strtolower((string)$role) === 'admin');
             } catch (Throwable $e) {
                 return false;
             }
@@ -3948,33 +3986,31 @@ Accept: */*
         break;
 
     case 'files_create_dir':
-        $subpath = isset($_POST['path']) ? $_POST['path'] : '';
+        $subpath = isset($_POST['path']) ? trim($_POST['path']) : '';
         $realBase = realpath(__DIR__);
         
-        $is_valid_file_path = function($subpath, $realBase) {
-            $subpath = trim(trim($subpath), '/\\');
-            if (empty($subpath) || $subpath === '.') {
-                return 'root';
-            }
-            $musicDir = $realBase . '/music';
-            if (!file_exists($musicDir)) { @mkdir($musicDir, 0777, true); }
-            $targetPath = realpath($realBase . '/' . $subpath);
-            if ($targetPath === false) { return false; }
-            $allowedMusic = realpath($musicDir);
-            if ($allowedMusic !== false && ($targetPath === $allowedMusic || strpos($targetPath, $allowedMusic . '/') === 0 || strpos($targetPath, $allowedMusic . '\\') === 0)) {
-                return $targetPath;
-            }
-            return false;
-        };
-
-        $resolved = $is_valid_file_path($subpath, $realBase);
-        if ($resolved === false || $resolved === 'root') {
-            http_response_code(403);
-            exit(json_encode(['error' => 'Acesso negado: não é permitido criar pastas na raiz virtual.']));
+        $musicDir = $realBase . '/music';
+        if (!file_exists($musicDir)) {
+            @mkdir($musicDir, 0777, true);
+            @chmod($musicDir, 0777);
         }
-        $parentDir = $resolved;
+        $allowedMusic = realpath($musicDir);
+        
+        $subpathClean = trim($subpath, '/\\');
+        if (empty($subpathClean) || $subpathClean === '.' || $subpathClean === 'root') {
+            $parentDir = $allowedMusic;
+        } else {
+            $targetPath = realpath($realBase . '/' . $subpathClean);
+            if ($targetPath === false || $allowedMusic === false || ($targetPath !== $allowedMusic && strpos($targetPath, $allowedMusic . DIRECTORY_SEPARATOR) !== 0 && strpos($targetPath, $allowedMusic . '/') !== 0)) {
+                http_response_code(403);
+                exit(json_encode(['error' => 'Acesso negado: destino inválido ou fora dos limites (/music).']));
+            }
+            $parentDir = $targetPath;
+        }
+
         $newDirName = isset($_POST['name']) ? trim($_POST['name']) : '';
-        $newDirName = preg_replace('/[^a-zA-Z0-9_\-\s\.]/', '', $newDirName);
+        $newDirName = preg_replace('/[^\p{L}\p{N}_\-\s\.]/u', '', $newDirName);
+        $newDirName = trim($newDirName);
         if (empty($newDirName)) {
             http_response_code(400);
             exit(json_encode(['error' => 'Nome da pasta inválido.']));
@@ -3984,7 +4020,8 @@ Accept: */*
             http_response_code(400);
             exit(json_encode(['error' => 'Uma pasta ou arquivo com este nome já existe.']));
         }
-        if (mkdir($newDirPath, 0777, true)) {
+        if (@mkdir($newDirPath, 0777, true)) {
+            @chmod($newDirPath, 0777);
             echo json_encode(['success' => true]);
         } else {
             http_response_code(500);
@@ -4149,33 +4186,32 @@ Accept: */*
         $relativePath = isset($_POST['relative_path']) ? trim($_POST['relative_path']) : '';
         $realBase = realpath(__DIR__);
         
-        // Default to 'music' if subpath is empty/root and a relative_path (e.g. artist folder) is provided
-        if ((empty($subpath) || $subpath === '.' || $subpath === 'root') && !empty($relativePath)) {
-            $subpath = 'music';
+        $musicDir = $realBase . '/music';
+        if (!file_exists($musicDir)) {
+            @mkdir($musicDir, 0777, true);
+            @chmod($musicDir, 0777);
         }
+        $allowedMusic = realpath($musicDir);
         
-        $is_valid_file_path = function($subpath, $realBase) {
-            $subpath = trim(trim($subpath), '/\\');
-            if (empty($subpath) || $subpath === '.') {
-                return 'root';
+        // Default to 'music' if subpath is empty or virtual root
+        $subpathClean = trim($subpath, '/\\');
+        if (empty($subpathClean) || $subpathClean === '.' || $subpathClean === 'root') {
+            $targetDir = $allowedMusic;
+        } else {
+            $targetPath = realpath($realBase . '/' . $subpathClean);
+            if ($targetPath === false && strpos($subpathClean, '..') === false) {
+                $candidate = $realBase . '/' . $subpathClean;
+                @mkdir($candidate, 0777, true);
+                @chmod($candidate, 0777);
+                $targetPath = realpath($candidate);
             }
-            $musicDir = $realBase . '/music';
-            if (!file_exists($musicDir)) { @mkdir($musicDir, 0777, true); }
-            $targetPath = realpath($realBase . '/' . $subpath);
-            if ($targetPath === false) { return false; }
-            $allowedMusic = realpath($musicDir);
-            if ($allowedMusic !== false && ($targetPath === $allowedMusic || strpos($targetPath, $allowedMusic . '/') === 0 || strpos($targetPath, $allowedMusic . '\\') === 0)) {
-                return $targetPath;
+            if ($targetPath === false || $allowedMusic === false || ($targetPath !== $allowedMusic && strpos($targetPath, $allowedMusic . DIRECTORY_SEPARATOR) !== 0 && strpos($targetPath, $allowedMusic . '/') !== 0)) {
+                http_response_code(403);
+                exit(json_encode(['error' => 'Acesso negado: pasta de destino fora dos limites permitidos (/music).']));
             }
-            return false;
-        };
-
-        $resolved = $is_valid_file_path($subpath, $realBase);
-        if ($resolved === 'root' || $resolved === false) {
-            http_response_code(400);
-            exit(json_encode(['error' => 'Acesso negado: Selecione uma pasta específica (music) para enviar os arquivos.']));
+            $targetDir = $targetPath;
         }
-        $targetDir = $resolved;
+
         if (!isset($_FILES['file'])) {
             http_response_code(400);
             exit(json_encode(['error' => 'Nenhum arquivo enviado.']));
@@ -4187,8 +4223,9 @@ Accept: */*
         }
 
         $destDir = $targetDir;
-        $uploadedName = basename($file['name']);
-        $uploadedName = preg_replace('/[^a-zA-Z0-9_\-\.\s]/', '', $uploadedName);
+        $origName = basename($file['name']);
+        $origExt = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+        $uploadedName = $origName;
 
         // Process nested subdirectories from relative_path (e.g. ArtistName/AlbumName/song.mp3)
         if (!empty($relativePath)) {
@@ -4197,35 +4234,68 @@ Accept: */*
             $cleanSegments = [];
             foreach ($rawSegments as $seg) {
                 $seg = trim($seg);
-                $clean = preg_replace('/[^a-zA-Z0-9_\-\.\s]/', '', $seg);
+                $clean = preg_replace('/[^\p{L}\p{N}_\-\.\s\(\)\[\]]/u', '', $seg);
+                $clean = trim($clean);
                 if ($clean !== '' && $clean !== '.' && $clean !== '..') {
                     $cleanSegments[] = $clean;
                 }
             }
             if (count($cleanSegments) > 0) {
-                $uploadedName = array_pop($cleanSegments);
+                $leafName = array_pop($cleanSegments);
+                if (!empty($leafName)) {
+                    $uploadedName = $leafName;
+                }
                 if (count($cleanSegments) > 0) {
                     $subDirRel = implode('/', $cleanSegments);
                     $destDir = $targetDir . '/' . $subDirRel;
                     if (!file_exists($destDir)) {
-                        @mkdir($destDir, 0755, true);
+                        @mkdir($destDir, 0777, true);
+                        @chmod($destDir, 0777);
                     }
                 }
             }
         }
 
+        // Sanitize file name
+        $cleanBaseName = preg_replace('/[^\p{L}\p{N}_\-\.\s\(\)\[\]]/u', '', $uploadedName);
+        $cleanBaseName = trim($cleanBaseName);
+        if (empty($cleanBaseName)) {
+            $uploadedName = 'upload_' . uniqid() . ($origExt ? '.' . $origExt : '');
+        } else {
+            $uploadedName = $cleanBaseName;
+        }
+
+        // Security: Prevent uploading dangerous executable scripts
+        $ext = strtolower(pathinfo($uploadedName, PATHINFO_EXTENSION));
+        $disallowedExts = ['php', 'php3', 'php4', 'php5', 'phtml', 'phar', 'cgi', 'sh', 'bash', 'exe', 'bat', 'cmd', 'py', 'pl', 'htaccess'];
+        if (in_array($ext, $disallowedExts)) {
+            http_response_code(403);
+            exit(json_encode(['error' => 'Upload negado: tipo de arquivo não permitido por segurança.']));
+        }
+
         $destPath = $destDir . '/' . $uploadedName;
-        $protected = ['index.php', 'api.php', 'config.php', 'mobile.php', 'debug.php', 'package.json', 'server.ts', 'tsconfig.json', '.env', '.env.example'];
+        $protected = ['index.php', 'api.php', 'config.php', 'mobile.php', 'debug.php', 'package.json', 'server.ts', 'tsconfig.json', '.env', '.env.example', 'version.php', 'changelog.php', 'shared.php'];
         if (in_array(strtolower($uploadedName), $protected)) {
             http_response_code(403);
             exit(json_encode(['error' => 'Upload negado: impossível sobrescrever arquivo protegido do sistema.']));
         }
 
+        if (!file_exists($destDir)) {
+            @mkdir($destDir, 0777, true);
+            @chmod($destDir, 0777);
+        }
+
         if (move_uploaded_file($file['tmp_name'], $destPath)) {
-            echo json_encode(['success' => true, 'filename' => $uploadedName, 'dest' => str_replace($realBase, '', $destPath)]);
+            @chmod($destPath, 0666);
+            echo json_encode([
+                'success' => true,
+                'filename' => $uploadedName,
+                'dest' => str_replace($realBase, '', $destPath),
+                'relative' => trim(str_replace($realBase, '', $destPath), '/\\')
+            ]);
         } else {
             http_response_code(500);
-            exit(json_encode(['error' => 'Falha ao mover arquivo enviado para o destino. Verifique permissões.']));
+            exit(json_encode(['error' => 'Falha ao mover arquivo enviado para o destino. Verifique permissões de gravação na pasta do servidor.']));
         }
         break;
 
