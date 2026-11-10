@@ -265,12 +265,12 @@ if (!file_exists('config.php')) {
 
             <form id="login-form" class="space-y-4 text-left">
                 <div class="space-y-2">
-                    <label class="text-[10px] uppercase tracking-wider font-bold text-sky-400 pl-1">Usuário</label>
+                    <label class="text-[10px] uppercase tracking-wider font-bold text-sky-400 pl-1">Usuário ou E-mail</label>
                     <div class="relative">
                         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
                             <i data-lucide="user" class="w-4 h-4"></i>
                         </span>
-                        <input type="text" id="username" required placeholder="Ex: admin" class="w-full bg-slate-950 border border-slate-900 rounded-2xl py-3 pl-11 pr-4 text-sm text-white placeholder-slate-600 focus:border-sky-500 outline-none transition">
+                        <input type="text" id="username" required placeholder="Ex: admin@admin.com" class="w-full bg-slate-950 border border-slate-900 rounded-2xl py-3 pl-11 pr-4 text-sm text-white placeholder-slate-600 focus:border-sky-500 outline-none transition">
                     </div>
                 </div>
 
@@ -835,6 +835,9 @@ if (!file_exists('config.php')) {
                         <button id="pod-detail-update-btn" class="py-2 px-3 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-orange-400 font-bold rounded-xl text-[10px] flex items-center justify-center gap-1 cursor-pointer transition select-none">
                             <i data-lucide="refresh-cw" class="w-3 h-3"></i> Atualizar
                         </button>
+                        <button id="pod-detail-delete-btn" class="py-2 px-2.5 bg-slate-900 hover:bg-red-950/40 border border-slate-800 hover:border-red-900/50 text-slate-400 hover:text-red-400 font-bold rounded-xl text-[10px] flex items-center justify-center gap-1 cursor-pointer transition select-none" title="Excluir canal">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i>
+                        </button>
                     </div>
                 </div>
                 <div id="pod-episodes-list" class="space-y-2 max-h-96 overflow-y-auto no-scrollbar"></div>
@@ -1008,8 +1011,8 @@ if (!file_exists('config.php')) {
 
                 <!-- Albums list -->
                 <div>
-                    <h5 class="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Discografia e Álbuns</h5>
-                    <div class="grid grid-cols-2 gap-3" id="sheet-artist-albums-container">
+                    <h5 class="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Discografia por Tipo</h5>
+                    <div class="space-y-4" id="sheet-artist-albums-container">
                         <!-- Populated dynamically via JS -->
                     </div>
                 </div>
@@ -1347,6 +1350,103 @@ if (!file_exists('config.php')) {
         </div>
     </div>
 
+    <!-- MOBILE CAST TO ANDROID TV SHEET -->
+    <div id="mobile-cast-sheet" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-end">
+        <div class="bg-[#0b0f19] border-t border-slate-800 rounded-t-3xl w-full max-h-[85vh] flex flex-col shadow-2xl">
+            <!-- Sheet Header -->
+            <div class="p-4 border-b border-slate-900 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="p-2 bg-sky-500/10 text-sky-400 rounded-xl">
+                        <i data-lucide="tv" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <span class="text-xs font-black text-white uppercase tracking-wider block">Transmitir para TV</span>
+                        <span id="m-cast-status-sub" class="text-[9px] text-slate-400">UPnP / DLNA AVTransport</span>
+                    </div>
+                </div>
+                <button onclick="closeMobileCastSheet()" class="p-1 px-2.5 text-slate-400 hover:text-white transition cursor-pointer text-xs font-bold rounded-lg bg-slate-900">
+                    Fechar
+                </button>
+            </div>
+
+            <div class="p-4 space-y-4 overflow-y-auto custom-scroll">
+                <!-- Current song preview -->
+                <div class="p-3 rounded-2xl bg-slate-950/60 border border-slate-900 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <img id="m-cast-track-cover" src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100" class="w-10 h-10 rounded-xl object-cover border border-slate-800 shrink-0">
+                        <div class="truncate">
+                            <h5 id="m-cast-track-title" class="text-xs font-bold text-white truncate">Faixa ativa</h5>
+                            <p id="m-cast-track-artist" class="text-[9px] text-slate-400 truncate">Selecione uma faixa</p>
+                        </div>
+                    </div>
+                    <button onclick="mobileCastPlayCurrent()" id="m-btn-cast-play-now" class="px-3.5 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 shrink-0 active:scale-95">
+                        <i data-lucide="cast" class="w-3.5 h-3.5"></i>
+                        <span>Transmitir</span>
+                    </button>
+                </div>
+
+                <!-- Device Selector -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Dispositivos Android TV</span>
+                        <button onclick="mobileDiscoverCastDevices(this)" class="text-[9px] font-bold text-sky-400 hover:text-sky-300 flex items-center gap-1">
+                            <i data-lucide="refresh-cw" class="w-2.5 h-2.5"></i> Buscar
+                        </button>
+                    </div>
+                    <div id="m-cast-devices-list" class="space-y-1.5">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- TV Remote Playback Controls -->
+                <div class="p-3.5 rounded-2xl bg-slate-950/50 border border-slate-900 space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-900 pb-2">
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Controles Remotos na TV</span>
+                        <span id="m-cast-remote-status" class="text-[9px] font-mono text-emerald-400 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Aguardando
+                        </span>
+                    </div>
+
+                    <div class="flex items-center justify-center gap-3 py-1">
+                        <button onclick="mobileCastPause()" class="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white rounded-xl transition active:scale-95" title="Pausar">
+                            <i data-lucide="pause" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="mobileCastPlayCurrent()" class="p-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl transition active:scale-95 shadow-md shadow-sky-500/20" title="Reproduzir">
+                            <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+                        </button>
+                        <button onclick="mobileCastStop()" class="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-rose-400 rounded-xl transition active:scale-95" title="Parar">
+                            <i data-lucide="square" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+
+                    <!-- Volume -->
+                    <div class="flex items-center gap-2.5 pt-1">
+                        <i data-lucide="volume-2" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
+                        <input id="m-cast-tv-volume" oninput="mobileCastSetVolume(this.value)" type="range" min="0" max="100" value="65" class="flex-1 h-1.5 bg-slate-800 accent-sky-500 rounded-lg">
+                        <span id="m-cast-tv-volume-label" class="text-[9px] font-mono text-slate-400 w-7 text-right">65%</span>
+                    </div>
+                </div>
+
+                <!-- Quick TV Add -->
+                <div class="p-3 rounded-2xl bg-slate-950/30 border border-slate-900 space-y-2.5">
+                    <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Adicionar Android TV Manualmente</span>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input id="m-new-tv-name" placeholder="Nome (ex: Sala)" class="bg-slate-900 border border-slate-800 text-xs rounded-xl px-2.5 py-1.5 text-white outline-none">
+                        <input id="m-new-tv-ip" placeholder="IP (ex: 192.168.1.50)" class="bg-slate-900 border border-slate-800 text-xs rounded-xl px-2.5 py-1.5 text-white outline-none font-mono">
+                    </div>
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex gap-1">
+                            <button type="button" onclick="document.getElementById('m-new-tv-port').value = 1100" class="px-2 py-1 bg-slate-850 text-[8px] font-bold text-slate-300 rounded-lg border border-slate-800">Kodi (1100)</button>
+                            <button type="button" onclick="document.getElementById('m-new-tv-port').value = 58645" class="px-2 py-1 bg-slate-850 text-[8px] font-bold text-slate-300 rounded-lg border border-slate-800">Bubble (58645)</button>
+                        </div>
+                        <input id="m-new-tv-port" type="number" value="1100" class="w-16 bg-slate-900 border border-slate-800 text-xs rounded-xl px-2 py-1 text-white outline-none font-mono text-center">
+                        <button type="button" onclick="mobileSaveNewDevice()" class="px-3 py-1.5 bg-sky-500 text-white font-bold text-xs rounded-xl transition">Salvar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- AUDIO PLAYER CORE ENGINE (HTML5 AUDIO ELEMENT) -->
     <audio id="audio-app-element"></audio>
 
@@ -1364,13 +1464,18 @@ if (!file_exists('config.php')) {
                 <h4 id="mini-title" class="text-xs font-black text-white leading-tight truncate">Selecione uma faixa</h4>
                 <p id="mini-artist" class="text-[9px] text-sky-400 font-semibold truncate mt-0.5">Nenhuma reprodução ativa</p>
                 <!-- Mini progress visual bar -->
-                <div class="w-full bg-slate-850 h-[2px] rounded-full mt-1.5 overflow-hidden">
+                <div class="w-full bg-slate-855 h-[2px] rounded-full mt-1.5 overflow-hidden">
                     <div id="mini-progress-filled" class="bg-sky-400 h-full w-0"></div>
                 </div>
             </div>
         </div>
 
         <div class="flex items-center gap-1 shrink-0" onclick="event.stopPropagation()">
+            <!-- Cast to TV -->
+            <button onclick="openMobileCastModal()" id="mini-cast-btn" class="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition relative" title="Transmitir para TV">
+                <i data-lucide="tv" class="w-4 h-4"></i>
+                <span id="mini-cast-active-dot" class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-500 hidden animate-pulse"></span>
+            </button>
             <!-- Back / Previous -->
             <button onclick="playPrevious()" class="p-1 px-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition">
                 <i data-lucide="skip-back" class="w-4 h-4 fill-current"></i>
@@ -1398,6 +1503,11 @@ if (!file_exists('config.php')) {
                 <p id="full-player-playlist-name" class="text-[10px] text-sky-400 font-bold truncate mt-0.5 max-w-[140px]">Sintonizado</p>
             </div>
             <div class="flex items-center gap-1.5">
+                <!-- Cast to TV -->
+                <button id="m-btn-cast-tv" onclick="openMobileCastModal()" class="p-2.5 bg-slate-950/60 border border-slate-900 text-slate-400 hover:text-white rounded-2xl transition cursor-pointer relative" title="Transmitir para TV">
+                    <i data-lucide="tv" class="w-4 h-4"></i>
+                    <span id="m-cast-active-dot" class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 hidden animate-pulse"></span>
+                </button>
                 <!-- Add Active Song to favorites -->
                 <button id="full-player-fav-btn" onclick="toggleFavoriteActiveSong()" class="p-2.5 bg-slate-950/60 border border-slate-900 text-slate-400 hover:text-white rounded-2xl transition cursor-pointer" title="Favoritar música">
                     <i data-lucide="heart" class="w-4 h-4"></i>
@@ -2459,6 +2569,26 @@ if (!file_exists('config.php')) {
             loadAndPlayTrack();
         }
 
+        function logTrackPlay(trackId) {
+            try {
+                const u = (currentUser && currentUser.username) ? currentUser.username : 'admin';
+                const id = parseInt(trackId, 10);
+                if (id && id > 0) {
+                    fetch('api.php?route=log_play', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Username': u
+                        },
+                        body: JSON.stringify({
+                            username: u,
+                            song_id: id
+                        })
+                    }).catch(() => {});
+                }
+            } catch (e) {}
+        }
+
         // core streaming loader
         async function loadAndPlayTrack() {
             if (activeQueue.length === 0 || activeQueueIdx < 0 || activeQueueIdx >= activeQueue.length) return;
@@ -2521,6 +2651,10 @@ if (!file_exists('config.php')) {
                 .catch(err => {
                     console.error('Falha de reprodução automática de áudio:', err);
                 });
+
+            if (track && track.id) {
+                logTrackPlay(track.id);
+            }
 
             // Refresh dashboards highlight state colors
             renderInicioCatalog();
@@ -3034,43 +3168,65 @@ if (!file_exists('config.php')) {
                 };
             }
 
+            const deleteBtn = document.getElementById('pod-detail-delete-btn');
+            if (deleteBtn) {
+                deleteBtn.onclick = async () => {
+                    if (!confirm(`Deseja realmente remover o canal de podcast "${pod.name}" e seus episódios do servidor?`)) return;
+                    await window.deletePodcastMobile(pod.name);
+                };
+            }
+
             const listEl = document.getElementById('pod-episodes-list');
             listEl.innerHTML = '';
 
-            pod.episodes.forEach((ep, idx) => {
-                const epEl = document.createElement('div');
-                epEl.className = "group flex items-center justify-between p-3.5 bg-[#0a0f18]/45 hover:bg-orange-500/5 border border-slate-900/60 hover:border-orange-500/10 rounded-xl transition cursor-pointer";
-                
-                const mb = (ep.fileSize / (1024 * 1024)).toFixed(1);
-                
-                const minutes = Math.floor(ep.duration / 60);
-                const secs = ep.duration % 60;
-                const durStr = minutes + ":" + (secs < 10 ? "0" : "") + secs;
-
-                epEl.innerHTML = `
-                    <div class="flex items-center gap-3.5 min-w-0" onclick="playPodcastEpisodePhp('${pod.name}', '${ep.id}')">
-                        <div class="w-8 h-8 rounded-lg bg-slate-950 flex items-center justify-center text-slate-500 shrink-0 group-hover:bg-orange-500 group-hover:text-white transition">
-                            <span class="text-xs group-hover:hidden font-mono font-bold">${idx + 1}</span>
-                            <i data-lucide="play" class="w-3.5 h-3.5 fill-current hidden group-hover:block ml-0.5"></i>
-                        </div>
-                        <div class="truncate">
-                            <h5 class="text-xs font-bold text-white group-hover:text-orange-400 transition truncate">${ep.title}</h5>
-                            <p class="text-[10px] text-slate-500 mt-1 flex items-center gap-2">
-                                <span class="bg-slate-900 text-slate-500 px-1.5 py-0.2 rounded uppercase font-bold text-[8px]">${mb} MB</span>
-                                <span>•</span>
-                                <span>Pasta: <span class="font-mono text-slate-600">${ep.fileName}</span></span>
-                            </p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-4 text-[11px] text-slate-500 pr-2">
-                        <span class="font-mono">${durStr}</span>
+            if (!pod.episodes || pod.episodes.length === 0) {
+                listEl.innerHTML = `
+                    <div class="p-6 text-center bg-slate-900/40 border border-slate-900 rounded-xl space-y-1.5">
+                        <i data-lucide="headphones" class="w-6 h-6 text-slate-600 mx-auto"></i>
+                        <p class="text-xs font-bold text-slate-300">Nenhum episódio no disco</p>
+                        <p class="text-[10px] text-slate-500">Podcast ativo. Toque em "Atualizar" para buscar e baixar os episódios do feed RSS.</p>
                     </div>
                 `;
-                listEl.appendChild(epEl);
-            });
+            } else {
+                pod.episodes.forEach((ep, idx) => {
+                    const epEl = document.createElement('div');
+                    epEl.className = "group flex items-center justify-between p-3.5 bg-[#0a0f18]/45 hover:bg-orange-500/5 border border-slate-900/60 hover:border-orange-500/10 rounded-xl transition cursor-pointer";
+                    
+                    const mb = (ep.fileSize / (1024 * 1024)).toFixed(1);
+                    
+                    const minutes = Math.floor(ep.duration / 60);
+                    const secs = ep.duration % 60;
+                    const durStr = minutes + ":" + (secs < 10 ? "0" : "") + secs;
+
+                    epEl.innerHTML = `
+                        <div class="flex items-center gap-3.5 min-w-0" onclick="playPodcastEpisodePhp('${pod.name}', '${ep.id}')">
+                            <div class="w-8 h-8 rounded-lg bg-slate-950 flex items-center justify-center text-slate-500 shrink-0 group-hover:bg-orange-500 group-hover:text-white transition">
+                                <span class="text-xs group-hover:hidden font-mono font-bold">${idx + 1}</span>
+                                <i data-lucide="play" class="w-3.5 h-3.5 fill-current hidden group-hover:block ml-0.5"></i>
+                            </div>
+                            <div class="truncate">
+                                <h5 class="text-xs font-bold text-white group-hover:text-orange-400 transition truncate">${ep.title}</h5>
+                                <p class="text-[10px] text-slate-500 mt-1 flex items-center gap-2">
+                                    <span class="bg-slate-900 text-slate-500 px-1.5 py-0.2 rounded uppercase font-bold text-[8px]">${mb} MB</span>
+                                    <span>•</span>
+                                    <span>Pasta: <span class="font-mono text-slate-600">${ep.fileName}</span></span>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4 text-[11px] text-slate-500 pr-2">
+                            <span class="font-mono">${durStr}</span>
+                        </div>
+                    `;
+                    listEl.appendChild(epEl);
+                });
+            }
 
             const playAllBtn = document.getElementById('pod-play-all-btn');
             playAllBtn.onclick = () => {
+                if (!pod.episodes || pod.episodes.length === 0) {
+                    alert("Nenhum episódio disponível para tocar neste podcast. Toque em Atualizar para sincronizar.");
+                    return;
+                }
                 const tracksToPlay = pod.episodes.map(convertPodcastEpisodeToPlayerTrack);
                 playQueuePhp(tracksToPlay, 0);
             };
@@ -3081,23 +3237,37 @@ if (!file_exists('config.php')) {
         }
         window.showPodcastDetailsPhp = showPodcastDetailsPhp;
 
-        function convertPodcastEpisodeToPlayerTrack(ep) {
-            return {
-                id: ep.id,
-                title: ep.title,
-                artist: ep.artist,
-                album: ep.album,
-                duration: ep.duration,
-                cover_url: ep.coverUrl,
-                file_name: ep.fileName,
-                file_size: ep.fileSize
-            };
+        async function deletePodcastMobile(podName) {
+            if (currentUser && currentUser.role !== 'admin') {
+                alert("Apenas administradores podem excluir canais de podcast.");
+                return;
+            }
+            try {
+                const res = await fetch(API + '?route=podcast_delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ podcastName: podName })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    if (window.loadData) await window.loadData();
+                    await loadPodcastsPhp();
+                    const detailsEl = document.getElementById('podcast-details');
+                    if (detailsEl) detailsEl.classList.add('hidden');
+                } else {
+                    alert("Erro ao excluir podcast: " + (data.error || 'Falha ao processar.'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Erro de rede ao excluir podcast.");
+            }
         }
+        window.deletePodcastMobile = deletePodcastMobile;
 
         window.playPodcastEpisodePhp = function(podName, epId) {
             const pod = allPodcasts.find(p => p.name === podName);
             if (!pod) return;
-            const targetIdx = pod.episodes.findIndex(e => e.id === epId);
+            const targetIdx = pod.episodes.findIndex(e => String(e.id) === String(epId));
             const tracksToPlay = pod.episodes.map(convertPodcastEpisodeToPlayerTrack);
             playQueuePhp(tracksToPlay, targetIdx !== -1 ? targetIdx : 0);
         };
@@ -3747,28 +3917,101 @@ if (!file_exists('config.php')) {
                 }
             };
 
-            // Render all albums of this artist
+            // Render all albums of this artist separated by album_type
             const albumsContainer = document.getElementById('sheet-artist-albums-container');
             
-            // Filter albums belonging to this artist
-            const artistAlbums = [];
-            Object.values(albumsMap).forEach(album => {
-                if (album.artist === artistName) {
-                    artistAlbums.push(album);
+            function normalizeMobileAlbumType(rawType, albumTitle = '') {
+                const val = String(rawType || '').trim().toLowerCase();
+                if (['album', 'álbum', 'estudio', 'estúdio', 'studio'].includes(val)) return 'album';
+                if (['ep'].includes(val)) return 'ep';
+                if (['single', 'singles'].includes(val)) return 'single';
+                if (['live', 'ao vivo', 'aovivo'].includes(val)) return 'live';
+                if (['compilation', 'compilação', 'compilacao', 'coletânea', 'coletanea'].includes(val)) return 'compilation';
+                if (String(albumTitle || '').trim().toLowerCase() === 'single') return 'single';
+                return 'album';
+            }
+
+            const mobileTypeMeta = {
+                album: { singular: 'Álbum', plural: 'Álbuns', badge: 'bg-sky-500/15 text-sky-400 border-sky-500/30' },
+                ep: { singular: 'EP', plural: 'EPs', badge: 'bg-violet-500/15 text-violet-400 border-violet-500/30' },
+                single: { singular: 'Single', plural: 'Singles', badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
+                live: { singular: 'Ao Vivo', plural: 'Álbuns ao Vivo', badge: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
+                compilation: { singular: 'Compilação', plural: 'Compilações', badge: 'bg-rose-500/15 text-rose-400 border-rose-500/30' }
+            };
+
+            // Group artist tracks directly by album so multi-artist or single albums of this artist are included
+            const artistAlbumsMap = {};
+            artistTracks.forEach(trk => {
+                const albTitle = trk.album || 'Single';
+                if (!artistAlbumsMap[albTitle]) {
+                    artistAlbumsMap[albTitle] = {
+                        title: albTitle,
+                        coverUrl: trk.cover_url || trk.coverUrl || (albumsMap[albTitle] && albumsMap[albTitle].coverUrl) || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300',
+                        tracks: [],
+                        year: null,
+                        type: 'album'
+                    };
+                }
+                artistAlbumsMap[albTitle].tracks.push(trk);
+                if (!artistAlbumsMap[albTitle].year && trk.album_year) {
+                    artistAlbumsMap[albTitle].year = parseInt(trk.album_year);
                 }
             });
 
+            const artistAlbums = Object.values(artistAlbumsMap).map(alb => {
+                let rawType = '';
+                for (const t of alb.tracks) {
+                    if (t.album_type && String(t.album_type).trim() !== '' && String(t.album_type).trim().toLowerCase() !== 'album') {
+                        rawType = t.album_type;
+                        break;
+                    }
+                }
+                if (!rawType && alb.tracks[0] && alb.tracks[0].album_type) {
+                    rawType = alb.tracks[0].album_type;
+                }
+                alb.type = normalizeMobileAlbumType(rawType, alb.title);
+                return alb;
+            });
+
+            artistAlbums.sort((a, b) => {
+                if (a.year && b.year) return a.year - b.year;
+                if (a.year) return -1;
+                if (b.year) return 1;
+                return a.title.localeCompare(b.title, 'pt-BR');
+            });
+
             if (artistAlbums.length === 0) {
-                albumsContainer.innerHTML = '<div class="col-span-2 text-center text-xs text-slate-650 py-6">Nenhum álbum encontrado para este artista.</div>';
+                albumsContainer.innerHTML = '<div class="text-center text-xs text-slate-650 py-6">Nenhum álbum encontrado para este artista.</div>';
             } else {
+                const typeOrder = ['album', 'ep', 'single', 'live', 'compilation'];
                 let html = '';
-                artistAlbums.forEach(album => {
+                typeOrder.forEach(tKey => {
+                    const group = artistAlbums.filter(a => a.type === tKey);
+                    if (group.length === 0) return;
+                    const meta = mobileTypeMeta[tKey] || mobileTypeMeta.album;
                     html += `
-                        <div onclick="closeArtistSheet(); setTimeout(() => openAlbumSheet('${encodeURIComponent(album.title)}'), 300)" class="bg-slate-950/50 border border-slate-900/60 p-2.5 rounded-2xl flex flex-col gap-2.5 cursor-pointer active:scale-95 transition">
-                            <img src="${album.coverUrl}" class="w-full aspect-square object-cover rounded-xl border border-slate-800/40" referrerpolicy="no-referrer">
-                            <div class="truncate select-none px-1">
-                                <h6 class="text-[10px] font-black text-white truncate leading-tight">${album.title}</h6>
-                                <p class="text-[8px] text-slate-500 mt-0.5 truncate">${album.tracks.length} músicas</p>
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between border-b border-slate-900/80 pb-1">
+                                <span class="text-[10px] font-black uppercase tracking-wider text-white">${meta.plural}</span>
+                                <span class="text-[9px] font-mono text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded-full border border-slate-800">${group.length}</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                    `;
+                    group.forEach(album => {
+                        html += `
+                            <div onclick="closeArtistSheet(); setTimeout(() => openAlbumSheet('${encodeURIComponent(album.title)}'), 300)" class="bg-slate-950/50 border border-slate-900/60 p-2.5 rounded-2xl flex flex-col gap-2.5 cursor-pointer active:scale-95 transition">
+                                <div class="relative">
+                                    <img src="${album.coverUrl}" class="w-full aspect-square object-cover rounded-xl border border-slate-800/40" referrerpolicy="no-referrer">
+                                    <span class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded border text-[8px] font-black uppercase backdrop-blur-md ${meta.badge}">${meta.singular}</span>
+                                </div>
+                                <div class="truncate select-none px-1">
+                                    <h6 class="text-[10px] font-black text-white truncate leading-tight">${album.title}</h6>
+                                    <p class="text-[8px] text-slate-500 mt-0.5 truncate">${album.year ? album.year + ' • ' : ''}${album.tracks.length} ${album.tracks.length === 1 ? 'música' : 'músicas'}</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += `
                             </div>
                         </div>
                     `;
@@ -4018,6 +4261,309 @@ if (!file_exists('config.php')) {
                 console.error("Erro operacional ao atualizar DLNA:", err);
                 showToast("Erro operacional ao atualizar DLNA.");
             }
+        };
+
+        // ========================================================
+        // MOBILE CAST TO ANDROID TV (UPNP AVTRANSPORT)
+        // ========================================================
+        window.mobileCastState = {
+            devices: [],
+            activeDeviceId: null,
+            serverIp: '',
+            serverPort: 3000,
+            isCasting: false
+        };
+
+        window.openMobileCastModal = function() {
+            const sheet = document.getElementById('mobile-cast-sheet');
+            if (!sheet) return;
+
+            // Track info
+            const tr = (typeof activeQueue !== 'undefined' && activeQueueIdx >= 0 && activeQueueIdx < activeQueue.length) ? activeQueue[activeQueueIdx] : null;
+            const coverEl = document.getElementById('m-cast-track-cover');
+            const titleEl = document.getElementById('m-cast-track-title');
+            const artistEl = document.getElementById('m-cast-track-artist');
+
+            if (tr) {
+                if (coverEl) coverEl.src = tr.cover_url || tr.coverUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100';
+                if (titleEl) titleEl.textContent = tr.title || 'Música Desconhecida';
+                if (artistEl) artistEl.textContent = tr.artist || 'Artista';
+            } else {
+                const miniTitle = document.getElementById('mini-title')?.textContent;
+                const miniArtist = document.getElementById('mini-artist')?.textContent;
+                const miniCover = document.getElementById('mini-cover-art')?.src;
+                if (miniTitle && miniTitle !== 'Selecione uma faixa') {
+                    if (titleEl) titleEl.textContent = miniTitle;
+                    if (artistEl) artistEl.textContent = miniArtist || '';
+                    if (coverEl && miniCover) coverEl.src = miniCover;
+                }
+            }
+
+            sheet.classList.remove('hidden');
+            window.loadMobileCastDevices();
+            if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+        };
+
+        window.closeMobileCastSheet = function() {
+            const sheet = document.getElementById('mobile-cast-sheet');
+            if (sheet) sheet.classList.add('hidden');
+        };
+
+        window.loadMobileCastDevices = async function() {
+            try {
+                const res = await fetch('api.php?route=cast_devices');
+                if (res.ok) {
+                    const data = await res.json();
+                    window.mobileCastState.devices = data.devices || [];
+                    window.mobileCastState.activeDeviceId = data.activeDeviceId || (window.mobileCastState.devices[0]?.id ?? '');
+                    window.mobileCastState.serverIp = data.serverIp || '';
+                    window.mobileCastState.serverPort = data.serverPort || 3000;
+                    window.renderMobileCastDevices();
+                }
+            } catch (err) {
+                console.error("Erro ao carregar dispositivos:", err);
+            }
+        };
+
+        window.renderMobileCastDevices = function() {
+            const container = document.getElementById('m-cast-devices-list');
+            if (!container) return;
+
+            if (!window.mobileCastState.devices || window.mobileCastState.devices.length === 0) {
+                container.innerHTML = '<div class="text-[10px] text-slate-500 py-2 text-center">Nenhum receptor cadastrado.</div>';
+                return;
+            }
+
+            let html = '';
+            window.mobileCastState.devices.forEach((dev) => {
+                const isSelected = dev.id === window.mobileCastState.activeDeviceId;
+                const badgeLabel = dev.type === 'kodi' ? 'Kodi' : (dev.type === 'bubbleupnp' ? 'Bubble' : 'DLNA');
+
+                html += `
+                    <div onclick="mobileSelectDevice('${dev.id}')" class="p-2.5 rounded-xl border transition flex items-center justify-between cursor-pointer select-none ${isSelected ? 'bg-sky-500/10 border-sky-500/50 text-white' : 'bg-slate-950/40 border-slate-900 text-slate-300'}">
+                        <div class="flex items-center gap-2.5 truncate">
+                            <div class="p-1.5 rounded-lg ${isSelected ? 'bg-sky-500 text-white' : 'bg-slate-900 text-slate-400'}">
+                                <i data-lucide="tv" class="w-3.5 h-3.5"></i>
+                            </div>
+                            <div class="truncate">
+                                <div class="text-xs font-bold flex items-center gap-1.5 truncate">
+                                    <span class="truncate">${dev.name}</span>
+                                    <span class="text-[8px] px-1 py-0.2 rounded font-mono bg-slate-900 border border-slate-800 text-sky-400">${badgeLabel}</span>
+                                </div>
+                                <div class="text-[9px] text-slate-500 font-mono">${dev.ip}:${dev.port}</div>
+                            </div>
+                        </div>
+                        <div class="w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-sky-500 bg-sky-500' : 'border-slate-700'}">
+                            ${isSelected ? '<div class="w-1.5 h-1.5 rounded-full bg-white"></div>' : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+        };
+
+        window.mobileSelectDevice = async function(deviceId) {
+            window.mobileCastState.activeDeviceId = deviceId;
+            window.renderMobileCastDevices();
+            try {
+                await fetch('api.php?route=cast_devices', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ activeDeviceId: deviceId })
+                });
+            } catch (e) {}
+        };
+
+        window.mobileCastPlayCurrent = async function() {
+            let tr = (typeof activeQueue !== 'undefined' && activeQueueIdx >= 0 && activeQueueIdx < activeQueue.length) ? activeQueue[activeQueueIdx] : null;
+            if (!tr) {
+                const miniTitle = document.getElementById('mini-title')?.textContent;
+                const miniArtist = document.getElementById('mini-artist')?.textContent;
+                const miniCover = document.getElementById('mini-cover-art')?.src;
+                if (miniTitle && miniTitle !== 'Selecione uma faixa') {
+                    tr = { id: 'm-current', title: miniTitle, artist: miniArtist || '', coverUrl: miniCover || '', url: audio?.src || '' };
+                }
+            }
+
+            if (!tr) {
+                showToast("Nenhuma faixa ativa para transmitir.");
+                return;
+            }
+
+            const activeDev = window.mobileCastState.devices.find(d => d.id === window.mobileCastState.activeDeviceId) || window.mobileCastState.devices[0];
+            if (!activeDev) {
+                showToast("Adicione um IP de Android TV primeiro.");
+                return;
+            }
+
+            const playBtn = document.getElementById('m-btn-cast-play-now');
+            const originalHtml = playBtn ? playBtn.innerHTML : '';
+            if (playBtn) {
+                playBtn.disabled = true;
+                playBtn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i>';
+                if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+            }
+
+            const remoteStatus = document.getElementById('m-cast-remote-status');
+            if (remoteStatus) remoteStatus.textContent = 'Conectando...';
+
+            try {
+                const payload = {
+                    deviceId: activeDev.id,
+                    ip: activeDev.ip,
+                    port: activeDev.port,
+                    controlUrl: activeDev.controlUrl || '/AVTransport/control',
+                    track: {
+                        id: tr.id,
+                        title: tr.title,
+                        artist: tr.artist,
+                        album: tr.album || 'PHPlayer',
+                        coverUrl: tr.cover_url || tr.coverUrl || '',
+                        url: tr.url || tr.stream_url || audio?.src || ''
+                    },
+                    serverIp: window.mobileCastState.serverIp
+                };
+
+                const res = await fetch('api.php?route=cast_play', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    window.mobileCastState.isCasting = true;
+                    if (audio && !audio.paused) {
+                        audio.pause();
+                        isPlaying = false;
+                        const miniBtn = document.getElementById('mini-play-btn');
+                        if (miniBtn) miniBtn.innerHTML = '<i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>';
+                    }
+
+                    document.getElementById('m-cast-active-dot')?.classList.remove('hidden');
+                    document.getElementById('mini-cast-active-dot')?.classList.remove('hidden');
+
+                    if (remoteStatus) {
+                        remoteStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Tocando na TV`;
+                    }
+                    showToast("Música enviada para a Android TV!");
+                } else {
+                    showToast(data.error || "Erro ao conectar à Android TV.");
+                    if (remoteStatus) remoteStatus.textContent = 'Erro ao conectar';
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Falha de rede ao transmitir.");
+            } finally {
+                if (playBtn) {
+                    playBtn.disabled = false;
+                    playBtn.innerHTML = originalHtml;
+                    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+                }
+            }
+        };
+
+        window.mobileCastPause = async function() {
+            const activeDev = window.mobileCastState.devices.find(d => d.id === window.mobileCastState.activeDeviceId) || window.mobileCastState.devices[0];
+            if (!activeDev) return;
+            try {
+                await fetch('api.php?route=cast_pause', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ deviceId: activeDev.id, ip: activeDev.ip, port: activeDev.port, controlUrl: activeDev.controlUrl })
+                });
+                const remoteStatus = document.getElementById('m-cast-remote-status');
+                if (remoteStatus) remoteStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Pausado`;
+            } catch (e) {}
+        };
+
+        window.mobileCastStop = async function() {
+            const activeDev = window.mobileCastState.devices.find(d => d.id === window.mobileCastState.activeDeviceId) || window.mobileCastState.devices[0];
+            if (!activeDev) return;
+            try {
+                await fetch('api.php?route=cast_stop', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ deviceId: activeDev.id, ip: activeDev.ip, port: activeDev.port, controlUrl: activeDev.controlUrl })
+                });
+                window.mobileCastState.isCasting = false;
+                document.getElementById('m-cast-active-dot')?.classList.add('hidden');
+                document.getElementById('mini-cast-active-dot')?.classList.add('hidden');
+                const remoteStatus = document.getElementById('m-cast-remote-status');
+                if (remoteStatus) remoteStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> Parado`;
+            } catch (e) {}
+        };
+
+        let mCastVolTimeout = null;
+        window.mobileCastSetVolume = function(val) {
+            const label = document.getElementById('m-cast-tv-volume-label');
+            if (label) label.textContent = val + '%';
+            clearTimeout(mCastVolTimeout);
+            mCastVolTimeout = setTimeout(async () => {
+                const activeDev = window.mobileCastState.devices.find(d => d.id === window.mobileCastState.activeDeviceId) || window.mobileCastState.devices[0];
+                if (!activeDev) return;
+                try {
+                    await fetch('api.php?route=cast_volume', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ deviceId: activeDev.id, ip: activeDev.ip, port: activeDev.port, volume: parseInt(val, 10) })
+                    });
+                } catch (e) {}
+            }, 300);
+        };
+
+        window.mobileSaveNewDevice = async function() {
+            const name = document.getElementById('m-new-tv-name')?.value.trim() || 'Android TV';
+            const ip = document.getElementById('m-new-tv-ip')?.value.trim();
+            const port = parseInt(document.getElementById('m-new-tv-port')?.value.trim() || '1100', 10);
+
+            if (!ip) {
+                showToast("Digite o IP da TV.");
+                return;
+            }
+
+            const newDev = {
+                id: 'tv-' + Date.now(),
+                name: name,
+                ip: ip,
+                port: port,
+                controlUrl: '/AVTransport/control',
+                type: port === 1100 ? 'kodi' : (port === 58645 ? 'bubbleupnp' : 'smart_tv'),
+                isDefault: false
+            };
+
+            window.mobileCastState.devices.push(newDev);
+            window.mobileCastState.activeDeviceId = newDev.id;
+
+            try {
+                await fetch('api.php?route=cast_devices', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        devices: window.mobileCastState.devices,
+                        activeDeviceId: newDev.id
+                    })
+                });
+                showToast("TV salva com sucesso!");
+            } catch (e) {}
+
+            window.renderMobileCastDevices();
+            const nameInput = document.getElementById('m-new-tv-name');
+            const ipInput = document.getElementById('m-new-tv-ip');
+            if (nameInput) nameInput.value = '';
+            if (ipInput) ipInput.value = '';
+        };
+
+        window.mobileDiscoverCastDevices = async function(btn) {
+            try {
+                const res = await fetch('api.php?route=cast_discover');
+                if (res.ok) {
+                    await window.loadMobileCastDevices();
+                    showToast("Busca na rede concluída.");
+                }
+            } catch (e) {}
         };
 
         window.getAudioSourceCachedAndFetch = async function(trackId, rawUrl, fullTrackObj = null) {

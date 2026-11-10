@@ -1648,6 +1648,9 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                             <button id="pod-detail-update-btn" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-orange-400 hover:text-orange-300 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
                                 <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Atualizar
                             </button>
+                            <button id="pod-detail-delete-btn" class="admin-only px-3.5 py-2.5 bg-slate-900 hover:bg-red-950/40 border border-slate-800 hover:border-red-900/50 text-slate-400 hover:text-red-400 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer" title="Excluir este canal de podcast e seus episódios">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Excluir
+                            </button>
                             <button id="pod-play-all-btn" class="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-black text-xs rounded-xl transition flex items-center gap-2 cursor-pointer shadow-lg shadow-orange-500/10">
                                 <i data-lucide="play" class="w-4 h-4 fill-white text-white"></i> Tocar em Ordem
                             </button>
@@ -3100,6 +3103,100 @@ let currentUser = null;
             return min + ":" + (r < 10 ? '0' : '') + r;
         }
 
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function logTrackPlay(trackId) {
+            try {
+                const u = (currentUser && currentUser.username) ? currentUser.username : 'admin';
+                const id = parseInt(trackId, 10);
+                if (id && id > 0) {
+                    fetch('api.php?route=log_play', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Username': u
+                        },
+                        body: JSON.stringify({
+                            username: u,
+                            song_id: id
+                        })
+                    }).catch(() => {});
+                }
+            } catch (e) {}
+        }
+
+        async function loadPlayStats() {
+            const timeEl = document.getElementById('stats-total-time');
+            const listEl = document.getElementById('stats-top-songs');
+            if (!listEl) return;
+            
+            listEl.innerHTML = '<div class="text-xs text-slate-500 italic p-3 text-center">Carregando estatísticas...</div>';
+            
+            try {
+                const username = (currentUser && currentUser.username) ? currentUser.username : 'admin';
+                const res = await fetch(`api.php?route=get_play_stats&username=${encodeURIComponent(username)}`);
+                const data = await res.json();
+                
+                if (data.success) {
+                    // Atualizar tempo total formatado
+                    const totalSecs = data.totalSeconds || 0;
+                    const hours = Math.floor(totalSecs / 3600);
+                    const minutes = Math.floor((totalSecs % 3600) / 60);
+                    if (timeEl) {
+                        timeEl.textContent = `${hours}h ${minutes}m`;
+                    }
+                    
+                    // Renderizar top músicas
+                    const songs = data.topSongs || [];
+                    if (songs.length === 0) {
+                        listEl.innerHTML = `
+                            <div class="text-center py-6 text-slate-500 space-y-2">
+                                <i data-lucide="music" class="w-8 h-8 mx-auto opacity-30"></i>
+                                <p class="text-xs font-bold text-slate-400">Nenhuma reprodução registrada ainda.</p>
+                                <p class="text-[10px] text-slate-500">Toque suas músicas favoritas no player para gerar estatísticas em tempo real!</p>
+                            </div>
+                        `;
+                    } else {
+                        listEl.innerHTML = songs.map((s, idx) => {
+                            const cover = s.cover_url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100';
+                            const plays = s.play_count || 1;
+                            const medalColor = idx === 0 ? 'text-yellow-400' : (idx === 1 ? 'text-slate-300' : (idx === 2 ? 'text-amber-600' : 'text-slate-500'));
+                            return `
+                                <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/40 border border-slate-900/80 hover:border-slate-800 transition">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <span class="w-5 text-center font-black text-xs ${medalColor}">#${idx + 1}</span>
+                                        <img src="${cover}" class="w-9 h-9 rounded-lg object-cover bg-slate-900 border border-slate-800 shrink-0" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100'">
+                                        <div class="min-w-0">
+                                            <div class="text-xs font-bold text-white truncate">${escapeHtml(s.title || 'Música')}</div>
+                                            <div class="text-[10px] text-slate-400 truncate">${escapeHtml(s.artist || 'Artista')}</div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right shrink-0 pl-2">
+                                        <span class="text-xs font-black font-mono text-sky-400">${plays}</span>
+                                        <span class="text-[9px] text-slate-500 uppercase font-bold block">${plays === 1 ? 'play' : 'plays'}</span>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                } else {
+                    listEl.innerHTML = `<div class="text-xs text-red-400 p-3 text-center">${escapeHtml(data.error || 'Erro ao carregar estatísticas.')}</div>`;
+                }
+            } catch (err) {
+                console.error("Erro ao carregar estatísticas:", err);
+                listEl.innerHTML = '<div class="text-xs text-red-400 p-3 text-center">Falha de conexão ao carregar estatísticas.</div>';
+            }
+            if (window.lucide) lucide.createIcons();
+        }
+
         let configActiveSubTab = 'theme';
         function setConfigSubTab(subTabName) {
             const adminTabs = ['media', 'users', 'files', 'id3', 'shares', 'dashboard_cfg', 'updates'];
@@ -3110,12 +3207,14 @@ let currentUser = null;
             
             // Hide all subtab panes
             document.getElementById('subtab-pane-theme').classList.add('hidden');
+            const statsPane = document.getElementById('subtab-pane-stats');
+            if (statsPane) statsPane.classList.add('hidden');
             document.getElementById('subtab-pane-media').classList.add('hidden');
             document.getElementById('subtab-pane-users').classList.add('hidden');
             const pwdPane = document.getElementById('subtab-pane-password');
             const sharesPane = document.getElementById('subtab-pane-shares');
             if (sharesPane) sharesPane.classList.add('hidden');
-const updPane = document.getElementById('subtab-pane-updates');
+            const updPane = document.getElementById('subtab-pane-updates');
             if (updPane) updPane.classList.add('hidden');
             const pshares = document.getElementById('subtab-pane-shares'); if(pshares) pshares.classList.add('hidden');
             if (pwdPane) pwdPane.classList.add('hidden');
@@ -3127,7 +3226,7 @@ const updPane = document.getElementById('subtab-pane-updates');
             if (id3Pane) id3Pane.classList.add('hidden');
             
             // Hide all nav button markers
-            const subBtns = ['theme', 'media', 'dashboard_cfg', 'shares', 'users', 'password', 'files', 'shortcuts', 'id3', 'updates'];
+            const subBtns = ['theme', 'stats', 'media', 'dashboard_cfg', 'shares', 'users', 'password', 'files', 'shortcuts', 'id3', 'updates'];
             subBtns.forEach(sb => {
                 const el = document.getElementById('subtab-btn-' + sb);
                 if (el) {
@@ -3143,6 +3242,9 @@ const updPane = document.getElementById('subtab-pane-updates');
                 activeSubBtn.className = "pb-2 text-xs font-bold border-b-2 border-sky-500 text-white cursor-pointer select-none";
             }
             
+            if (subTabName === 'stats') {
+                loadPlayStats();
+            }
             if (subTabName === 'users') {
                 renderUsersTable();
             }
@@ -6556,6 +6658,10 @@ document.addEventListener('fullscreenchange', (event) => {
             isPlaying = true;
             document.getElementById('player-play-btn').innerHTML = `<i data-lucide="pause" class="w-4 h-4 fill-current"></i>`;
             lucide.createIcons();
+
+            if (track && track.id) {
+                logTrackPlay(track.id);
+            }
             
             // update highlighting on tables
             renderTracksTable();
@@ -9259,41 +9365,65 @@ async function deleteUser(username) {
                 };
             }
 
-            pod.episodes.forEach((ep, idx) => {
-                const epEl = document.createElement('div');
-                epEl.className = "group flex items-center justify-between p-3.5 bg-[#0a0f18]/45 hover:bg-orange-500/5 border border-slate-900/60 hover:border-orange-500/10 rounded-xl transition cursor-pointer";
-                
-                const mb = (ep.fileSize / (1024 * 1024)).toFixed(1);
-                
-                const minutes = Math.floor(ep.duration / 60);
-                const secs = ep.duration % 60;
-                const durStr = minutes + ":" + (secs < 10 ? "0" : "") + secs;
+            const deleteBtn = document.getElementById('pod-detail-delete-btn');
+            if (deleteBtn) {
+                deleteBtn.onclick = async () => {
+                    if (!confirm(`Deseja realmente remover o canal de podcast "${pod.name}" e excluir todos os seus episódios do servidor?`)) return;
+                    await window.deletePodcastPhp(pod.name);
+                };
+            }
 
-                epEl.innerHTML = `
-                    <div class="flex items-center gap-3.5 min-w-0" onclick="playPodcastEpisodePhp('${pod.name}', '${ep.id}')">
-                        <div class="w-8 h-8 rounded-lg bg-slate-950 flex items-center justify-center text-slate-500 shrink-0 group-hover:bg-orange-500 group-hover:text-white transition">
-                            <span class="text-xs group-hover:hidden font-mono font-bold">${idx + 1}</span>
-                            <i data-lucide="play" class="w-3.5 h-3.5 fill-current hidden group-hover:block ml-0.5"></i>
+            if (!pod.episodes || pod.episodes.length === 0) {
+                if (listEl) {
+                    listEl.innerHTML = `
+                        <div class="p-8 text-center bg-slate-900/30 border border-slate-900 rounded-2xl space-y-2">
+                            <i data-lucide="headphones" class="w-8 h-8 text-slate-600 mx-auto"></i>
+                            <h5 class="text-xs font-bold text-slate-300">Nenhum episódio baixado no disco</h5>
+                            <p class="text-[11px] text-slate-500">Este podcast está cadastrado e ativo no sistema. Clique no botão "Atualizar" acima para sincronizar os episódios do feed RSS.</p>
                         </div>
-                        <div class="truncate">
-                            <h5 class="text-xs font-bold text-white group-hover:text-orange-400 transition truncate">${ep.title}</h5>
-                            <p class="text-[10px] text-slate-500 mt-1 flex items-center gap-2">
-                                <span class="bg-slate-900 text-slate-500 px-1.5 py-0.2 rounded uppercase font-bold text-[8px]">${mb} MB</span>
-                                <span>•</span>
-                                <span>Pasta: <span class="font-mono text-slate-600">${ep.fileName}</span></span>
-                            </p>
+                    `;
+                }
+            } else {
+                pod.episodes.forEach((ep, idx) => {
+                    const epEl = document.createElement('div');
+                    epEl.className = "group flex items-center justify-between p-3.5 bg-[#0a0f18]/45 hover:bg-orange-500/5 border border-slate-900/60 hover:border-orange-500/10 rounded-xl transition cursor-pointer";
+                    
+                    const mb = (ep.fileSize / (1024 * 1024)).toFixed(1);
+                    
+                    const minutes = Math.floor(ep.duration / 60);
+                    const secs = ep.duration % 60;
+                    const durStr = minutes + ":" + (secs < 10 ? "0" : "") + secs;
+
+                    epEl.innerHTML = `
+                        <div class="flex items-center gap-3.5 min-w-0" onclick="playPodcastEpisodePhp('${pod.name}', '${ep.id}')">
+                            <div class="w-8 h-8 rounded-lg bg-slate-950 flex items-center justify-center text-slate-500 shrink-0 group-hover:bg-orange-500 group-hover:text-white transition">
+                                <span class="text-xs group-hover:hidden font-mono font-bold">${idx + 1}</span>
+                                <i data-lucide="play" class="w-3.5 h-3.5 fill-current hidden group-hover:block ml-0.5"></i>
+                            </div>
+                            <div class="truncate">
+                                <h5 class="text-xs font-bold text-white group-hover:text-orange-400 transition truncate">${ep.title}</h5>
+                                <p class="text-[10px] text-slate-500 mt-1 flex items-center gap-2">
+                                    <span class="bg-slate-900 text-slate-500 px-1.5 py-0.2 rounded uppercase font-bold text-[8px]">${mb} MB</span>
+                                    <span>•</span>
+                                    <span>Pasta: <span class="font-mono text-slate-600">${ep.fileName}</span></span>
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex items-center gap-4 text-[11px] text-slate-500 pr-2">
-                        <span class="font-mono">${durStr}</span>
-                    </div>
-                `;
-                if (listEl) listEl.appendChild(epEl);
-            });
+                        <div class="flex items-center gap-4 text-[11px] text-slate-500 pr-2">
+                            <span class="font-mono">${durStr}</span>
+                        </div>
+                    `;
+                    if (listEl) listEl.appendChild(epEl);
+                });
+            }
 
             const playAllBtn = document.getElementById('pod-play-all-btn');
             if (playAllBtn) {
                 playAllBtn.onclick = () => {
+                    if (!pod.episodes || pod.episodes.length === 0) {
+                        alert("Nenhum episódio disponível para tocar neste podcast. Clique em Atualizar para baixar episódios.");
+                        return;
+                    }
                     const tracksToPlay = pod.episodes.map(convertPodcastEpisodeToPlayerTrack);
                     playQueuePhp(tracksToPlay, 0);
                 };
@@ -9306,6 +9436,33 @@ async function deleteUser(username) {
             lucide.createIcons();
         }
         window.showPodcastDetailsPhp = showPodcastDetailsPhp;
+
+        async function deletePodcastPhp(podName) {
+            if (currentUser && currentUser.role !== 'admin') {
+                alert("Apenas administradores podem excluir canais de podcast.");
+                return;
+            }
+            try {
+                const res = await fetch(API + '?route=podcast_delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ podcastName: podName })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    if (window.loadData) await window.loadData();
+                    await loadPodcastsPhp();
+                    const detailsEl = document.getElementById('podcast-details');
+                    if (detailsEl) detailsEl.classList.add('hidden');
+                } else {
+                    alert("Erro ao excluir podcast: " + (data.error || 'Falha desconhecida.'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Erro de rede ao excluir podcast.");
+            }
+        }
+        window.deletePodcastPhp = deletePodcastPhp;
 
         function convertPodcastEpisodeToPlayerTrack(ep) {
             return {

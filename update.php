@@ -432,7 +432,7 @@ $pdo_ok = extension_loaded('pdo_mysql');
                         <input type="hidden" name="login_action" value="1">
                         <div>
                             <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Usuário Administrador</label>
-                            <input type="text" name="username" required autofocus placeholder="admin" class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition">
+                            <input type="text" name="username" required autofocus placeholder="admin@admin.com" class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition">
                         </div>
 
                         <div>

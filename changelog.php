@@ -1,5 +1,17 @@
 <?php
 $changelog = <<<EOT
+v1.2.3
+- Correção na área de podcasts: canais cadastrados permanecem salvos e visíveis mesmo se os episódios forem sincronizados, limpos ou se a varredura de músicas da biblioteca (scan) for executada.
+- Proteção das faixas de podcast na rotina de escaneamento de músicas (`scan` em `api.php`), evitando a exclusão indevida de episódios armazenados fora do diretório `/music`.
+- Persistência completa dos metadados de cada canal (feed RSS, limite de retenção, capa do canal e autor) na tabela `settings`.
+- Suporte a exclusão explícita de podcasts e episódios pelo painel de detalhes tanto na interface Desktop (`index.php`) quanto Mobile (`mobile.php`) com a nova rota `podcast_delete`.
+- Resolução e streaming de áudio dos episódios com suporte a caminhos em `PODCAST_DIR`, `UPLOAD_DIR/podcast` e na raiz.
+
+v1.2.2
+- Correção do carregamento de Estatísticas em Configurações > Estatísticas: implementada função loadPlayStats, sincronização de tempo total e exibição do Top 5 Mais Tocadas com capa, contagem de reproduções e medalhas.
+- Registro em tempo real de reprodução de músicas via log_play tanto no Desktop (index.php) quanto no Mobile (mobile.php).
+- Ajustadas consultas SQL de estatísticas em api.php para total compatibilidade com MySQL 8.0 ONLY_FULL_GROUP_BY e fallback automático para play_count existente na biblioteca.
+
 v1.2.1
 - Correção do erro 403 no envio de arquivos pelo Gerenciador de Arquivos do Servidor (propagação de autenticação via XMLHttpRequest, headers X-Username, FormData e parâmetros de URL).
 - Suporte a envio de pastas completas com subpastas (função handleArtistFolderUpload e drag-and-drop recursivo via FileSystem API).
