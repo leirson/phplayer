@@ -1,5 +1,8 @@
 <?php
 $changelog = <<<EOT
+v1.2.5
+- Correção do escopo global da função syncSinglePodcastFeed() no arquivo api.php: a declaração da função foi movida para fora do switch (\$route), garantindo carregamento incondicional pelo interpretador PHP e eliminando o erro fatal "Call to undefined function syncSinglePodcastFeed()".
+
 v1.2.4
 - Correção no sincronizador de podcasts: resolução do erro de mensagem "Podcast undefined atualizado com sucesso" decorrente de respostas sem verificação de sucesso e ausência de cabeçalho de autenticação.
 - Otimização do leitor de feeds RSS de podcasts: suporte a descompactação automática de feeds compactados (gzip/deflate com CURLOPT_ENCODING), decodificação aprimorada de blocos CDATA e entidades HTML para títulos e nomes de canais.
