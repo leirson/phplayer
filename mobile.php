@@ -3521,36 +3521,50 @@ if (!file_exists('config.php')) {
             if (input) input.disabled = true;
 
             try {
-                const res = await fetch(API + '?route=podcasts_sync', {
+                const adminUser = (window.currentUser && window.currentUser.username) || (typeof currentUser !== 'undefined' && currentUser && currentUser.username) || '';
+                const res = await fetch(API + '?route=podcasts_sync' + (adminUser ? '&admin_username=' + encodeURIComponent(adminUser) : ''), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-Username': currentUser.username
+                        'X-Username': adminUser
                     },
-                    body: JSON.stringify({ feedUrl, maxEpisodes: maxEpisodesVal })
+                    body: JSON.stringify({ 
+                        feedUrl, 
+                        maxEpisodes: maxEpisodesVal,
+                        username: adminUser,
+                        admin_username: adminUser
+                    })
                 });
 
-                const data = await res.json();
+                let data = null;
+                try {
+                    data = await res.json();
+                } catch (jsonErr) {
+                    data = { error: 'Resposta inválida do servidor.' };
+                }
                 btn.disabled = false;
                 if (input) input.disabled = false;
 
-                if (res.ok && data.success) {
+                if (res.ok && data && (data.success || data.podcastName) && !data.error) {
+                    const podName = data.podcastName || "Podcast";
+                    const epCountMsg = (data.episodeCount !== undefined && data.episodeCount !== null) ? ' (' + data.episodeCount + ' episódios sincronizados)' : '';
                     if (statusEl) {
                         statusEl.className = "mt-4 p-4 rounded-xl text-xs flex items-center gap-2.5 bg-emerald-950/20 border border-emerald-900/30 text-emerald-400";
-                        statusEl.innerHTML = '<i data-lucide="check" class="w-4 h-4 shrink-0"></i> Sincronizado com sucesso! Podcast "' + data.podcastName + '" atualizado.';
+                        statusEl.innerHTML = '<i data-lucide="check" class="w-4 h-4 shrink-0"></i> Sincronizado com sucesso! Podcast "' + podName + '" atualizado' + epCountMsg + '.';
                     }
                     if (input && !feedUrlOverride) input.value = '';
                     
                     if (window.loadCatalogData) await window.loadCatalogData();
                     await loadPodcastsPhp();
 
-                    if (data.podcastName && window.showPodcastDetailsPhp) {
-                        window.showPodcastDetailsPhp(data.podcastName);
+                    if (podName && window.showPodcastDetailsPhp) {
+                        window.showPodcastDetailsPhp(podName);
                     }
                 } else {
+                    const errorMsg = (data && data.error) ? data.error : 'Erro na sincronização.';
                     if (statusEl) {
                         statusEl.className = "mt-4 p-4 rounded-xl text-xs flex items-center gap-2.5 bg-red-950/20 border border-red-900/30 text-red-100";
-                        statusEl.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> Falha: ' + (data.error || 'Erro na sincronização.');
+                        statusEl.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> Falha: ' + errorMsg;
                     }
                 }
             } catch (err) {
@@ -3558,7 +3572,7 @@ if (!file_exists('config.php')) {
                 if (input) input.disabled = false;
                 if (statusEl) {
                     statusEl.className = "mt-4 p-4 rounded-xl text-xs flex items-center gap-2.5 bg-red-950/20 border border-red-900/30 text-red-100";
-                    statusEl.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> Erro de rede ao sincronizar.';
+                    statusEl.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> Erro de rede ao sincronizar: ' + (err.message || 'Falha na conexão.');
                 }
             }
             if (window.lucide) {

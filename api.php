@@ -665,6 +665,15 @@ try {
                 }
             }
             if (empty($username)) {
+                $rawBody = @file_get_contents('php://input');
+                if (!empty($rawBody)) {
+                    $jsonParsed = @json_decode($rawBody, true);
+                    if (is_array($jsonParsed)) {
+                        $username = trim((string)($jsonParsed['admin_username'] ?? $jsonParsed['username'] ?? ''));
+                    }
+                }
+            }
+            if (empty($username)) {
                 return false;
             }
             try {
@@ -4313,7 +4322,7 @@ Accept: */*
 
 function syncSinglePodcastFeed($pdo, $feedUrl, $maxEpisodesRaw, $podcastNameOverride = '') {
     if (empty($feedUrl)) {
-        return ['error' => 'O endereço feedUrl é obrigatório.'];
+        return ['error' => 'O endereço feedUrl é obrigatório.', 'success' => false];
     }
 
     $isAll = ($maxEpisodesRaw === 'all' || $maxEpisodesRaw === 0 || $maxEpisodesRaw === '0');
@@ -4325,61 +4334,89 @@ function syncSinglePodcastFeed($pdo, $feedUrl, $maxEpisodesRaw, $podcastNameOver
     }
 
     try {
-        $opts = [
-            "http" => [
-                "method" => "GET",
-                "header" => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36\r\n",
-                "timeout" => 25
-            ]
-        ];
-        $context = stream_context_create($opts);
-        $xml = @file_get_contents($feedUrl, false, $context);
-        if (($xml === false || empty($xml)) && function_exists('curl_init')) {
+        @ini_set('max_execution_time', '300');
+        @set_time_limit(300);
+        @ini_set('memory_limit', '512M');
+
+        $xml = false;
+        if (function_exists('curl_init')) {
             $ch = curl_init($feedUrl);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36');
-            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_AUTOREFERER, true);
+            curl_setopt($ch, CURLOPT_ENCODING, ""); // Aceita e descompacta gzip/deflate automaticamente
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+            curl_setopt($ch, CURLOPT_TIMEOUT, 35);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
             $xml = curl_exec($ch);
             curl_close($ch);
         }
-        if ($xml === false || empty($xml)) {
-            return ['error' => 'Falha ao conectar e ler o feed RSS do Podcast no PHP. Verifique a URL fornecida.'];
+
+        if (($xml === false || empty($xml)) && ini_get('allow_url_fopen')) {
+            $opts = [
+                "http" => [
+                    "method" => "GET",
+                    "header" => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\nAccept: */*\r\n",
+                    "timeout" => 25
+                ],
+                "ssl" => [
+                    "verify_peer" => false,
+                    "verify_peer_name" => false
+                ]
+            ];
+            $context = stream_context_create($opts);
+            $xml = @file_get_contents($feedUrl, false, $context);
         }
 
-        $podcastName = $podcastNameOverride ?: "Podcast Desconhecido";
+        if (!empty($xml) && substr($xml, 0, 2) === "\x1f\x8b" && function_exists('gzdecode')) {
+            $xml = @gzdecode($xml);
+        }
+
+        if ($xml === false || empty($xml)) {
+            return ['error' => 'Falha ao conectar e ler o feed RSS do Podcast no PHP. Verifique se a URL está acessível.', 'success' => false];
+        }
+
+        $podcastName = $podcastNameOverride ?: "";
         if (preg_match('/<channel>([\s\S]*?)<\/channel>/i', $xml, $cMatch)) {
             $channelXml = $cMatch[1];
         } else {
             $channelXml = $xml;
         }
-        if (preg_match('/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i', $channelXml, $tMatch)) {
-            $extracted = preg_replace('/\s+/', ' ', trim($tMatch[1]));
+
+        if (empty($podcastName) && preg_match('/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i', $channelXml, $tMatch)) {
+            $extracted = html_entity_decode(trim(strip_tags($tMatch[1])), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $extracted = preg_replace('/\s+/', ' ', $extracted);
             if (!empty($extracted)) {
                 $podcastName = $extracted;
             }
         }
 
+        if (empty($podcastName)) {
+            $host = parse_url($feedUrl, PHP_URL_HOST);
+            $podcastName = $host ? "Podcast " . $host : "Podcast Desconhecido";
+        }
+
         $safePodcastName = preg_replace('/[\/\\\?%*:|"<>]/', '-', $podcastName);
-        $safePodcastName = trim($safePodcastName);
+        $safePodcastName = trim($safePodcastName, " .-\t\n\r\0\x0B");
+        if (empty($safePodcastName)) {
+            $safePodcastName = 'Podcast-' . substr(md5($feedUrl), 0, 8);
+        }
 
         // Capa
         $coverUrl = 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=450';
         if (preg_match('/<itunes:image\s+[^>]*href=["\']([^"\']+)["\']/i', $channelXml, $imgMatch)) {
-            $coverUrl = $imgMatch[1];
-        } else {
-            if (preg_match('/<image>([\s\S]*?)<\/image>/i', $channelXml, $imgBlock)) {
-                if (preg_match('/<url>([\s\S]*?)<\/url>/i', $imgBlock[1], $urlMatch)) {
-                    $coverUrl = trim($urlMatch[1]);
-                }
+            $coverUrl = trim($imgMatch[1]);
+        } else if (preg_match('/<image>([\s\S]*?)<\/image>/i', $channelXml, $imgBlock)) {
+            if (preg_match('/<url>([\s\S]*?)<\/url>/i', $imgBlock[1], $urlMatch)) {
+                $coverUrl = trim($urlMatch[1]);
             }
         }
 
         // Autor / Artista do canal
         $authorName = $podcastName;
         if (preg_match('/<itunes:author>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/itunes:author>/i', $channelXml, $authMatch)) {
-            $authorName = trim(strip_tags($authMatch[1]));
+            $authorName = html_entity_decode(trim(strip_tags($authMatch[1])), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         }
 
         // Salvar feedUrl, limite, capa e artista nas configurações para nunca sumir
@@ -4419,41 +4456,52 @@ function syncSinglePodcastFeed($pdo, $feedUrl, $maxEpisodesRaw, $podcastNameOver
         foreach ($itemsToProcess as $itemXml) {
             $epTitleRaw = 'Episódio Desconhecido';
             if (preg_match('/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i', $itemXml, $epTitleMatch)) {
-                $epTitleRaw = preg_replace('/\s+/', ' ', trim($epTitleMatch[1]));
+                $epTitleRaw = html_entity_decode(trim(strip_tags($epTitleMatch[1])), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $epTitleRaw = preg_replace('/\s+/', ' ', $epTitleRaw);
             }
             $cleanEpTitle = preg_replace('/[\/\\\?%*:|"<>]/', '-', $epTitleRaw);
-            $cleanEpTitle = trim($cleanEpTitle);
+            $cleanEpTitle = trim($cleanEpTitle, " .-\t\n\r\0\x0B");
+            if (empty($cleanEpTitle)) {
+                $cleanEpTitle = 'episodio-' . substr(md5($itemXml), 0, 8);
+            }
 
             $mediaUrl = '';
             if (preg_match('/<enclosure[^>]+url=["\']([^"\']+)["\']/i', $itemXml, $encMatch)) {
-                $mediaUrl = $encMatch[1];
-            } else {
-                if (preg_match('/<enclosure[\s\S]*?url=["\']([^"\']+)["\']/i', $itemXml, $fallbackEncMatch)) {
-                    $mediaUrl = $fallbackEncMatch[1];
-                }
+                $mediaUrl = trim($encMatch[1]);
+            } else if (preg_match('/<enclosure[\s\S]*?url=["\']([^"\']+)["\']/i', $itemXml, $fallbackEncMatch)) {
+                $mediaUrl = trim($fallbackEncMatch[1]);
             }
 
             if (empty($mediaUrl)) continue;
 
-            $episodeFileName = $cleanEpTitle . '.mp3';
+            $episodeFileName = substr($cleanEpTitle, 0, 180) . '.mp3';
             $filePath = $podcastDir . '/' . $episodeFileName;
             $altFilePath = UPLOAD_DIR . '/podcast/' . $safePodcastName . '/' . $episodeFileName;
             $fileSize = 0;
 
             if (!file_exists($filePath) && !file_exists($altFilePath)) {
-                $ch = curl_init($mediaUrl);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-                curl_setopt($ch, CURLOPT_USERAGENT, 'PHPlayerPodcastDownloader/1.0 PHP');
-                curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                $fileData = curl_exec($ch);
-                curl_close($ch);
+                $fp = @fopen($filePath, 'w+b');
+                if ($fp) {
+                    $ch = curl_init($mediaUrl);
+                    curl_setopt($ch, CURLOPT_FILE, $fp);
+                    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                    curl_setopt($ch, CURLOPT_AUTOREFERER, true);
+                    curl_setopt($ch, CURLOPT_USERAGENT, 'PHPlayerPodcastDownloader/1.0 PHP');
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 90);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                    $resExec = curl_exec($ch);
+                    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                    @fclose($fp);
 
-                if ($fileData !== false) {
-                    @file_put_contents($filePath, $fileData);
-                    $fileSize = strlen($fileData);
-                    $downloadedCount++;
+                    if ($resExec && $httpCode >= 200 && $httpCode < 400 && file_exists($filePath) && filesize($filePath) > 1000) {
+                        $fileSize = filesize($filePath);
+                        $downloadedCount++;
+                    } else {
+                        @unlink($filePath);
+                        continue;
+                    }
                 } else {
                     continue;
                 }
@@ -4528,9 +4576,16 @@ function syncSinglePodcastFeed($pdo, $feedUrl, $maxEpisodesRaw, $podcastNameOver
             } catch (Exception $delErr) {}
         }
 
-        return ['success' => true, 'podcastName' => $podcastName, 'episodeCount' => $downloadedCount];
+        return [
+            'success' => true,
+            'podcastName' => $podcastName,
+            'downloaded' => $downloadedCount,
+            'episodeCount' => $downloadedCount,
+            'feedUrl' => $feedUrl,
+            'coverUrl' => $coverUrl
+        ];
     } catch (Exception $e) {
-        return ['error' => 'Erro ao sincronizar podcast: ' . $e->getMessage()];
+        return ['error' => 'Erro ao sincronizar podcast: ' . $e->getMessage(), 'success' => false];
     }
 }
 
@@ -4659,18 +4714,29 @@ function syncSinglePodcastFeed($pdo, $feedUrl, $maxEpisodesRaw, $podcastNameOver
     case 'podcasts_sync':
         if ($method !== 'POST') {
             http_response_code(405);
-            exit(json_encode(['error' => 'Apenas requisições POST são permitidas.']));
+            exit(json_encode(['error' => 'Apenas requisições POST são permitidas.', 'success' => false], JSON_UNESCAPED_UNICODE));
         }
         $rawInput = file_get_contents('php://input');
-        $dataDecoded = json_decode($rawInput, true);
-        $feedUrl = trim($dataDecoded['feedUrl'] ?? '');
-        $maxEpisodesRaw = $dataDecoded['maxEpisodes'] ?? 5;
+        $dataDecoded = !empty($rawInput) ? json_decode($rawInput, true) : [];
+        if (!is_array($dataDecoded)) $dataDecoded = [];
+
+        $feedUrl = trim($dataDecoded['feedUrl'] ?? $_POST['feedUrl'] ?? $_GET['feedUrl'] ?? '');
+        $maxEpisodesRaw = $dataDecoded['maxEpisodes'] ?? $_POST['maxEpisodes'] ?? $_GET['maxEpisodes'] ?? 5;
         
+        if (empty($feedUrl)) {
+            http_response_code(400);
+            exit(json_encode(['error' => 'O endereço feedUrl é obrigatório.', 'success' => false], JSON_UNESCAPED_UNICODE));
+        }
+
         $res = syncSinglePodcastFeed($pdo, $feedUrl, $maxEpisodesRaw);
         if (!empty($res['error'])) {
             http_response_code(400);
+            $res['success'] = false;
+        } else {
+            $res['success'] = true;
         }
-        echo json_encode($res);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($res, JSON_UNESCAPED_UNICODE);
         break;
 
     case 'podcasts_auto_sync':

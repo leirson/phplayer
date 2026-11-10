@@ -1,5 +1,11 @@
 <?php
 $changelog = <<<EOT
+v1.2.4
+- Correção no sincronizador de podcasts: resolução do erro de mensagem "Podcast undefined atualizado com sucesso" decorrente de respostas sem verificação de sucesso e ausência de cabeçalho de autenticação.
+- Otimização do leitor de feeds RSS de podcasts: suporte a descompactação automática de feeds compactados (gzip/deflate com CURLOPT_ENCODING), decodificação aprimorada de blocos CDATA e entidades HTML para títulos e nomes de canais.
+- Download de episódios via streaming direto em disco com CURLOPT_FILE, eliminando estouro de memória (memory exhaust) no download de arquivos MP3 volumosos (100MB+).
+- Envio explícito e consistente do cabeçalho de autenticação X-Username e parâmetro admin_username na sincronização via index.php e mobile.php, com detecção no api.php via headers, GET, POST e payload JSON.
+
 v1.2.3
 - Correção na área de podcasts: canais cadastrados permanecem salvos e visíveis mesmo se os episódios forem sincronizados, limpos ou se a varredura de músicas da biblioteca (scan) for executada.
 - Proteção das faixas de podcast na rotina de escaneamento de músicas (`scan` em `api.php`), evitando a exclusão indevida de episódios armazenados fora do diretório `/music`.
