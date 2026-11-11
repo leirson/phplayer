@@ -1,5 +1,10 @@
 <?php
 $changelog = <<<EOT
+v1.2.7
+- Correção no arrastar e soltar (drag & drop) de arquivos e pastas no Gerenciador de Arquivos do Servidor: correção de interferência de eventos de ponteiro no overlay com contagem de profundidade (drag counter) estável e extração recursiva robusta de hierarquias de pastas via FileSystem API.
+- Exibição de quantidade de subpastas ao passar o cursor sobre as pastas (tooltip informativo e badge de contagem de subpastas ao lado do nome).
+- Exibição do tamanho total calculado das pastas na coluna "Tamanho" do gerenciador com cálculo recursivo em tempo real no servidor.
+
 v1.2.6
 - Adicionada barra de progresso no Dashboard durante o carregamento, filtragem e rotação dos álbuns com status percentual e esqueletos de carregamento.
 - Exibição de capa aleatória do artista na lista de artistas da barra lateral à direita (tanto no painel lateral global quanto na lista de artistas da biblioteca), posicionada à esquerda do nome do artista com fallback suave.

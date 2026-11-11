@@ -1462,7 +1462,7 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     </div>
 
                     <!-- Drag & Drop Upload Zone -->
-                    <div id="file-manager-dragzone" class="relative border-2 border-dashed border-slate-900 hover:border-sky-500/45 bg-slate-950/15 rounded-2xl min-h-[300px] transition duration-200" ondragover="handleFileDragOver(event)" ondragleave="handleFileDragLeave(event)" ondrop="handleFileDrop(event)">
+                    <div id="file-manager-dragzone" class="relative border-2 border-dashed border-slate-900 hover:border-sky-500/45 bg-slate-950/15 rounded-2xl min-h-[300px] transition duration-200" ondragenter="handleFileDragEnter(event)" ondragover="handleFileDragOver(event)" ondragleave="handleFileDragLeave(event)" ondrop="handleFileDrop(event)">
                         <!-- Upload Progress Panel -->
                         <div id="file-manager-upload-progress" class="hidden p-4 border-b border-slate-900 bg-slate-950/60 rounded-t-2xl space-y-2">
                             <div class="flex items-center justify-between text-[11px]">
@@ -1490,9 +1490,9 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                         </div>
 
                         <!-- Drag overlay hint -->
-                        <div id="file-manager-drag-overlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center gap-3 pointer-events-none opacity-0 transition duration-200">
+                        <div id="file-manager-drag-overlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center gap-3 pointer-events-none opacity-0 z-20 transition duration-200">
                             <i data-lucide="cloud-upload" class="w-12 h-12 text-sky-400 animate-bounce"></i>
-                            <p class="text-xs font-bold text-white">Solte os arquivos para enviá-los aqui</p>
+                            <p class="text-xs font-bold text-white">Solte os arquivos ou pastas para enviá-los aqui</p>
                         </div>
                     </div>
                 </div>
@@ -4110,7 +4110,26 @@ let currentUser = null;
                     minute: '2-digit'
                 });
 
-                const sizeStr = item.is_dir ? '-' : formatBytes(item.size);
+                let sizeStr = '';
+                let hoverTitle = item.name;
+                let subBadge = '';
+
+                if (item.is_dir) {
+                    const directSub = (typeof item.direct_subdirs === 'number') ? item.direct_subdirs : ((typeof item.subdirs_count === 'number') ? item.subdirs_count : 0);
+                    const totalSub = (typeof item.total_subdirs === 'number') ? item.total_subdirs : directSub;
+                    const filesCount = (typeof item.files_count === 'number') ? item.files_count : 0;
+                    
+                    const subLabel = directSub === 1 ? '1 subpasta' : `${directSub} subpastas`;
+                    hoverTitle = `Pasta: ${item.name} (${subLabel}${totalSub > directSub ? `, ${totalSub} no total` : ''}${filesCount > 0 ? `, ${filesCount} arquivo(s)` : ''})`;
+                    
+                    subBadge = `<span class="text-[9px] text-sky-400 font-mono bg-sky-950/60 border border-sky-900/50 px-1.5 py-0.5 rounded ml-1.5 shrink-0 select-none" title="${subLabel}">${subLabel}</span>`;
+                    
+                    // Mostra o tamanho real calculado da pasta
+                    const bSize = (typeof item.size === 'number' && item.size > 0) ? formatBytes(item.size) : '0 B';
+                    sizeStr = `<span class="text-slate-300 font-medium">${bSize}</span>`;
+                } else {
+                    sizeStr = `<span class="text-slate-500">${formatBytes(item.size || 0)}</span>`;
+                }
 
                 const actButtons = data.is_root ? '' : `
                     <div class="flex items-center justify-end gap-1">
@@ -4122,14 +4141,16 @@ let currentUser = null;
                         </button>
                     </div>
                 `;
-                                tr.innerHTML = `
-                    <td class="p-4 pl-5 ${cursorClass}" ${onclickAttr}>
+
+                tr.innerHTML = `
+                    <td class="p-4 pl-5 ${cursorClass}" ${onclickAttr} title="${hoverTitle}">
                         <div class="flex items-center gap-2.5 min-w-0 max-w-sm md:max-w-md">
                             ${iconHtml}
-                            <span class="truncate font-medium text-slate-205 group-hover:text-sky-400 transition" title="${item.name}">${item.name}</span>
+                            <span class="truncate font-medium text-slate-200 group-hover:text-sky-400 transition">${item.name}</span>
+                            ${subBadge}
                         </div>
                     </td>
-                    <td class="p-4 hidden sm:table-cell text-slate-500 font-mono text-[11px]">${sizeStr}</td>
+                    <td class="p-4 hidden sm:table-cell font-mono text-[11px]">${sizeStr}</td>
                     <td class="p-4 hidden md:table-cell text-slate-500 font-mono text-[11px]">${dateStr}</td>
                     <td class="p-4 text-right pr-5">${actButtons}</td>
                 `;
@@ -4300,7 +4321,13 @@ let currentUser = null;
             const targetPath = (!fileManagerCurrentPath || fileManagerCurrentPath === 'root') ? 'music' : fileManagerCurrentPath;
             for (let i = 0; i < files.length; i++) {
                 const f = files[i];
-                if (f.file) {
+                if (f.isDirectoryPlaceholder) {
+                    fileUploadQueue.push({
+                        isDirectoryPlaceholder: true,
+                        targetPath: targetPath,
+                        relativeDir: f.relativeDir
+                    });
+                } else if (f.file) {
                     fileUploadQueue.push(f);
                 } else {
                     fileUploadQueue.push({
@@ -4328,6 +4355,40 @@ let currentUser = null;
 
             currentlyUploading = true;
             const item = fileUploadQueue.shift();
+
+            // Caso seja placeholder de pasta vazia criada via drop
+            if (item.isDirectoryPlaceholder) {
+                try {
+                    const u = (currentUser && currentUser.username) ? currentUser.username : 'admin';
+                    const parts = (item.relativeDir || '').split('/').filter(Boolean);
+                    let currentParent = item.targetPath || 'music';
+                    for (const seg of parts) {
+                        const formData = new FormData();
+                        formData.append('path', currentParent);
+                        formData.append('name', seg);
+                        formData.append('username', u);
+                        formData.append('admin_username', u);
+                        await fetch(`api.php?route=files_create_dir&username=${encodeURIComponent(u)}&admin_username=${encodeURIComponent(u)}`, {
+                            method: 'POST',
+                            headers: {
+                                'X-Username': u,
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: formData
+                        });
+                        currentParent = (currentParent === 'music' || !currentParent) ? `music/${seg}` : `${currentParent}/${seg}`;
+                    }
+                } catch (e) {
+                    console.warn('Erro ao criar pasta vazia:', e);
+                }
+                currentlyUploading = false;
+                if (fileUploadQueue.length === 0) {
+                    loadFileManager(fileManagerCurrentPath);
+                }
+                processNextUpload();
+                return;
+            }
+
             const file = item.file || item;
             const targetPath = item.targetPath || fileManagerCurrentPath || 'music';
             const relativePath = item.relativePath || file.webkitRelativePath || file.fullRelativePath || '';
@@ -4409,53 +4470,106 @@ let currentUser = null;
             }
         }
 
-        function handleFileDragOver(e) {
+        let fileDragCounter = 0;
+
+        function handleFileDragEnter(e) {
             e.preventDefault();
             e.stopPropagation();
+            fileDragCounter++;
             const overlay = document.getElementById('file-manager-drag-overlay');
             if (overlay) {
                 overlay.style.opacity = '1';
-                overlay.style.pointerEvents = 'auto';
+            }
+        }
+
+        function handleFileDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = 'copy';
+            }
+            const overlay = document.getElementById('file-manager-drag-overlay');
+            if (overlay && overlay.style.opacity !== '1') {
+                overlay.style.opacity = '1';
             }
         }
 
         function handleFileDragLeave(e) {
             e.preventDefault();
             e.stopPropagation();
-            const overlay = document.getElementById('file-manager-drag-overlay');
-            if (overlay) {
-                overlay.style.opacity = '0';
-                overlay.style.pointerEvents = 'none';
+            fileDragCounter = Math.max(0, fileDragCounter - 1);
+            if (fileDragCounter === 0) {
+                const overlay = document.getElementById('file-manager-drag-overlay');
+                if (overlay) {
+                    overlay.style.opacity = '0';
+                }
             }
         }
 
         async function extractDropEntries(dataTransfer) {
             const queue = [];
+            if (!dataTransfer) return queue;
             const items = dataTransfer.items;
-            if (items && items.length > 0 && items[0].webkitGetAsEntry) {
+
+            if (items && items.length > 0 && (items[0].webkitGetAsEntry || items[0].getAsEntry)) {
                 async function traverse(entry, parentPath = '') {
+                    if (!entry) return;
                     if (entry.isFile) {
-                        const f = await new Promise((resolve) => entry.file(resolve));
-                        f.fullRelativePath = parentPath + f.name;
-                        queue.push(f);
+                        const f = await new Promise((resolve) => {
+                            entry.file(
+                                (fileObj) => resolve(fileObj),
+                                (err) => {
+                                    console.warn('Falha ao ler arquivo do drop:', entry.name, err);
+                                    resolve(null);
+                                }
+                            );
+                        });
+                        if (f) {
+                            f.fullRelativePath = parentPath + f.name;
+                            queue.push(f);
+                        }
                     } else if (entry.isDirectory) {
                         const dirReader = entry.createReader();
-                        const readBatch = () => new Promise((resolve) => dirReader.readEntries(resolve));
+                        const readBatch = () => new Promise((resolve) => {
+                            dirReader.readEntries(
+                                (entries) => resolve(entries || []),
+                                (err) => {
+                                    console.warn('Falha ao ler pasta do drop:', entry.name, err);
+                                    resolve([]);
+                                }
+                            );
+                        });
+
+                        let hasChildren = false;
                         let batch;
                         do {
                             batch = await readBatch();
                             if (batch && batch.length > 0) {
+                                hasChildren = true;
                                 for (const child of batch) {
                                     await traverse(child, parentPath + entry.name + '/');
                                 }
                             }
                         } while (batch && batch.length > 0);
+
+                        // Se for uma pasta vazia, adiciona placeholder para que a pasta seja criada no servidor
+                        if (!hasChildren) {
+                            queue.push({
+                                isDirectoryPlaceholder: true,
+                                relativeDir: parentPath + entry.name
+                            });
+                        }
                     }
                 }
+
                 for (let i = 0; i < items.length; i++) {
-                    const entry = items[i].webkitGetAsEntry();
+                    const item = items[i];
+                    const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : (item.getAsEntry ? item.getAsEntry() : null);
                     if (entry) {
                         await traverse(entry);
+                    } else {
+                        const f = item.getAsFile ? item.getAsFile() : null;
+                        if (f) queue.push(f);
                     }
                 }
             } else if (dataTransfer.files && dataTransfer.files.length > 0) {
@@ -4469,20 +4583,22 @@ let currentUser = null;
         async function handleFileDrop(e) {
             e.preventDefault();
             e.stopPropagation();
+            fileDragCounter = 0;
             const overlay = document.getElementById('file-manager-drag-overlay');
             if (overlay) {
                 overlay.style.opacity = '0';
-                overlay.style.pointerEvents = 'none';
             }
 
             try {
                 const files = await extractDropEntries(e.dataTransfer);
                 if (files && files.length > 0) {
                     handleFileManagerUpload(files);
+                } else if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    handleFileManagerUpload(e.dataTransfer.files);
                 }
             } catch (err) {
                 console.error("Erro ao processar drop:", err);
-                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                     handleFileManagerUpload(e.dataTransfer.files);
                 }
             }

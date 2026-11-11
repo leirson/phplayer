@@ -977,6 +977,54 @@ try {
                 return ['error' => 'Erro ao sincronizar podcast: ' . $e->getMessage(), 'success' => false];
             }
         }
+    if (!function_exists('get_dir_size_and_subdirs')) {
+        function get_dir_size_and_subdirs($dirPath) {
+            $totalSize = 0;
+            $directSubdirs = 0;
+            $totalSubdirs = 0;
+            $files = 0;
+
+            if (!is_dir($dirPath) || !is_readable($dirPath)) {
+                return ['size' => 0, 'direct_subdirs' => 0, 'subdirs' => 0, 'total_subdirs' => 0, 'files' => 0];
+            }
+
+            // Contagem de subpastas diretas (nível imediato)
+            $immediate = @scandir($dirPath);
+            if ($immediate !== false) {
+                foreach ($immediate as $item) {
+                    if ($item === '.' || $item === '..') continue;
+                    if (is_dir($dirPath . '/' . $item)) {
+                        $directSubdirs++;
+                    }
+                }
+            }
+
+            // Cálculo recursivo do tamanho total e subpastas aninhadas
+            try {
+                $iterator = new RecursiveIteratorIterator(
+                    new RecursiveDirectoryIterator($dirPath, FilesystemIterator::SKIP_DOTS),
+                    RecursiveIteratorIterator::SELF_FIRST
+                );
+                foreach ($iterator as $fileInfo) {
+                    if ($fileInfo->isDir()) {
+                        $totalSubdirs++;
+                    } else if ($fileInfo->isFile()) {
+                        $files++;
+                        $totalSize += $fileInfo->getSize();
+                    }
+                }
+            } catch (Throwable $e) {
+                $totalSubdirs = $directSubdirs;
+            }
+
+            return [
+                'size' => $totalSize,
+                'direct_subdirs' => $directSubdirs,
+                'subdirs' => $directSubdirs,
+                'total_subdirs' => $totalSubdirs,
+                'files' => $files
+            ];
+        }
     }
 
     switch ($route) {
@@ -4223,12 +4271,17 @@ Accept: */*
             $musicDir = $realBase . '/music';
             if (!file_exists($musicDir)) { @mkdir($musicDir, 0777, true); }
             
+            $musicStats = get_dir_size_and_subdirs($musicDir);
             $items = [
                 [
                     'name' => 'music',
                     'path' => 'music',
                     'is_dir' => true,
-                    'size' => 0,
+                    'size' => $musicStats['size'],
+                    'direct_subdirs' => $musicStats['direct_subdirs'],
+                    'subdirs_count' => $musicStats['direct_subdirs'],
+                    'total_subdirs' => $musicStats['total_subdirs'],
+                    'files_count' => $musicStats['files'],
                     'mtime' => @filemtime($musicDir) ?: time()
                 ]
             ];
@@ -4252,13 +4305,25 @@ Accept: */*
                 $relativeDir = trim(str_replace($realBase, '', $targetDir), '/\\');
                 $relativeItem = $relativeDir ? $relativeDir . '/' . $entry : $entry;
                 $isDir = is_dir($fullPath);
-                $size = $isDir ? 0 : @filesize($fullPath);
+                
+                $dirStats = null;
+                if ($isDir) {
+                    $dirStats = get_dir_size_and_subdirs($fullPath);
+                    $size = $dirStats['size'];
+                } else {
+                    $size = @filesize($fullPath);
+                }
                 $mtime = @filemtime($fullPath);
+
                 $items[] = [
                     'name' => $entry,
                     'path' => $relativeItem,
                     'is_dir' => $isDir,
-                    'size' => $size ? $size : 0,
+                    'size' => $size ? (int)$size : 0,
+                    'direct_subdirs' => $isDir ? $dirStats['direct_subdirs'] : 0,
+                    'subdirs_count' => $isDir ? $dirStats['direct_subdirs'] : 0,
+                    'total_subdirs' => $isDir ? $dirStats['total_subdirs'] : 0,
+                    'files_count' => $isDir ? $dirStats['files'] : 0,
                     'mtime' => $mtime ? $mtime : time()
                 ];
             }
