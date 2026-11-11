@@ -1,5 +1,13 @@
 <?php
 $changelog = <<<EOT
+v1.3.2
+- Separação dos álbuns por tipo (`Álbum`, `EP`, `Single`, `Álbum ao Vivo` e `Compilação`) na página do artista em `index.php`, com cabeçalhos de categoria dedicados, contadores, selos visuais nas capas e botões de filtro rápido por categoria.
+- Sincronização completa do campo `album_type` nos modais de edição ID3 individual, edição de álbum completo e edição em massa no `index.php`.
+
+v1.3.1
+- Correção de erro fatal de sintaxe (Parse Error) no interpretador PHP em `api.php`: corrigido fechamento de bloco da função `syncSinglePodcastFeed` onde uma chave (`}`) faltante encapsulava inadvertidamente o restante do arquivo (incluindo `switch (\$route)` e o `catch (Throwable)` final), provocando `500 Internal Server Error` com resposta vazia em servidores Apache/cPanel externos para todas as rotas (`tracks`, `get_settings`, `podcast_config`).
+- Otimização do `set_error_handler` em `api.php`: filtragem explícita para que avisos menores, notices e avisos de depreciação de versões recentes do PHP (8.1, 8.2, 8.3) não abortem o fluxo de requisições da API nem causem encerramento inesperado de respostas JSON.
+
 v1.3.0
 - Correção de erro 500 com corpo vazio: sincronizada a função `exitWithJsonError` em `config.php` e `api.php` para limpar buffers de saída e evitar o envio forçado de cabeçalho HTTP 500 quando há falha de conexão MySQL ou exceção PHP, prevenindo que servidores Apache/Nginx descartem a mensagem de erro JSON em favor de tela de erro genérica vazia.
 - Diagnóstico detalhado de conexão: inclusão automática das credenciais em uso e arquivo de configuração nas mensagens de erro de banco de dados, facilitando a identificação imediata de credenciais incorretas ou serviços de banco inativos.
