@@ -70,11 +70,15 @@ set_exception_handler(function ($exception) {
 
 set_error_handler(function ($severity, $message, $file, $line) {
     if (!(error_reporting() & $severity)) {
-        return;
+        return false;
     }
-    $msg = 'Erro/Aviso de execução no PHP: ' . $message . ' (' . basename($file) . ':' . $line . ')';
-    @file_put_contents('api_errors.log', date('[Y-m-d H:i:s] ') . $msg . "
-", FILE_APPEND);
+    // Não interromper a execução para avisos, notices ou deprecações
+    if (in_array($severity, [E_NOTICE, E_USER_NOTICE, E_DEPRECATED, E_USER_DEPRECATED, E_WARNING, E_USER_WARNING])) {
+        @file_put_contents('api_errors.log', date('[Y-m-d H:i:s] ') . "Aviso PHP ($severity): $message (" . basename($file) . ":$line)\n", FILE_APPEND);
+        return false;
+    }
+    $msg = 'Erro de execução no PHP: ' . $message . ' (' . basename($file) . ':' . $line . ')';
+    @file_put_contents('api_errors.log', date('[Y-m-d H:i:s] ') . $msg . "\n", FILE_APPEND);
     exitWithJsonError($msg);
 });
 
@@ -987,6 +991,8 @@ try {
                 return ['error' => 'Erro ao sincronizar podcast: ' . $e->getMessage(), 'success' => false];
             }
         }
+    }
+
     if (!function_exists('get_dir_size_and_subdirs')) {
         function get_dir_size_and_subdirs($dirPath) {
             $totalSize = 0;
