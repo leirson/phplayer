@@ -3070,12 +3070,45 @@ let currentUser = null;
                     window.setDashboardAlbumsProgress(45, 'Processando faixas e álbuns...');
                 }
                 const t1 = await r1.text();
-                let parsedTracks;
-                try {
-                    parsedTracks = JSON.parse(t1);
-                } catch(e) {
-                    throw new Error("Erro de dados de músicas: resposta inválida do servidor (não-JSON). Detalhes:\n" + t1.substring(0, 150));
+                function safeParseJson(rawText, errorPrefix) {
+                    if (!rawText || typeof rawText !== 'string') {
+                        throw new Error(`${errorPrefix}: resposta vazia do servidor.`);
+                    }
+                    const trimmed = rawText.trim();
+                    try {
+                        return JSON.parse(trimmed);
+                    } catch (e1) {
+                        // Tenta extrair bloco JSON caso avisos PHP ou texto tenham vazado antes ou depois
+                        const firstBracket = trimmed.indexOf('[');
+                        const firstBrace = trimmed.indexOf('{');
+                        let startIdx = -1;
+                        let endChar = '';
+
+                        if (firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace)) {
+                            startIdx = firstBracket;
+                            endChar = ']';
+                        } else if (firstBrace !== -1) {
+                            startIdx = firstBrace;
+                            endChar = '}';
+                        }
+
+                        if (startIdx !== -1) {
+                            const lastIdx = trimmed.lastIndexOf(endChar);
+                            if (lastIdx > startIdx) {
+                                const sub = trimmed.substring(startIdx, lastIdx + 1);
+                                try {
+                                    return JSON.parse(sub);
+                                } catch (e2) {}
+                            }
+                        }
+
+                        // Se contiver mensagem de erro em HTML ou texto plano, exibe de forma legível
+                        const cleanSummary = trimmed.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+                        throw new Error(`${errorPrefix}: resposta inválida do servidor (não-JSON). Detalhes:\n` + cleanSummary.substring(0, 250));
+                    }
                 }
+
+                parsedTracks = safeParseJson(t1, "Erro de dados de músicas");
                 if (parsedTracks && parsedTracks.error) {
                     throw new Error(parsedTracks.error);
                 }
@@ -3097,12 +3130,7 @@ let currentUser = null;
                 
                 const r2 = await fetch(API + '?route=playlists&username=' + encodeURIComponent(currentUser.username));
                 const t2 = await r2.text();
-                let parsedPlaylists;
-                try {
-                    parsedPlaylists = JSON.parse(t2);
-                } catch(e) {
-                    throw new Error("Erro de dados de playlists: resposta inválida do servidor (não-JSON). Detalhes:\n" + t2.substring(0, 150));
-                }
+                let parsedPlaylists = safeParseJson(t2, "Erro de dados de playlists");
                 if (parsedPlaylists && parsedPlaylists.error) {
                     throw new Error(parsedPlaylists.error);
                 }
@@ -3113,12 +3141,7 @@ let currentUser = null;
 
                 const r3 = await fetch(API + '?route=favorites&username=' + encodeURIComponent(currentUser.username));
                 const t3 = await r3.text();
-                let parsedFavorites;
-                try {
-                    parsedFavorites = JSON.parse(t3);
-                } catch(e) {
-                    throw new Error("Erro de dados de favoritos: resposta inválida do servidor (não-JSON). Detalhes:\n" + t3.substring(0, 150));
-                }
+                let parsedFavorites = safeParseJson(t3, "Erro de dados de favoritos");
                 if (parsedFavorites && parsedFavorites.error) {
                     throw new Error(parsedFavorites.error);
                 }

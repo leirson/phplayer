@@ -1,5 +1,9 @@
 <?php
 $changelog = <<<EOT
+v1.2.9
+- Correção no parsing e entrega de respostas JSON do servidor PHP: ativação de buffer de saída (`ob_start`) no início de `api.php` e limpeza total do buffer antes de emitir erros e respostas das rotas (`route=tracks`, `exitWithJsonError`), prevenindo corrupção de JSON por avisos ou espaços em branco.
+- Implementação de parser resiliente `safeParseJson` no cliente (`index.php`), capaz de recuperar e extrair payloads JSON mesmo em caso de avisos ou wrappers emitidos por servidores web Apache/Nginx ou PHP compartilhados.
+
 v1.2.8
 - Adicionado suporte a sincronização seletiva por artista/pasta específica diretamente no Gerenciador de Arquivos do Servidor (aba de arquivos).
 - Implementado botão "Sincronizar Pasta" dinâmico na barra de ferramentas superior do gerenciador quando dentro de uma pasta de artista, além de botão dedicado de sincronização rápida em cada linha de pasta da listagem.

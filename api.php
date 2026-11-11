@@ -11,6 +11,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit(0);
 }
 
+// Iniciar buffer de saída para evitar que qualquer whitespace, aviso de extensão ou erro PHP corrompa as respostas JSON
+if (!ob_get_level()) {
+    @ob_start();
+}
+
 // Habilitar relato de erros para poder tratá-los no callback global e transparente
 @error_reporting(E_ALL);
 @ini_set('display_errors', 0); // Não imprimir avisos crus para evitar corromper o JSON
@@ -20,6 +25,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 if (!function_exists('exitWithJsonError')) {
     function exitWithJsonError($msg, $statusCode = 200) {
+        // Limpar qualquer saída anterior que possa ter vazado para o buffer
+        while (ob_get_level()) {
+            @ob_end_clean();
+        }
         header('Content-Type: application/json; charset=utf-8');
         if ($statusCode !== 200) {
             http_response_code($statusCode);
@@ -2217,8 +2226,16 @@ Accept: */*
                     });
                 }
 
+                while (ob_get_level()) {
+                    @ob_end_clean();
+                }
+                header('Content-Type: application/json; charset=utf-8');
                 echo json_encode($songs ?: []);
             } catch (Throwable $e) {
+                while (ob_get_level()) {
+                    @ob_end_clean();
+                }
+                header('Content-Type: application/json; charset=utf-8');
                 // Não usamos http_response_code 500 para evitar que servidores Nginx/Apache interceptem e descartem o JSON de erro em favor de páginas HTML nativas
                 echo json_encode(['error' => 'Falha ao buscar músicas: ' . $e->getMessage()]);
             }
