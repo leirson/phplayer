@@ -30,7 +30,8 @@ if (!function_exists('exitWithJsonError')) {
             @ob_end_clean();
         }
         header('Content-Type: application/json; charset=utf-8');
-        if ($statusCode !== 200) {
+        // Mantemos 200 por padrão para evitar que servidores Nginx/Apache/cPanel descartem o corpo JSON em favor de tela de erro genérica HTML vazia
+        if ($statusCode !== 200 && $statusCode !== 500) {
             http_response_code($statusCode);
         }
         $payload = ['error' => $msg, 'success' => false];

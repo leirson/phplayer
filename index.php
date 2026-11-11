@@ -3070,9 +3070,10 @@ let currentUser = null;
                     window.setDashboardAlbumsProgress(45, 'Processando faixas e álbuns...');
                 }
                 const t1 = await r1.text();
-                function safeParseJson(rawText, errorPrefix) {
-                    if (!rawText || typeof rawText !== 'string') {
-                        throw new Error(`${errorPrefix}: resposta vazia do servidor.`);
+                function safeParseJson(rawText, errorPrefix, responseObj) {
+                    if (!rawText || typeof rawText !== 'string' || !rawText.trim()) {
+                        const statusInfo = responseObj ? ` (Código HTTP ${responseObj.status} - ${responseObj.statusText || 'Erro'})` : '';
+                        throw new Error(`${errorPrefix}: resposta vazia do servidor${statusInfo}. Se estiver usando hospedagem compartilhada (cPanel/Hostinger), verifique o arquivo api_errors.log ou as credenciais de banco de dados em config.php.`);
                     }
                     const trimmed = rawText.trim();
                     try {
@@ -3108,7 +3109,7 @@ let currentUser = null;
                     }
                 }
 
-                parsedTracks = safeParseJson(t1, "Erro de dados de músicas");
+                parsedTracks = safeParseJson(t1, "Erro de dados de músicas", r1);
                 if (parsedTracks && parsedTracks.error) {
                     throw new Error(parsedTracks.error);
                 }
@@ -3130,7 +3131,7 @@ let currentUser = null;
                 
                 const r2 = await fetch(API + '?route=playlists&username=' + encodeURIComponent(currentUser.username));
                 const t2 = await r2.text();
-                let parsedPlaylists = safeParseJson(t2, "Erro de dados de playlists");
+                let parsedPlaylists = safeParseJson(t2, "Erro de dados de playlists", r2);
                 if (parsedPlaylists && parsedPlaylists.error) {
                     throw new Error(parsedPlaylists.error);
                 }
@@ -3141,7 +3142,7 @@ let currentUser = null;
 
                 const r3 = await fetch(API + '?route=favorites&username=' + encodeURIComponent(currentUser.username));
                 const t3 = await r3.text();
-                let parsedFavorites = safeParseJson(t3, "Erro de dados de favoritos");
+                let parsedFavorites = safeParseJson(t3, "Erro de dados de favoritos", r3);
                 if (parsedFavorites && parsedFavorites.error) {
                     throw new Error(parsedFavorites.error);
                 }

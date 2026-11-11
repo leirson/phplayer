@@ -1,5 +1,9 @@
 <?php
 $changelog = <<<EOT
+v1.3.0
+- Correção de erro 500 com corpo vazio: sincronizada a função `exitWithJsonError` em `config.php` e `api.php` para limpar buffers de saída e evitar o envio forçado de cabeçalho HTTP 500 quando há falha de conexão MySQL ou exceção PHP, prevenindo que servidores Apache/Nginx descartem a mensagem de erro JSON em favor de tela de erro genérica vazia.
+- Diagnóstico detalhado de conexão: inclusão automática das credenciais em uso e arquivo de configuração nas mensagens de erro de banco de dados, facilitando a identificação imediata de credenciais incorretas ou serviços de banco inativos.
+
 v1.2.9
 - Correção no parsing e entrega de respostas JSON do servidor PHP: ativação de buffer de saída (`ob_start`) no início de `api.php` e limpeza total do buffer antes de emitir erros e respostas das rotas (`route=tracks`, `exitWithJsonError`), prevenindo corrupção de JSON por avisos ou espaços em branco.
 - Implementação de parser resiliente `safeParseJson` no cliente (`index.php`), capaz de recuperar e extrair payloads JSON mesmo em caso de avisos ou wrappers emitidos por servidores web Apache/Nginx ou PHP compartilhados.
