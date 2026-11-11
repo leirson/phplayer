@@ -1,5 +1,10 @@
 <?php
 $changelog = <<<EOT
+v1.2.8
+- Adicionado suporte a sincronização seletiva por artista/pasta específica diretamente no Gerenciador de Arquivos do Servidor (aba de arquivos).
+- Implementado botão "Sincronizar Pasta" dinâmico na barra de ferramentas superior do gerenciador quando dentro de uma pasta de artista, além de botão dedicado de sincronização rápida em cada linha de pasta da listagem.
+- Atualizada rota scan (`api.php?route=scan`) com suporte ao parâmetro de subpasta/artista (`path` e `folder`), realizando limpeza seletiva e varredura recursiva exclusiva para os arquivos da pasta informada sem afetar ou escanear as demais músicas da biblioteca.
+
 v1.2.7
 - Correção no arrastar e soltar (drag & drop) de arquivos e pastas no Gerenciador de Arquivos do Servidor: correção de interferência de eventos de ponteiro no overlay com contagem de profundidade (drag counter) estável e extração recursiva robusta de hierarquias de pastas via FileSystem API.
 - Exibição de quantidade de subpastas ao passar o cursor sobre as pastas (tooltip informativo e badge de contagem de subpastas ao lado do nome).

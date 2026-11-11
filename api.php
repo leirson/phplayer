@@ -1702,14 +1702,49 @@ Accept: */*
         break;
 
     case 'scan':
-        write_scan_log("", true); // clear file and write header
-        write_scan_log("Iniciando varredura no diretório /music...");
+        $reqSubpath = isset($_REQUEST['path']) ? trim($_REQUEST['path']) : (isset($_REQUEST['folder']) ? trim($_REQUEST['folder']) : '');
+        $reqArtist = isset($_REQUEST['artist']) ? trim($_REQUEST['artist']) : '';
         
-        $musicDir = __DIR__ . '/music/';
-        if (!file_exists($musicDir)) {
-            write_scan_log("Diretório /music não existia. Criando pasta...");
-            @mkdir($musicDir, 0755, true);
+        $baseMusicDir = realpath(__DIR__ . '/music');
+        if (!$baseMusicDir) {
+            @mkdir(__DIR__ . '/music', 0755, true);
+            $baseMusicDir = realpath(__DIR__ . '/music');
         }
+        
+        $targetScanDir = $baseMusicDir;
+        $isSelectiveScan = false;
+        $scanTargetDisplay = '/music';
+
+        if (!empty($reqSubpath) && $reqSubpath !== '.' && $reqSubpath !== 'root' && $reqSubpath !== 'music') {
+            $cleanSub = trim($reqSubpath, '/\\');
+            // Remove prefix 'music/' se fornecido
+            if (strpos($cleanSub, 'music/') === 0) {
+                $cleanSub = substr($cleanSub, 6);
+            } elseif ($cleanSub === 'music') {
+                $cleanSub = '';
+            }
+
+            if (!empty($cleanSub)) {
+                $resolved = realpath($baseMusicDir . '/' . $cleanSub);
+                if ($resolved !== false && (strpos($resolved, $baseMusicDir . DIRECTORY_SEPARATOR) === 0 || strpos($resolved, $baseMusicDir . '/') === 0 || $resolved === $baseMusicDir)) {
+                    $targetScanDir = $resolved;
+                    $isSelectiveScan = true;
+                    $scanTargetDisplay = '/music/' . $cleanSub;
+                }
+            }
+        } elseif (!empty($reqArtist)) {
+            $resolvedArtist = realpath($baseMusicDir . '/' . trim($reqArtist, '/\\'));
+            if ($resolvedArtist !== false && (strpos($resolvedArtist, $baseMusicDir . DIRECTORY_SEPARATOR) === 0 || strpos($resolvedArtist, $baseMusicDir . '/') === 0)) {
+                $targetScanDir = $resolvedArtist;
+                $isSelectiveScan = true;
+                $scanTargetDisplay = '/music/' . trim($reqArtist, '/\\');
+            }
+        }
+
+        $musicDir = $baseMusicDir . '/';
+        
+        write_scan_log("", !$isSelectiveScan); // se for scan global limpa log, se for seletivo registra append ou novo cabeçalho
+        write_scan_log("Iniciando varredura " . ($isSelectiveScan ? "específica na pasta '$scanTargetDisplay'..." : "global no diretório /music..."));
         
         $newTracks = 0;
         $removedTracksCount = 0;
@@ -1720,10 +1755,12 @@ Accept: */*
         ];
 
         // 1. Clean up removed files and folders from the database
-        write_scan_log("Etapa 1: Limpeza de músicas cujos arquivos físicos foram removidos.");
+        write_scan_log("Etapa 1: Limpeza de músicas cujos arquivos físicos foram removidos (" . ($isSelectiveScan ? "somente para o escopo '$scanTargetDisplay'" : "todo o catálogo") . ").");
         $allSongs = [];
         $tables = get_songs_tables($pdo);
         write_scan_log("Tabelas de músicas particionadas identificadas: " . implode(', ', $tables));
+        
+        $selectivePrefix = $isSelectiveScan ? trim(str_replace(DIRECTORY_SEPARATOR, '/', substr($targetScanDir, strlen($baseMusicDir))), '/') : '';
         
         foreach ($tables as $t) {
             write_scan_log("Verificando integridade dos arquivos registrados na tabela '$t'...");
@@ -1743,6 +1780,15 @@ Accept: */*
             if (strpos($fName, 'http') === 0 || strpos($fName, 'music_') === 0 || $isPodcast) {
                 continue; // Skip seed streams, web uploads e faixas de podcasts da limpeza de musicDir
             }
+
+            // Se for varredura seletiva de artista/pasta, verificar apenas arquivos deste escopo
+            if ($isSelectiveScan && !empty($selectivePrefix)) {
+                $fNameNorm = trim(str_replace('\\', '/', $fName), '/');
+                if ($fNameNorm !== $selectivePrefix && strpos($fNameNorm, $selectivePrefix . '/') !== 0) {
+                    continue; // Pular arquivos fora do escopo desta pasta/artista
+                }
+            }
+
             if (!file_exists($musicDir . $fName)) {
                 $t = $song['_table'];
                 $pdo->prepare("DELETE FROM `" . $t . "` WHERE id = ?")->execute([$song['id']]);
@@ -1755,8 +1801,8 @@ Accept: */*
         // 1.5 Pre-scan folder to identify compilation directories (where different tracks have different artists)
         write_scan_log("Etapa 1.5: Identificando pastas com múltiplos artistas (coletâneas)...");
         $folderArtistsMap = [];
-        if (file_exists($musicDir)) {
-            $preIt = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($musicDir));
+        if (file_exists($targetScanDir)) {
+            $preIt = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($targetScanDir));
             foreach ($preIt as $pInfo) {
                 if ($pInfo->isFile()) {
                     $pExt = strtolower(pathinfo($pInfo->getFilename(), PATHINFO_EXTENSION));
@@ -1788,10 +1834,10 @@ Accept: */*
         write_scan_log("Etapa 1.5 Concluída! Pastas mapeadas: " . count($folderArtistsMap));
 
         // 2. Scan folders
-        write_scan_log("Etapa 2: Analisando pasta física /music recursivamente para novas adições...");
-        if (file_exists($musicDir)) {
+        write_scan_log("Etapa 2: Analisando pasta física '" . ($isSelectiveScan ? $scanTargetDisplay : "/music") . "' recursivamente para novas adições...");
+        if (file_exists($targetScanDir)) {
             try {
-                $directory = new RecursiveDirectoryIterator($musicDir);
+                $directory = new RecursiveDirectoryIterator($targetScanDir);
                 $iterator = new RecursiveIteratorIterator($directory);
                 
                 $totalPhysicalFiles = 0;
@@ -2039,9 +2085,16 @@ Accept: */*
         }
 
         $total = get_songs_count($pdo);
-        write_scan_log("=== VARREDURA COMPLETA CONCLUÍDA COM SUCESSO! Novas faixas adicionadas: $newTracks, Removidas: $removedTracksCount, Total no banco: $total ===");
+        write_scan_log("=== " . ($isSelectiveScan ? "VARREDURA ESPECÍFICA DE '{$scanTargetDisplay}' CONCLUÍDA!" : "VARREDURA COMPLETA CONCLUÍDA COM SUCESSO!") . " Novas faixas adicionadas: $newTracks, Removidas: $removedTracksCount, Total no banco: $total ===");
         
-        echo json_encode(['success' => true, 'count' => $newTracks, 'removed' => $removedTracksCount, 'total' => intval($total)]);
+        echo json_encode([
+            'success' => true,
+            'is_selective' => $isSelectiveScan,
+            'target' => $scanTargetDisplay,
+            'count' => $newTracks,
+            'removed' => $removedTracksCount,
+            'total' => intval($total)
+        ]);
         break;
 
     case 'genres':

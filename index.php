@@ -1441,6 +1441,9 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                             </p>
                         </div>
                         <div class="flex items-center gap-2 flex-wrap">
+                            <button id="file-manager-btn-sync-folder" onclick="syncCurrentFileManagerFolder(this)" class="hidden px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition select-none cursor-pointer shadow-lg shadow-emerald-500/10" title="Sincronizar somente as músicas desta pasta/artista com a biblioteca">
+                                <i data-lucide="refresh-cw" class="w-4 h-4 text-emerald-200"></i> <span id="file-manager-btn-sync-text">Sincronizar Pasta</span>
+                            </button>
                             <button id="file-manager-btn-new-folder" onclick="openNewFolderModal()" class="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition select-none cursor-pointer">
                                 <i data-lucide="folder-plus" class="w-4 h-4 text-emerald-400"></i> Nova Pasta
                             </button>
@@ -4027,9 +4030,22 @@ let currentUser = null;
             const btnNewFolder = document.getElementById('file-manager-btn-new-folder');
             const btnUpload = document.getElementById('file-manager-btn-upload');
             const btnUploadArtist = document.getElementById('file-manager-btn-upload-artist');
+            const btnSyncFolder = document.getElementById('file-manager-btn-sync-folder');
+            const btnSyncText = document.getElementById('file-manager-btn-sync-text');
+
             if (btnNewFolder) btnNewFolder.classList.remove('hidden');
             if (btnUpload) btnUpload.classList.remove('hidden');
             if (btnUploadArtist) btnUploadArtist.classList.remove('hidden');
+
+            if (btnSyncFolder) {
+                if (data.current_path && data.current_path !== 'root' && data.current_path !== 'music') {
+                    btnSyncFolder.classList.remove('hidden');
+                    const folderLeaf = data.current_path.split('/').pop() || 'Pasta';
+                    if (btnSyncText) btnSyncText.textContent = `Sincronizar "${folderLeaf}"`;
+                } else {
+                    btnSyncFolder.classList.add('hidden');
+                }
+            }
 
             // Breadcrumbs rendering
             const crumbsEl = document.getElementById('file-manager-breadcrumbs');
@@ -4131,8 +4147,19 @@ let currentUser = null;
                     sizeStr = `<span class="text-slate-500">${formatBytes(item.size || 0)}</span>`;
                 }
 
-                const actButtons = data.is_root ? '' : `
+                const syncBtnHtml = item.is_dir ? `
+                    <button onclick="event.stopPropagation(); syncSpecificFolder('${item.path.replace(/'/g, "\'")}', '${item.name.replace(/'/g, "\'")}', this)" class="p-1.5 text-emerald-400/80 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition cursor-pointer" title="Sincronizar somente esta pasta/artista (${item.name}) com a biblioteca">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                    </button>
+                ` : '';
+
+                const actButtons = data.is_root ? `
                     <div class="flex items-center justify-end gap-1">
+                        ${syncBtnHtml}
+                    </div>
+                ` : `
+                    <div class="flex items-center justify-end gap-1">
+                        ${syncBtnHtml}
                         <button onclick="handleRenameFileManagerItem('${item.path.replace(/'/g, "\'")}', '${item.name.replace(/'/g, "\'")}')" class="p-1.5 text-slate-500 hover:text-sky-400 transition cursor-pointer" title="Renomear">
                             <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                         </button>
@@ -4299,6 +4326,74 @@ let currentUser = null;
                 alert("Erro de rede ao excluir.");
             }
         }
+
+        async function syncSpecificFolder(folderPath, folderName, btn) {
+            const displayName = folderName || folderPath.split('/').pop() || 'Pasta';
+            if (!confirm(`Deseja sincronizar somente as músicas da pasta "${displayName}" com a biblioteca?`)) {
+                return;
+            }
+
+            let origHtml = '';
+            if (btn) {
+                origHtml = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin text-emerald-400"></i>';
+                if (window.lucide && typeof window.lucide.createIcons === 'function') lucide.createIcons();
+            }
+
+            try {
+                const u = (currentUser && currentUser.username) ? currentUser.username : 'admin';
+                const formData = new FormData();
+                formData.append('path', folderPath);
+                formData.append('folder', folderPath);
+                formData.append('username', u);
+                formData.append('admin_username', u);
+
+                const res = await fetch(`api.php?route=scan&path=${encodeURIComponent(folderPath)}&username=${encodeURIComponent(u)}&admin_username=${encodeURIComponent(u)}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Username': u,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success) {
+                        alert(`Sincronização da pasta "${displayName}" concluída com sucesso!\nNovas faixas adicionadas: ${data.count || 0}\nRemovidas: ${data.removed || 0}\nTotal no banco: ${data.total || 0}`);
+                        await loadData();
+                        if (typeof loadMusicFolders === 'function') {
+                            await loadMusicFolders();
+                        }
+                    } else {
+                        alert(`Falha ao sincronizar pasta "${displayName}": ` + (data.error || 'Erro desconhecido'));
+                    }
+                } else {
+                    alert(`Falha no servidor ao sincronizar pasta "${displayName}".`);
+                }
+            } catch (err) {
+                console.error("Erro ao sincronizar pasta específica:", err);
+                alert(`Erro de rede ao sincronizar pasta "${displayName}".`);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = origHtml;
+                    if (window.lucide && typeof window.lucide.createIcons === 'function') lucide.createIcons();
+                }
+            }
+        }
+        window.syncSpecificFolder = syncSpecificFolder;
+
+        async function syncCurrentFileManagerFolder(btn) {
+            if (!fileManagerCurrentPath || fileManagerCurrentPath === 'root' || fileManagerCurrentPath === 'music') {
+                alert('Selecione ou entre na pasta de um artista específico para sincronizar.');
+                return;
+            }
+            const folderLeaf = fileManagerCurrentPath.split('/').pop() || fileManagerCurrentPath;
+            await syncSpecificFolder(fileManagerCurrentPath, folderLeaf, btn);
+        }
+        window.syncCurrentFileManagerFolder = syncCurrentFileManagerFolder;
 
         function handleArtistFolderUpload(files) {
             if (!files || files.length === 0) return;
