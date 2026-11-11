@@ -540,7 +540,54 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                             </button>
                         </div>
                     </div>
-                    <div id="album-grid-container" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+
+                    <!-- Barra de progresso ao carregar álbuns no Dashboard -->
+                    <div id="dashboard-albums-loading-bar" class="space-y-2 p-3.5 bg-slate-950/80 border border-slate-800/80 rounded-2xl shadow-inner transition-all duration-300">
+                        <div class="flex items-center justify-between text-xs">
+                            <span id="dashboard-albums-loading-text" class="text-slate-300 font-medium flex items-center gap-2">
+                                <i data-lucide="disc" class="w-4 h-4 text-sky-400 animate-spin"></i>
+                                <span>Carregando álbuns da biblioteca...</span>
+                            </span>
+                            <span id="dashboard-albums-loading-pct" class="font-mono text-xs font-bold text-sky-400">15%</span>
+                        </div>
+                        <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800/80">
+                            <div id="dashboard-albums-progress-fill" class="h-full bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-400 rounded-full transition-all duration-300 ease-out shadow-[0_0_12px_rgba(56,189,248,0.5)]" style="width: 15%"></div>
+                        </div>
+                    </div>
+
+                    <div id="album-grid-container" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        <!-- Skeletons enquanto os álbuns carregam -->
+                        <div class="p-3 bg-slate-950/40 border border-slate-900/40 rounded-2xl flex flex-col space-y-2.5 animate-pulse">
+                            <div class="aspect-square bg-slate-900/60 rounded-xl"></div>
+                            <div class="h-3 bg-slate-900 rounded w-3/4"></div>
+                            <div class="h-2 bg-slate-900/60 rounded w-1/2"></div>
+                        </div>
+                        <div class="p-3 bg-slate-950/40 border border-slate-900/40 rounded-2xl flex flex-col space-y-2.5 animate-pulse">
+                            <div class="aspect-square bg-slate-900/60 rounded-xl"></div>
+                            <div class="h-3 bg-slate-900 rounded w-3/4"></div>
+                            <div class="h-2 bg-slate-900/60 rounded w-1/2"></div>
+                        </div>
+                        <div class="p-3 bg-slate-950/40 border border-slate-900/40 rounded-2xl flex flex-col space-y-2.5 animate-pulse">
+                            <div class="aspect-square bg-slate-900/60 rounded-xl"></div>
+                            <div class="h-3 bg-slate-900 rounded w-3/4"></div>
+                            <div class="h-2 bg-slate-900/60 rounded w-1/2"></div>
+                        </div>
+                        <div class="p-3 bg-slate-950/40 border border-slate-900/40 rounded-2xl flex flex-col space-y-2.5 animate-pulse">
+                            <div class="aspect-square bg-slate-900/60 rounded-xl"></div>
+                            <div class="h-3 bg-slate-900 rounded w-3/4"></div>
+                            <div class="h-2 bg-slate-900/60 rounded w-1/2"></div>
+                        </div>
+                        <div class="p-3 bg-slate-950/40 border border-slate-900/40 rounded-2xl flex flex-col space-y-2.5 animate-pulse">
+                            <div class="aspect-square bg-slate-900/60 rounded-xl"></div>
+                            <div class="h-3 bg-slate-900 rounded w-3/4"></div>
+                            <div class="h-2 bg-slate-900/60 rounded w-1/2"></div>
+                        </div>
+                        <div class="p-3 bg-slate-950/40 border border-slate-900/40 rounded-2xl flex flex-col space-y-2.5 animate-pulse">
+                            <div class="aspect-square bg-slate-900/60 rounded-xl"></div>
+                            <div class="h-3 bg-slate-900 rounded w-3/4"></div>
+                            <div class="h-2 bg-slate-900/60 rounded w-1/2"></div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -2936,9 +2983,89 @@ let currentUser = null;
             }
         }
 
+        window.artistRandomCovers = window.artistRandomCovers || {};
+
+        window.getRandomCoverForArtist = function(artistName, artistSongs) {
+            if (!artistName) return null;
+            if (window.artistRandomCovers && window.artistRandomCovers[artistName]) {
+                return window.artistRandomCovers[artistName];
+            }
+            if (!artistSongs) {
+                artistSongs = (allTracks || []).filter(t => t.artist === artistName);
+            }
+            const coversList = [];
+            const seen = new Set();
+            (artistSongs || []).forEach(t => {
+                const c = t.cover_url || t.coverUrl || t.cover_path || t.cover;
+                if (c && typeof c === 'string') {
+                    const clean = c.trim();
+                    if (clean && !clean.includes('placeholder') && !seen.has(clean)) {
+                        seen.add(clean);
+                        coversList.push(clean);
+                    }
+                }
+            });
+
+            let chosen = null;
+            if (coversList.length > 0) {
+                const randIdx = Math.floor(Math.random() * coversList.length);
+                chosen = coversList[randIdx];
+            } else {
+                const fallbackTrack = (artistSongs || []).find(t => t.cover_url || t.coverUrl || t.cover_path || t.cover);
+                if (fallbackTrack) {
+                    chosen = fallbackTrack.cover_url || fallbackTrack.coverUrl || fallbackTrack.cover_path || fallbackTrack.cover;
+                }
+            }
+
+            if (chosen) {
+                if (!window.artistRandomCovers) window.artistRandomCovers = {};
+                window.artistRandomCovers[artistName] = chosen;
+            }
+            return chosen;
+        };
+
+        window.setDashboardAlbumsProgress = function(percent, message) {
+            const barContainer = document.getElementById('dashboard-albums-loading-bar');
+            const fill = document.getElementById('dashboard-albums-progress-fill');
+            const textEl = document.getElementById('dashboard-albums-loading-text');
+            const pctEl = document.getElementById('dashboard-albums-loading-pct');
+
+            if (!barContainer || !fill) return;
+
+            if (percent === null || percent === false || percent === undefined) {
+                barContainer.classList.add('hidden');
+                return;
+            }
+
+            barContainer.classList.remove('hidden');
+            const clampedPct = Math.min(100, Math.max(0, Math.round(percent)));
+            fill.style.width = clampedPct + '%';
+            if (pctEl) pctEl.textContent = clampedPct + '%';
+            if (textEl && message) {
+                textEl.innerHTML = `<i data-lucide="disc" class="w-4 h-4 text-sky-400 animate-spin"></i> <span>${message}</span>`;
+                if (window.lucide) lucide.createIcons();
+            }
+        };
+
+        window.finishDashboardAlbumsProgress = function(message) {
+            window.setDashboardAlbumsProgress(100, message || 'Álbuns carregados com sucesso!');
+            setTimeout(() => {
+                const barContainer = document.getElementById('dashboard-albums-loading-bar');
+                if (barContainer) {
+                    barContainer.classList.add('hidden');
+                }
+            }, 550);
+        };
+
         async function loadData() {
             try {
+                if (window.setDashboardAlbumsProgress) {
+                    window.setDashboardAlbumsProgress(20, 'Buscando músicas e álbuns no servidor...');
+                }
                 const r1 = await fetch(API + '?route=tracks');
+                if (window.setDashboardAlbumsProgress) {
+                    window.setDashboardAlbumsProgress(45, 'Processando faixas e álbuns...');
+                }
                 const t1 = await r1.text();
                 let parsedTracks;
                 try {
@@ -2953,7 +3080,12 @@ let currentUser = null;
                     throw new Error("Dados de músicas recebidos do servidor em formato inválido.");
                 }
                 allTracks = parsedTracks;
+                window.artistRandomCovers = {}; // Reseta capas aleatórias por artista ao recarregar
                 
+                if (window.setDashboardAlbumsProgress) {
+                    window.setDashboardAlbumsProgress(70, 'Agrupando álbuns e capas de artistas...');
+                }
+
                 if (window.updateDashboardGenresDropdown) {
                     window.updateDashboardGenresDropdown();
                 } else {
@@ -2992,11 +3124,18 @@ let currentUser = null;
                 }
                 allFavorites = parsedFavorites;
 
+                if (window.setDashboardAlbumsProgress) {
+                    window.setDashboardAlbumsProgress(90, 'Renderizando coleção de álbuns...');
+                }
+
                 if (activeTab === 'playlists' && window.renderPlaylistsGrid) {
                     window.renderPlaylistsGrid();
                 }
             } catch (err) {
                 console.error(err);
+                if (window.setDashboardAlbumsProgress) {
+                    window.setDashboardAlbumsProgress(null);
+                }
                 showErrorModal("Erro de conexão com o banco de dados PHP: " + err.message);
             }
         }
@@ -5290,21 +5429,20 @@ let currentUser = null;
                         const active = selectedArtist === art;
                         const artistSongs = allTracks.filter(t => t.artist === art);
                         const count = artistSongs.length;
-                        const coverTrack = artistSongs.find(t => t.cover_path || t.coverUrl || t.cover);
-                        const coverUrl = coverTrack ? (coverTrack.cover_path || coverTrack.coverUrl || coverTrack.cover) : null;
+                        const coverUrl = window.getRandomCoverForArtist(art, artistSongs);
 
                         const itemDiv = document.createElement("div");
                         itemDiv.className = active 
-                            ? "group flex items-center justify-between px-3 py-2 bg-sky-500/10 text-sky-400 border border-sky-500/30 rounded-xl text-left text-xs font-semibold cursor-pointer shadow-sm transition"
-                            : "group flex items-center justify-between px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-900 rounded-xl text-left text-xs font-medium cursor-pointer border border-transparent transition";
+                            ? "group flex items-center justify-between px-2.5 py-1.5 bg-sky-500/10 text-sky-400 border border-sky-500/30 rounded-xl text-left text-xs font-semibold cursor-pointer shadow-sm transition"
+                            : "group flex items-center justify-between px-2.5 py-1.5 text-slate-400 hover:text-white hover:bg-slate-900 rounded-xl text-left text-xs font-medium cursor-pointer border border-transparent transition";
 
                         let coverImg = coverUrl 
-                            ? `<img src="${coverUrl}" alt="${art.replace(/"/g, "&quot;")}" class="w-6 h-6 rounded-md object-cover shrink-0 border border-slate-800" referrerpolicy="no-referrer">`
-                            : `<div class="w-6 h-6 rounded-md bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 shrink-0"><i data-lucide="user" class="w-3.5 h-3.5"></i></div>`;
+                            ? `<img src="${coverUrl}" alt="${art.replace(/"/g, "&quot;")}" class="w-7 h-7 rounded-lg object-cover shrink-0 border border-slate-800 shadow-sm" referrerpolicy="no-referrer" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'w-7 h-7 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 shrink-0 shadow-sm\\'><i data-lucide=\\'user\\' class=\\'w-3.5 h-3.5 text-sky-400\\'></i></div>';">`
+                            : `<div class="w-7 h-7 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 shrink-0 shadow-sm"><i data-lucide="user" class="w-3.5 h-3.5 text-sky-400"></i></div>`;
 
                         itemDiv.innerHTML = `
-                            <div class="flex items-center gap-2 truncate min-w-0 flex-1">
-                                ${coverImg}
+                            <div class="flex items-center gap-2.5 truncate min-w-0 flex-1">
+                                <div class="shrink-0 w-7 h-7 flex items-center justify-center">${coverImg}</div>
                                 <div class="truncate flex-1">
                                     <p class="truncate leading-tight ${active ? "text-sky-300 font-bold" : "text-slate-300 group-hover:text-white"}">${art}</p>
                                     <span class="text-[9px] text-slate-500 font-mono">${count} ${count === 1 ? "música" : "músicas"}</span>
@@ -5450,10 +5588,20 @@ let currentUser = null;
         window.phpDashboardSort = 'random';
         window.phpDashboardQuery = '';
 
+        let searchAlbumsTimeout = null;
         window.onPhpDashboardSearchInput = function(val) {
             window.phpDashboardQuery = val;
-            updateRandomDashboardAlbums();
-            renderAlbumGrid();
+            if (window.setDashboardAlbumsProgress) {
+                window.setDashboardAlbumsProgress(35, 'Buscando álbuns correspondentes...');
+            }
+            if (searchAlbumsTimeout) clearTimeout(searchAlbumsTimeout);
+            searchAlbumsTimeout = setTimeout(() => {
+                updateRandomDashboardAlbums();
+                renderAlbumGrid();
+                if (window.finishDashboardAlbumsProgress) {
+                    window.finishDashboardAlbumsProgress('Busca concluída!');
+                }
+            }, 180);
         };
 
         function updateDashboardGenresDropdown() {
@@ -5492,14 +5640,30 @@ let currentUser = null;
 
         window.onPhpDashboardGenreChange = function(val) {
             window.phpDashboardGenre = val;
-            updateRandomDashboardAlbums();
-            renderAlbumGrid();
+            if (window.setDashboardAlbumsProgress) {
+                window.setDashboardAlbumsProgress(35, 'Filtrando álbuns por gênero...');
+            }
+            setTimeout(() => {
+                updateRandomDashboardAlbums();
+                renderAlbumGrid();
+                if (window.finishDashboardAlbumsProgress) {
+                    window.finishDashboardAlbumsProgress('Álbuns filtrados!');
+                }
+            }, 50);
         };
 
         window.onPhpDashboardSortChange = function(val) {
             window.phpDashboardSort = val;
-            updateRandomDashboardAlbums();
-            renderAlbumGrid();
+            if (window.setDashboardAlbumsProgress) {
+                window.setDashboardAlbumsProgress(35, 'Reordenando coleção de álbuns...');
+            }
+            setTimeout(() => {
+                updateRandomDashboardAlbums();
+                renderAlbumGrid();
+                if (window.finishDashboardAlbumsProgress) {
+                    window.finishDashboardAlbumsProgress('Álbuns reordenados!');
+                }
+            }, 50);
         };
 
         
@@ -5654,10 +5818,32 @@ let currentUser = null;
         function renderAlbumGrid() {
             const grid = document.getElementById('album-grid-container');
             if (!grid) return;
+
+            if (!allTracks || allTracks.length === 0) {
+                if (window.setDashboardAlbumsProgress) {
+                    window.setDashboardAlbumsProgress(30, 'Carregando álbuns da biblioteca...');
+                }
+                return;
+            }
+
             grid.innerHTML = '';
             
             if (!randomDashboardAlbums || randomDashboardAlbums.length === 0) {
                 updateRandomDashboardAlbums();
+            }
+
+            if (!randomDashboardAlbums || randomDashboardAlbums.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-12 text-center text-slate-500">
+                        <i data-lucide="disc-3" class="w-10 h-10 mx-auto mb-2 text-slate-600 opacity-60"></i>
+                        <p class="text-xs font-semibold">Nenhum álbum encontrado para esta seleção.</p>
+                    </div>
+                `;
+                if (window.finishDashboardAlbumsProgress) {
+                    window.finishDashboardAlbumsProgress();
+                }
+                if (window.lucide) lucide.createIcons();
+                return;
             }
 
             const albsMap = {};
@@ -5765,12 +5951,23 @@ let currentUser = null;
                     </div>
                 `;
             }
+            if (window.finishDashboardAlbumsProgress) {
+                window.finishDashboardAlbumsProgress('Coleção de álbuns pronta!');
+            }
             lucide.createIcons();
         }
 
         window.changeDashboardAlbumPage = function(page) {
-            updateRandomDashboardAlbums();
-            renderAlbumGrid();
+            if (window.setDashboardAlbumsProgress) {
+                window.setDashboardAlbumsProgress(45, 'Rotacionando novos álbuns aleatórios...');
+            }
+            setTimeout(() => {
+                updateRandomDashboardAlbums();
+                renderAlbumGrid();
+                if (window.finishDashboardAlbumsProgress) {
+                    window.finishDashboardAlbumsProgress();
+                }
+            }, 50);
         };
 
         function playAlbumQueue(e, trackList) {
@@ -7738,9 +7935,17 @@ document.addEventListener('fullscreenchange', (event) => {
                     const count = artistsMapSidebar[art];
                     const active = phpSelectedArtist === art;
                     const escapedArt = art.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const coverUrl = window.getRandomCoverForArtist(art);
+                    let coverImg = coverUrl 
+                        ? `<img src="${coverUrl}" alt="${escapedArt}" class="w-6 h-6 rounded-md object-cover shrink-0 border border-slate-800 shadow-sm" referrerpolicy="no-referrer" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'w-6 h-6 rounded-md bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 shrink-0\\'><i data-lucide=\\'user\\' class=\\'w-3 h-3 text-sky-400\\'></i></div>';">`
+                        : `<div class="w-6 h-6 rounded-md bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 shrink-0"><i data-lucide="user" class="w-3 h-3 text-sky-400"></i></div>`;
+
                     artistsHtml += `
-                        <div onclick="filterTracksBySidebarArtist('${escapedArt}')" class="group px-2.5 py-1.5 rounded-lg text-left text-xs flex justify-between items-center font-semibold cursor-pointer w-full transition ${active ? 'bg-sky-500/10 text-sky-400 font-extrabold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'}">
-                            <span class="truncate pr-1 select-none pointer-events-none">${art}</span>
+                        <div onclick="filterTracksBySidebarArtist('${escapedArt}')" class="group px-2 py-1.5 rounded-lg text-left text-xs flex justify-between items-center font-semibold cursor-pointer w-full transition ${active ? 'bg-sky-500/10 text-sky-400 font-extrabold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'}">
+                            <div class="flex items-center gap-2 truncate min-w-0 flex-1">
+                                <div class="shrink-0 w-6 h-6 flex items-center justify-center">${coverImg}</div>
+                                <span class="truncate pr-1 select-none pointer-events-none">${art}</span>
+                            </div>
                             <div class="flex items-center gap-1.5 shrink-0 select-none">
                                 <span class="text-[9px] text-slate-600 font-mono">(${count})</span>
                                 <button onclick="event.stopPropagation(); playSidebarArtist('${escapedArt}')" class="opacity-0 group-hover:opacity-100 p-0.5 text-sky-450 hover:text-sky-300 hover:bg-sky-950/40 rounded transition-all cursor-pointer flex items-center justify-center" title="Tocar Músicas">
@@ -7751,6 +7956,7 @@ document.addEventListener('fullscreenchange', (event) => {
                     `;
                 });
                 sidebarArtistsList.innerHTML = artistsHtml;
+                if (window.lucide) lucide.createIcons();
             }
 
             // Render Albums in sidebar

@@ -1,5 +1,9 @@
 <?php
 $changelog = <<<EOT
+v1.2.6
+- Adicionada barra de progresso no Dashboard durante o carregamento, filtragem e rotação dos álbuns com status percentual e esqueletos de carregamento.
+- Exibição de capa aleatória do artista na lista de artistas da barra lateral à direita (tanto no painel lateral global quanto na lista de artistas da biblioteca), posicionada à esquerda do nome do artista com fallback suave.
+
 v1.2.5
 - Correção do escopo global da função syncSinglePodcastFeed() no arquivo api.php: a declaração da função foi movida para fora do switch (\$route), garantindo carregamento incondicional pelo interpretador PHP e eliminando o erro fatal "Call to undefined function syncSinglePodcastFeed()".
 
