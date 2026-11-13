@@ -394,6 +394,9 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     <button id="tab-btn-tracks" onclick="setTab('tracks')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-songs">
                         <i data-lucide="music" class="w-3.5 h-3.5"></i> Minhas Músicas
                     </button>
+                    <button id="tab-btn-artists" onclick="setTab('artists')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-artists">
+                        <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-400"></i> Artistas
+                    </button>
                     <button id="tab-btn-favorites" onclick="setTab('favorites')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-favorites">
                         <i data-lucide="heart" class="w-3.5 h-3.5 text-rose-500"></i> Favoritos
                     </button>
@@ -464,20 +467,20 @@ define('DONT_EXIT_ON_DB_ERROR', true);
 
                 <!-- STATS -->
                 <div class="grid grid-cols-4 gap-4">
-                    <div class="p-4 bg-slate-950/60 border border-slate-900 rounded-2xl">
-                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest" data-i18n="stat-collection">Coleção</span>
+                    <div onclick="setTab('tracks')" class="p-4 bg-slate-950/60 border border-slate-900 hover:border-sky-500/30 rounded-2xl cursor-pointer transition group" title="Ver todas as músicas">
+                        <span class="text-[9px] font-bold text-slate-500 group-hover:text-sky-400 uppercase tracking-widest transition" data-i18n="stat-collection">Coleção</span>
                         <h3 id="stat-songs" class="text-2xl font-black text-white mt-1">0</h3>
                     </div>
                     <div class="p-4 bg-slate-950/60 border border-slate-900 rounded-2xl">
                         <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest" data-i18n="stat-albums">Álbuns únicos</span>
                         <h3 id="stat-albums" class="text-2xl font-black text-white mt-1">0</h3>
                     </div>
-                    <div class="p-4 bg-slate-950/60 border border-slate-900 rounded-2xl">
-                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest" data-i18n="stat-artists">Artistas únicos</span>
+                    <div onclick="setTab('artists')" class="p-4 bg-slate-950/60 border border-slate-900 hover:border-indigo-500/40 rounded-2xl cursor-pointer transition group" title="Abrir página de Artistas">
+                        <span class="text-[9px] font-bold text-slate-500 group-hover:text-indigo-400 uppercase tracking-widest transition" data-i18n="stat-artists">Artistas únicos</span>
                         <h3 id="stat-artists" class="text-2xl font-black text-white mt-1">0</h3>
                     </div>
-                    <div class="p-4 bg-slate-950/60 border border-slate-900 rounded-2xl">
-                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest" data-i18n="stat-favorites">Favoritos</span>
+                    <div onclick="setTab('favorites')" class="p-4 bg-slate-950/60 border border-slate-900 hover:border-rose-500/30 rounded-2xl cursor-pointer transition group" title="Ver músicas favoritas">
+                        <span class="text-[9px] font-bold text-slate-500 group-hover:text-rose-400 uppercase tracking-widest transition" data-i18n="stat-favorites">Favoritos</span>
                         <h3 id="stat-favs" class="text-2xl font-black text-white mt-1">0</h3>
                     </div>
                 </div>
@@ -1501,7 +1504,65 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                 </div>
             </section>
 
-            
+            <!-- VIEW: ARTISTAS -->
+            <section id="pane-artists" class="space-y-6 flex-1 hidden tab-transition">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-slate-950/50 border border-slate-900 p-5 rounded-2xl shadow-lg">
+                    <div class="flex items-center gap-3.5">
+                        <div class="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl text-indigo-400 shrink-0">
+                            <i data-lucide="users" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                                <span>Artistas</span>
+                                <span id="artists-page-total-badge" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/25">0</span>
+                            </h2>
+                            <p id="artists-page-subtitle" class="text-xs text-slate-400 mt-0.5">
+                                Explore todos os artistas da sua biblioteca e reproduza no modo normal ou aleatório
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+                        <!-- Search artist input -->
+                        <div class="relative flex-1 sm:flex-initial sm:w-56">
+                            <input id="artists-page-search" type="text" oninput="window.onArtistsPageSearch(this.value)" placeholder="Buscar artista..." class="w-full bg-[#0a111e] border border-slate-800 text-slate-200 hover:text-white text-xs rounded-xl pl-9 pr-3 py-2.5 focus:border-indigo-500 outline-none font-semibold transition shadow-inner" />
+                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                                <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                            </div>
+                        </div>
+
+                        <!-- Sort dropdown -->
+                        <div class="relative w-44 shrink-0">
+                            <select id="artists-page-sort" onchange="window.onArtistsPageSort(this.value)" class="w-full bg-[#0a111e] border border-slate-800 text-slate-200 hover:text-white text-xs rounded-xl pl-3 pr-8 py-2.5 focus:border-indigo-500 outline-none font-bold cursor-pointer appearance-none transition shadow-inner">
+                                <option value="alphabetical" selected>Ordem Alfabética (A-Z)</option>
+                                <option value="tracks_desc">Mais Músicas</option>
+                                <option value="albums_desc">Mais Álbuns</option>
+                                <option value="random">Ordem Aleatória</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-500">
+                                <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                            </div>
+                        </div>
+
+                        <!-- Play random artist button -->
+                        <button onclick="window.playRandomArtistFromPage()" class="px-3.5 py-2.5 bg-gradient-to-r from-indigo-600 to-sky-500 hover:from-indigo-500 hover:to-sky-400 text-white rounded-xl text-xs font-black uppercase tracking-wider transition active:scale-95 flex items-center gap-1.5 shadow-lg shadow-indigo-500/15 cursor-pointer shrink-0" title="Escolher um artista aleatório e reproduzir">
+                            <i data-lucide="shuffle" class="w-3.5 h-3.5"></i> Artista Aleatório
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Barra Alfabética A-Z -->
+                <div id="artists-alphabet-bar" class="flex flex-wrap items-center gap-1 bg-slate-950/40 border border-slate-900/80 p-2 rounded-xl"></div>
+
+                <!-- Estado vazio -->
+                <div id="artists-page-empty" class="py-20 text-center text-xs text-slate-500 italic bg-slate-950/20 border border-slate-900 border-dashed rounded-3xl hidden">
+                    Nenhum artista encontrado para o filtro selecionado.
+                </div>
+
+                <!-- Grid de Artistas -->
+                <div id="artists-page-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 pb-12"></div>
+            </section>
+
             <!-- VIEW: PLAYLISTS -->
             <section id="pane-playlists" class="space-y-6 flex-1 hidden tab-transition">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-900 pb-5">
@@ -2142,11 +2203,11 @@ define('DONT_EXIT_ON_DB_ERROR', true);
               
     <!-- EQUALIZER MODAL -->
     <div id="equalizer-modal" class="fixed inset-0 bg-black/85 flex flex-col items-center justify-center z-[60] p-4 backdrop-blur-sm hidden font-sans">
-        <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl max-w-2xl w-full text-left shadow-2xl relative flex flex-col overflow-hidden animate-fade-in">
+        <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl max-w-lg w-full max-h-[90vh] text-left shadow-2xl relative flex flex-col overflow-hidden animate-fade-in">
             <!-- Header -->
-            <div class="flex items-center justify-between p-5 border-b border-slate-900">
+            <div class="flex items-center justify-between p-5 border-b border-slate-900 shrink-0">
                 <div class="flex items-center gap-2">
-                    <i data-lucide="sliders" class="w-5 h-5 text-sky-455"></i>
+                    <i data-lucide="sliders" class="w-5 h-5 text-sky-400"></i>
                     <h3 class="text-sm font-black uppercase text-white tracking-wider">Equalizador de Áudio</h3>
                 </div>
                 <button onclick="closeEqualizerModal()" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-900 rounded-lg transition cursor-pointer">
@@ -2154,63 +2215,73 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                 </button>
             </div>
             
-            <div class="p-6 overflow-y-auto w-full">
+            <div class="p-5 sm:p-6 overflow-y-auto w-full custom-scroll">
                 <!-- Presets -->
                 <div class="mb-6">
                     <label class="text-[9px] uppercase font-bold text-slate-500 tracking-wider block mb-3">Predefinições (Presets)</label>
-                    <div class="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                        <button onclick="setEqPresetPhp('flat')" id="preset-php-flat" class="preset-btn px-2 py-1.5 bg-sky-500/10 border border-sky-500 text-sky-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-bold shadow-lg shadow-sky-500/5 cursor-pointer">Flat</button>
-                        <button onclick="setEqPresetPhp('bass')" id="preset-php-bass" class="preset-btn px-2 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Grav</button>
-                        <button onclick="setEqPresetPhp('pop')" id="preset-php-pop" class="preset-btn px-2 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Pop</button>
-                        <button onclick="setEqPresetPhp('rock')" id="preset-php-rock" class="preset-btn px-2 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Rock</button>
-                        <button onclick="setEqPresetPhp('vocal')" id="preset-php-vocal" class="preset-btn px-2 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Voz</button>
-                        <button onclick="setEqPresetPhp('electronic')" id="preset-php-electronic" class="preset-btn px-2 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Eletr</button>
-                        <button onclick="setEqPresetPhp('suave')" id="preset-php-suave" class="preset-btn px-2 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Suav</button>
-                        <button onclick="setEqPresetPhp('classical')" id="preset-php-classical" class="preset-btn px-2 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Clás</button>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <button onclick="setEqPresetPhp('flat')" id="preset-php-flat" class="preset-btn px-2.5 py-1.5 bg-sky-500/10 border border-sky-500 text-sky-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-bold shadow-lg shadow-sky-500/5 cursor-pointer">Flat</button>
+                        <button onclick="setEqPresetPhp('bass')" id="preset-php-bass" class="preset-btn px-2.5 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Graves</button>
+                        <button onclick="setEqPresetPhp('pop')" id="preset-php-pop" class="preset-btn px-2.5 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Pop</button>
+                        <button onclick="setEqPresetPhp('rock')" id="preset-php-rock" class="preset-btn px-2.5 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Rock</button>
+                        <button onclick="setEqPresetPhp('vocal')" id="preset-php-vocal" class="preset-btn px-2.5 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Voz</button>
+                        <button onclick="setEqPresetPhp('electronic')" id="preset-php-electronic" class="preset-btn px-2.5 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Eletrônica</button>
+                        <button onclick="setEqPresetPhp('suave')" id="preset-php-suave" class="preset-btn px-2.5 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Suave</button>
+                        <button onclick="setEqPresetPhp('classical')" id="preset-php-classical" class="preset-btn px-2.5 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer">Clássica</button>
                     </div>
                 </div>
 
                 <!-- Sliders -->
-                <div class="p-6 flex justify-around items-center h-56 bg-slate-900/40 border border-slate-800/60 rounded-xl">
-                    <div class="flex flex-col items-center h-full gap-2">
-                        <span class="text-[9px] text-slate-500 font-mono" id="php-eq-gain-val-0">0dB</span>
-                        <div class="flex-1 w-8 relative flex justify-center py-2">
-                            <input type="range" min="-12" max="12" value="0" id="php-eq-slider-0" oninput="onEqSliderChangePhp(0, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="writing-mode: vertical-lr; direction: rtl; width: 6px; height: 100%;">
+                <div class="p-5 sm:p-6 flex justify-around items-stretch h-72 bg-slate-900/40 border border-slate-800/60 rounded-xl">
+                    <div class="flex flex-col items-center justify-between h-full">
+                        <span class="text-[10px] text-slate-400 font-mono w-10 text-center tabular-nums" id="php-eq-gain-val-0">0dB</span>
+                        <div class="h-40 w-10 flex items-center justify-center relative">
+                            <input type="range" min="-12" max="12" step="1" value="0" id="php-eq-slider-0" oninput="onEqSliderChangePhp(0, this.value)" class="cursor-pointer accent-sky-400" orient="vertical" style="writing-mode: vertical-lr; direction: rtl; width: 24px; height: 150px;">
                         </div>
-                        <span class="text-[9px] font-bold text-white">60Hz</span>
-                        <span class="text-[8px] text-sky-455 uppercase font-black tracking-wider">Graves</span>
+                        <div class="flex flex-col items-center gap-0.5">
+                            <span class="text-[10px] font-bold text-white">60Hz</span>
+                            <span class="text-[8px] text-sky-400 uppercase font-black tracking-wider">Graves</span>
+                        </div>
                     </div>
-                    <div class="flex flex-col items-center h-full gap-2">
-                        <span class="text-[9px] text-slate-500 font-mono" id="php-eq-gain-val-1">0dB</span>
-                        <div class="flex-1 w-8 relative flex justify-center py-2">
-                            <input type="range" min="-12" max="12" value="0" id="php-eq-slider-1" oninput="onEqSliderChangePhp(1, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="writing-mode: vertical-lr; direction: rtl; width: 6px; height: 100%;">
+                    <div class="flex flex-col items-center justify-between h-full">
+                        <span class="text-[10px] text-slate-400 font-mono w-10 text-center tabular-nums" id="php-eq-gain-val-1">0dB</span>
+                        <div class="h-40 w-10 flex items-center justify-center relative">
+                            <input type="range" min="-12" max="12" step="1" value="0" id="php-eq-slider-1" oninput="onEqSliderChangePhp(1, this.value)" class="cursor-pointer accent-sky-400" orient="vertical" style="writing-mode: vertical-lr; direction: rtl; width: 24px; height: 150px;">
                         </div>
-                        <span class="text-[9px] font-bold text-white">230Hz</span>
-                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider">MGrav</span>
+                        <div class="flex flex-col items-center gap-0.5">
+                            <span class="text-[10px] font-bold text-white">230Hz</span>
+                            <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider">MGrav</span>
+                        </div>
                     </div>
-                    <div class="flex flex-col items-center h-full gap-2">
-                        <span class="text-[9px] text-slate-500 font-mono" id="php-eq-gain-val-2">0dB</span>
-                        <div class="flex-1 w-8 relative flex justify-center py-2">
-                            <input type="range" min="-12" max="12" value="0" id="php-eq-slider-2" oninput="onEqSliderChangePhp(2, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="writing-mode: vertical-lr; direction: rtl; width: 6px; height: 100%;">
+                    <div class="flex flex-col items-center justify-between h-full">
+                        <span class="text-[10px] text-slate-400 font-mono w-10 text-center tabular-nums" id="php-eq-gain-val-2">0dB</span>
+                        <div class="h-40 w-10 flex items-center justify-center relative">
+                            <input type="range" min="-12" max="12" step="1" value="0" id="php-eq-slider-2" oninput="onEqSliderChangePhp(2, this.value)" class="cursor-pointer accent-sky-400" orient="vertical" style="writing-mode: vertical-lr; direction: rtl; width: 24px; height: 150px;">
                         </div>
-                        <span class="text-[9px] font-bold text-white">910Hz</span>
-                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider">Médio</span>
+                        <div class="flex flex-col items-center gap-0.5">
+                            <span class="text-[10px] font-bold text-white">910Hz</span>
+                            <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider">Médio</span>
+                        </div>
                     </div>
-                    <div class="flex flex-col items-center h-full gap-2">
-                        <span class="text-[9px] text-slate-500 font-mono" id="php-eq-gain-val-3">0dB</span>
-                        <div class="flex-1 w-8 relative flex justify-center py-2">
-                            <input type="range" min="-12" max="12" value="0" id="php-eq-slider-3" oninput="onEqSliderChangePhp(3, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="writing-mode: vertical-lr; direction: rtl; width: 6px; height: 100%;">
+                    <div class="flex flex-col items-center justify-between h-full">
+                        <span class="text-[10px] text-slate-400 font-mono w-10 text-center tabular-nums" id="php-eq-gain-val-3">0dB</span>
+                        <div class="h-40 w-10 flex items-center justify-center relative">
+                            <input type="range" min="-12" max="12" step="1" value="0" id="php-eq-slider-3" oninput="onEqSliderChangePhp(3, this.value)" class="cursor-pointer accent-sky-400" orient="vertical" style="writing-mode: vertical-lr; direction: rtl; width: 24px; height: 150px;">
                         </div>
-                        <span class="text-[9px] font-bold text-white">4kHz</span>
-                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider">Pres</span>
+                        <div class="flex flex-col items-center gap-0.5">
+                            <span class="text-[10px] font-bold text-white">4kHz</span>
+                            <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider">Pres</span>
+                        </div>
                     </div>
-                    <div class="flex flex-col items-center h-full gap-2">
-                        <span class="text-[9px] text-slate-500 font-mono" id="php-eq-gain-val-4">0dB</span>
-                        <div class="flex-1 w-8 relative flex justify-center py-2">
-                            <input type="range" min="-12" max="12" value="0" id="php-eq-slider-4" oninput="onEqSliderChangePhp(4, this.value)" class="h-full cursor-pointer accent-sky-400" orient="vertical" style="writing-mode: vertical-lr; direction: rtl; width: 6px; height: 100%;">
+                    <div class="flex flex-col items-center justify-between h-full">
+                        <span class="text-[10px] text-slate-400 font-mono w-10 text-center tabular-nums" id="php-eq-gain-val-4">0dB</span>
+                        <div class="h-40 w-10 flex items-center justify-center relative">
+                            <input type="range" min="-12" max="12" step="1" value="0" id="php-eq-slider-4" oninput="onEqSliderChangePhp(4, this.value)" class="cursor-pointer accent-sky-400" orient="vertical" style="writing-mode: vertical-lr; direction: rtl; width: 24px; height: 150px;">
                         </div>
-                        <span class="text-[9px] font-bold text-white">14kHz</span>
-                        <span class="text-[8px] text-sky-455 uppercase font-black tracking-wider">Agudo</span>
+                        <div class="flex flex-col items-center gap-0.5">
+                            <span class="text-[10px] font-bold text-white">14kHz</span>
+                            <span class="text-[8px] text-sky-400 uppercase font-black tracking-wider">Agudo</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2279,14 +2350,6 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     </div>
                 </div>
                 <div class="flex items-center gap-3 shrink-0">
-                    <div class="flex bg-slate-900/60 p-1 border border-slate-800 rounded-lg gap-1 select-none">
-                        <button id="btn-lyrics-karaoke" onclick="setLyricsMode('karaoke')" class="px-2.5 py-1 font-bold uppercase tracking-wider text-[9px] rounded cursor-pointer transition-all duration-200">
-                            Karaoke
-                        </button>
-                        <button id="btn-lyrics-standard" onclick="setLyricsMode('standard')" class="px-2.5 py-1 font-bold uppercase tracking-wider text-[9px] rounded cursor-pointer transition-all duration-200">
-                            Leitura
-                        </button>
-                    </div>
                     <button onclick="closeLyricsModal()" class="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-900 rounded-xl transition cursor-pointer">
                         <i data-lucide="x" class="w-5 h-5"></i>
                     </button>
@@ -2583,6 +2646,82 @@ define('DONT_EXIT_ON_DB_ERROR', true);
         </div>
     </div>
 
+    <!-- ARTIST COVER PHOTO PICKER MODAL -->
+    <div id="artist-cover-picker-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-[65] p-4 backdrop-blur-sm hidden font-sans">
+        <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl max-w-2xl w-full flex flex-col overflow-hidden shadow-2xl animate-fade-in text-left max-h-[90vh]">
+            <div class="p-5 border-b border-slate-900 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                        <i data-lucide="camera" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xs font-black uppercase text-white tracking-wider">Escolher Foto de Capa do Artista</h3>
+                        <p class="text-[11px] text-slate-400 font-medium">Artista: <span id="artist-cover-picker-name" class="font-bold text-sky-400"></span></p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeArtistCoverPickerModal()" class="p-1.5 hover:bg-slate-900 text-slate-400 hover:text-white rounded-lg transition cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div class="p-5 space-y-5 overflow-y-auto flex-1 custom-scroll">
+                <!-- Quick Upload or Search Options -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button type="button" onclick="closeArtistCoverPickerModal(); triggerArtistBannerUpload();" class="p-3.5 bg-slate-900/70 hover:bg-slate-900 border border-slate-800 hover:border-sky-500/40 rounded-xl flex items-center gap-3 text-left transition cursor-pointer group">
+                        <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 group-hover:scale-105 transition shrink-0">
+                            <i data-lucide="upload" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-white group-hover:text-sky-400 transition">Enviar Foto do Computador</div>
+                            <div class="text-[10px] text-slate-400">Faça upload de uma imagem (JPG, PNG, WEBP)</div>
+                        </div>
+                    </button>
+
+                    <button type="button" onclick="closeArtistCoverPickerModal(); handleOpenArtistImageSearch();" class="p-3.5 bg-slate-900/70 hover:bg-slate-900 border border-slate-800 hover:border-indigo-500/40 rounded-xl flex items-center gap-3 text-left transition cursor-pointer group">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-105 transition shrink-0">
+                            <i data-lucide="globe" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-white group-hover:text-indigo-400 transition">Buscar Foto On-line</div>
+                            <div class="text-[10px] text-slate-400">Pesquisar foto oficial no Google, Deezer ou Last.fm</div>
+                        </div>
+                    </button>
+                </div>
+
+                <!-- Paste Image URL -->
+                <div class="bg-slate-950/60 border border-slate-900 rounded-xl p-3.5 space-y-2">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Ou cole a URL direta de uma imagem</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="artist-custom-cover-url-input" placeholder="https://exemplo.com/foto-do-artista.jpg" class="flex-1 bg-slate-900/80 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500">
+                        <button type="button" onclick="applyCustomArtistCoverUrlFromInput()" class="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs rounded-xl transition cursor-pointer shrink-0">
+                            Aplicar URL
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Choose from Artist's Album Covers -->
+                <div class="space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="disc" class="w-3.5 h-3.5 text-sky-400"></i>
+                            Escolher entre as Capas dos Álbuns deste Artista
+                        </label>
+                        <span id="artist-cover-picker-albums-count" class="text-[10px] font-mono text-slate-500"></span>
+                    </div>
+                    <div id="artist-cover-picker-albums-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-900 bg-slate-950/60 flex justify-end shrink-0">
+                <button type="button" onclick="closeArtistCoverPickerModal()" class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 rounded-xl text-xs font-bold transition cursor-pointer">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
 
         // Garantir que chamadas ao lucide não quebrem a aplicação caso o CDN falhe ou atrase
@@ -2746,12 +2885,6 @@ let currentUser = null;
                     const repCurTime = document.getElementById('reprodutor-current-time');
                     if (repSeek && document.activeElement !== repSeek) repSeek.value = audio.currentTime;
                     if (repCurTime) repCurTime.textContent = formatSecs(audio.currentTime);
-
-                    // Real-time Karaoke dynamic highlight syncing
-                    const lyricsModal = document.getElementById('lyrics-modal');
-                    if (lyricsModal && !lyricsModal.classList.contains('hidden') && typeof window.updateLyricsKaraoke === 'function') {
-                        window.updateLyricsKaraoke(audio.currentTime);
-                    }
 
                     // Dynamic Crossfade / Volume transition logic in PHP
                     if (window.phpCrossfadeDuration > 0 && audio.duration) {
@@ -2987,9 +3120,13 @@ let currentUser = null;
         }
 
         window.artistRandomCovers = window.artistRandomCovers || {};
+        window.customArtistPhotos = window.customArtistPhotos || {};
 
         window.getRandomCoverForArtist = function(artistName, artistSongs) {
             if (!artistName) return null;
+            if (window.customArtistPhotos && window.customArtistPhotos[artistName]) {
+                return window.customArtistPhotos[artistName];
+            }
             if (window.artistRandomCovers && window.artistRandomCovers[artistName]) {
                 return window.artistRandomCovers[artistName];
             }
@@ -3116,8 +3253,38 @@ let currentUser = null;
                 if (!Array.isArray(parsedTracks)) {
                     throw new Error("Dados de músicas recebidos do servidor em formato inválido.");
                 }
-                allTracks = parsedTracks;
+                window.isPodcastTrack = function(t) {
+                    if (!t) return false;
+                    const g = String(t.genre || '').trim().toLowerCase();
+                    const a = String(t.artist || '').trim().toLowerCase();
+                    const alb = String(t.album || '').trim().toLowerCase();
+                    const fn = String(t.file_name || t.fileName || '').trim().toLowerCase().replace(/\\/g, '/');
+                    if (g === 'podcast' || g === 'podcasts' || g.includes('podcast')) return true;
+                    if (a === 'podcast' || a === 'podcasts') return true;
+                    if (alb === 'podcast' || alb === 'podcasts') return true;
+                    if (fn.startsWith('podcast/') || fn.includes('/podcast/')) return true;
+                    if (t.feedUrl || t.feed_url) return true;
+                    return false;
+                };
+
+                window.isPodcastArtistName = function(name) {
+                    if (!name) return false;
+                    const n = String(name).trim().toLowerCase();
+                    return n === 'podcast' || n === 'podcasts';
+                };
+
+                allTracks = parsedTracks.filter(t => !window.isPodcastTrack(t));
                 window.artistRandomCovers = {}; // Reseta capas aleatórias por artista ao recarregar
+
+                try {
+                    const rPhotos = await fetch(API + '?route=artist_photos');
+                    if (rPhotos.ok) {
+                        const dPhotos = await rPhotos.json();
+                        if (dPhotos && dPhotos.photos && typeof dPhotos.photos === 'object') {
+                            window.customArtistPhotos = dPhotos.photos;
+                        }
+                    }
+                } catch (ePhotos) {}
                 
                 if (window.setDashboardAlbumsProgress) {
                     window.setDashboardAlbumsProgress(70, 'Agrupando álbuns e capas de artistas...');
@@ -3158,6 +3325,9 @@ let currentUser = null;
                 if (activeTab === 'playlists' && window.renderPlaylistsGrid) {
                     window.renderPlaylistsGrid();
                 }
+                if (activeTab === 'artists' && window.renderArtistsPage) {
+                    window.renderArtistsPage();
+                }
             } catch (err) {
                 console.error(err);
                 if (window.setDashboardAlbumsProgress) {
@@ -3183,7 +3353,7 @@ let currentUser = null;
             selectedPlaylistId = '';
             activePlaylistAlbum = '';
             artistBioText = '';
-            artistPhotoUrl = '';
+            artistPhotoUrl = (window.customArtistPhotos && window.customArtistPhotos[art]) || '';
             loadingArtistBio = true;
             isBioExpanded = false;
 
@@ -3192,16 +3362,20 @@ let currentUser = null;
             if (paneDash) paneDash.classList.add('hidden');
             const paneTracks = document.getElementById('pane-tracks');
             if (paneTracks) paneTracks.classList.remove('hidden');
+            if (document.getElementById('pane-artists')) document.getElementById('pane-artists').classList.add('hidden');
             if (document.getElementById('pane-playlists')) document.getElementById('pane-playlists').classList.add('hidden');
             if (document.getElementById('pane-config')) document.getElementById('pane-config').classList.add('hidden');
+            if (document.getElementById('pane-podcast')) document.getElementById('pane-podcast').classList.add('hidden');
+            if (document.getElementById('pane-radios')) document.getElementById('pane-radios').classList.add('hidden');
+            if (document.getElementById('pane-reprodutor')) document.getElementById('pane-reprodutor').classList.add('hidden');
 
-            // Highlight track tab correctly inside sidebar
-            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'playlists', 'podcast', 'radios'];
+            // Highlight artists tab when viewing an artist
+            const btns = ['dashboard', 'tracks', 'artists', 'favorites', 'config', 'playlists', 'podcast', 'radios', 'reprodutor'];
             btns.forEach(b => {
                 const el = document.getElementById('tab-btn-' + b);
                 if (el) {
-                    if (b === 'tracks') {
-                        el.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-sky-400 bg-sky-500/10 border border-sky-500/20";
+                    if (b === 'artists') {
+                        el.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20";
                     } else {
                         el.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition";
                     }
@@ -3220,7 +3394,11 @@ let currentUser = null;
                 .then(res => res.json())
                 .then(data => {
                     artistBioText = (data.bio || 'Sem biografia disponível.').replace(/<[^>]*>/g, '').trim();
-                    artistPhotoUrl = data.artist_photo || '';
+                    if (window.customArtistPhotos && window.customArtistPhotos[art]) {
+                        artistPhotoUrl = window.customArtistPhotos[art];
+                    } else {
+                        artistPhotoUrl = data.artist_photo || '';
+                    }
                     artistTopTracks = data.top_tracks || [];
                     loadingArtistBio = false;
                     renderLeftSidebar();
@@ -5563,6 +5741,201 @@ let currentUser = null;
         }
         window.runGoogleSync = runGoogleSync;
 
+        window.artistsPageQuery = '';
+        window.artistsPageSort = 'alphabetical';
+        window.artistsPageLetter = 'all';
+
+        window.onArtistsPageSearch = function(val) {
+            window.artistsPageQuery = (val || '').trim().toLowerCase();
+            window.renderArtistsPage();
+        };
+
+        window.onArtistsPageSort = function(val) {
+            window.artistsPageSort = val || 'alphabetical';
+            window.renderArtistsPage();
+        };
+
+        window.setArtistsPageLetter = function(letter) {
+            window.artistsPageLetter = letter || 'all';
+            window.renderArtistsPage();
+        };
+
+        window.playRandomArtistFromPage = function() {
+            const artistTracksMap = {};
+            allTracks.forEach(t => {
+                if (window.isPodcastTrack && window.isPodcastTrack(t)) return;
+                const artName = (t.artist || 'Artista Desconhecido').trim() || 'Artista Desconhecido';
+                if (window.isPodcastArtistName && window.isPodcastArtistName(artName)) return;
+                if (!artistTracksMap[artName]) artistTracksMap[artName] = [];
+                artistTracksMap[artName].push(t);
+            });
+            let allArts = Object.keys(artistTracksMap);
+            if (allArts.length === 0) return;
+            const currentArt = window.phpCurrentTrack
+                ? ((window.phpCurrentTrack.artist || 'Artista Desconhecido').trim() || 'Artista Desconhecido')
+                : null;
+            if (allArts.length > 1 && currentArt) {
+                const others = allArts.filter(a => a !== currentArt);
+                if (others.length > 0) allArts = others;
+            }
+            const randomArt = allArts[Math.floor(Math.random() * allArts.length)];
+            playAlbumQueueShuffled(null, artistTracksMap[randomArt]);
+        };
+
+        window.renderArtistsPage = function() {
+            const gridEl = document.getElementById('artists-page-grid');
+            const emptyEl = document.getElementById('artists-page-empty');
+            const badgeEl = document.getElementById('artists-page-total-badge');
+            const subEl = document.getElementById('artists-page-subtitle');
+            const alphaBar = document.getElementById('artists-alphabet-bar');
+            if (!gridEl) return;
+
+            const artistsMap = {};
+            const nonPodcastTracks = allTracks.filter(t => (!window.isPodcastTrack || !window.isPodcastTrack(t)));
+            nonPodcastTracks.forEach(t => {
+                const artName = (t.artist || 'Artista Desconhecido').trim() || 'Artista Desconhecido';
+                if (window.isPodcastArtistName && window.isPodcastArtistName(artName)) return;
+                if (!artistsMap[artName]) {
+                    artistsMap[artName] = {
+                        name: artName,
+                        tracks: [],
+                        albumsSet: new Set()
+                    };
+                }
+                artistsMap[artName].tracks.push(t);
+                artistsMap[artName].albumsSet.add(t.album || 'Single');
+            });
+
+            const allArtistsList = Object.values(artistsMap).map(item => ({
+                name: item.name,
+                tracks: item.tracks,
+                tracksCount: item.tracks.length,
+                albumsCount: item.albumsSet.size,
+                coverUrl: window.getRandomCoverForArtist ? window.getRandomCoverForArtist(item.name, item.tracks) : (item.tracks[0]?.cover_url || '')
+            }));
+
+            if (badgeEl) badgeEl.textContent = String(allArtistsList.length);
+            if (subEl) {
+                subEl.textContent = `${allArtistsList.length} ${allArtistsList.length === 1 ? 'artista cadastrado' : 'artistas cadastrados'} • ${nonPodcastTracks.length} ${nonPodcastTracks.length === 1 ? 'música' : 'músicas'} na biblioteca`;
+            }
+
+            // Build Alphabet Bar
+            if (alphaBar) {
+                const availableLetters = new Set();
+                allArtistsList.forEach(a => {
+                    const firstChar = a.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').charAt(0).toUpperCase();
+                    if (firstChar >= 'A' && firstChar <= 'Z') {
+                        availableLetters.add(firstChar);
+                    } else {
+                        availableLetters.add('#');
+                    }
+                });
+
+                const letters = ['all', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''), '#'];
+                let alphaHtml = '';
+                letters.forEach(l => {
+                    const isAll = l === 'all';
+                    const isActive = window.artistsPageLetter === l;
+                    const hasItems = isAll || availableLetters.has(l);
+                    const label = isAll ? 'Todos' : l;
+                    alphaHtml += `
+                        <button onclick="window.setArtistsPageLetter('${l}')" ${!hasItems && !isActive ? 'disabled' : ''} class="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition cursor-pointer select-none ${isActive ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20 border border-indigo-400/40' : (hasItems ? 'bg-slate-900/70 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800/80' : 'bg-slate-950/30 text-slate-700 border border-transparent opacity-40 cursor-not-allowed')}">
+                            ${label}
+                        </button>
+                    `;
+                });
+                alphaBar.innerHTML = alphaHtml;
+            }
+
+            // Filter by search query and alphabet letter
+            let filtered = allArtistsList.filter(a => {
+                if (window.artistsPageQuery && !a.name.toLowerCase().includes(window.artistsPageQuery)) {
+                    return false;
+                }
+                if (window.artistsPageLetter && window.artistsPageLetter !== 'all') {
+                    const firstChar = a.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').charAt(0).toUpperCase();
+                    if (window.artistsPageLetter === '#') {
+                        if (firstChar >= 'A' && firstChar <= 'Z') return false;
+                    } else if (firstChar !== window.artistsPageLetter) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+
+            // Sort
+            if (window.artistsPageSort === 'tracks_desc') {
+                filtered.sort((a, b) => b.tracksCount - a.tracksCount || a.name.localeCompare(b.name, 'pt-BR'));
+            } else if (window.artistsPageSort === 'albums_desc') {
+                filtered.sort((a, b) => b.albumsCount - a.albumsCount || a.name.localeCompare(b.name, 'pt-BR'));
+            } else if (window.artistsPageSort === 'random') {
+                filtered.sort(() => Math.random() - 0.5);
+            } else {
+                filtered.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+            }
+
+            if (filtered.length === 0) {
+                gridEl.innerHTML = '';
+                if (emptyEl) emptyEl.classList.remove('hidden');
+                return;
+            }
+            if (emptyEl) emptyEl.classList.add('hidden');
+
+            gridEl.innerHTML = '';
+            filtered.forEach(artist => {
+                const card = document.createElement('div');
+                card.className = "group bg-slate-950/60 border border-slate-900 hover:border-indigo-500/40 rounded-2xl p-3.5 flex flex-col justify-between gap-3 transition-all duration-200 hover:shadow-xl hover:shadow-indigo-500/5 cursor-pointer animate-fade-in";
+
+                const safeHtmlName = artist.name.replace(/"/g, '&quot;');
+                const safeJsName = artist.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+                const coverHtml = artist.coverUrl
+                    ? `<img src="${artist.coverUrl}" alt="${safeHtmlName}" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'w-full h-full bg-slate-900 flex items-center justify-center text-slate-600\\'><i data-lucide=\\'user\\' class=\\'w-12 h-12 text-indigo-400/60\\'></i></div>';">`
+                    : `<div class="w-full h-full bg-slate-900 flex items-center justify-center text-slate-600"><i data-lucide="user" class="w-12 h-12 text-indigo-400/60"></i></div>`;
+
+                card.innerHTML = `
+                    <div class="space-y-3" onclick="selectArtist('${safeJsName}')">
+                        <div class="relative aspect-square rounded-xl overflow-hidden bg-slate-900 border border-slate-800/80 shadow-md">
+                            ${coverHtml}
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-transparent to-transparent opacity-80 group-hover:opacity-95 transition"></div>
+                            <span class="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-slate-950/80 border border-slate-800 text-[9px] font-mono font-bold text-indigo-300 backdrop-blur-md">
+                                ${artist.albumsCount} ${artist.albumsCount === 1 ? 'álbum' : 'álbuns'}
+                            </span>
+                            <div class="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[10px] font-mono text-slate-300">
+                                <span class="px-2 py-0.5 rounded-md bg-slate-950/75 border border-slate-800/80 backdrop-blur-sm">
+                                    ${artist.tracksCount} ${artist.tracksCount === 1 ? 'música' : 'músicas'}
+                                </span>
+                                <span class="opacity-0 group-hover:opacity-100 transition text-[9px] font-bold text-sky-400 bg-slate-950/85 px-2 py-0.5 rounded-md border border-sky-500/30">
+                                    Abrir &rarr;
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="px-0.5">
+                            <h4 class="font-extrabold text-white text-sm truncate group-hover:text-indigo-400 transition" title="${safeHtmlName}">
+                                ${artist.name}
+                            </h4>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 pt-2 border-t border-slate-900/80" onclick="event.stopPropagation()">
+                        <button onclick="playArtistByName(event, '${safeJsName}')" class="flex-1 py-2 bg-sky-500 hover:bg-sky-600 active:scale-95 text-white rounded-xl text-[11px] font-black uppercase tracking-wider transition flex items-center justify-center gap-1.5 shadow-md shadow-sky-500/15 cursor-pointer" title="Dar Play em todas as músicas de ${safeHtmlName}">
+                            <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i> Play
+                        </button>
+                        <button onclick="playArtistByNameShuffled(event, '${safeJsName}')" class="flex-1 py-2 bg-slate-900 hover:bg-indigo-600 active:scale-95 text-slate-300 hover:text-white border border-slate-800 hover:border-indigo-500 rounded-xl text-[11px] font-black uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer" title="Dar Shuffle nas músicas de ${safeHtmlName}">
+                            <i data-lucide="shuffle" class="w-3.5 h-3.5 text-sky-400"></i> Shuffle
+                        </button>
+                    </div>
+                `;
+
+                gridEl.appendChild(card);
+            });
+
+            if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                window.lucide.createIcons();
+            }
+        };
+
         function setTab(tabName) {
             if (isPartyMode) {
                 alert("O Modo Festa está ativo! A navegação está bloqueada para manter a diversão focada no player.");
@@ -5571,6 +5944,7 @@ let currentUser = null;
             activeTab = tabName;
             document.getElementById('pane-dashboard').classList.add('hidden');
             document.getElementById('pane-tracks').classList.add('hidden');
+            if (document.getElementById('pane-artists')) document.getElementById('pane-artists').classList.add('hidden');
             if (document.getElementById('pane-config')) document.getElementById('pane-config').classList.add('hidden');
             if (document.getElementById('pane-playlists')) document.getElementById('pane-playlists').classList.add('hidden');
             if (document.getElementById('pane-podcast')) document.getElementById('pane-podcast').classList.add('hidden');
@@ -5578,7 +5952,7 @@ let currentUser = null;
             if (document.getElementById('pane-reprodutor')) document.getElementById('pane-reprodutor').classList.add('hidden');
             
             // Clear navigation classes
-            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'playlists', 'podcast', 'radios', 'reprodutor'];
+            const btns = ['dashboard', 'tracks', 'artists', 'favorites', 'config', 'playlists', 'podcast', 'radios', 'reprodutor'];
             btns.forEach(b => {
                 const el = document.getElementById('tab-btn-' + b);
                 if (el) {
@@ -5590,6 +5964,8 @@ let currentUser = null;
             if (activeBtn) {
                 if (tabName === 'favorites') {
                     activeBtn.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-[#f43f5e] bg-rose-500/10 border border-rose-500/20";
+                } else if (tabName === 'artists') {
+                    activeBtn.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20";
                 } else if (tabName === 'playlists') {
                     activeBtn.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20";
                 } else if (tabName === 'podcast') {
@@ -5606,6 +5982,10 @@ let currentUser = null;
             if (tabName === 'dashboard') {
                 renderDashboard();
                 document.getElementById('pane-dashboard').classList.remove('hidden');
+            } else if (tabName === 'artists') {
+                window.renderArtistsPage();
+                renderLeftSidebar();
+                document.getElementById('pane-artists').classList.remove('hidden');
             } else if (tabName === 'playlists') {
                 renderPlaylistsGrid();
                 document.getElementById('pane-playlists').classList.remove('hidden');
@@ -5664,8 +6044,10 @@ let currentUser = null;
             const statAlbums = document.getElementById('stat-albums');
             if (statAlbums) statAlbums.textContent = uniqueAlbs.size;
 
-            const uniqueArts = new Set(allTracks.map(t => t.artist || ''));
+            const uniqueArts = new Set(allTracks.filter(t => !window.isPodcastTrack || !window.isPodcastTrack(t)).map(t => t.artist || ''));
             uniqueArts.delete('Artista Desconhecido');
+            uniqueArts.delete('Podcast');
+            uniqueArts.delete('podcast');
             uniqueArts.delete('');
             const statArtists = document.getElementById('stat-artists');
             if (statArtists) statArtists.textContent = uniqueArts.size;
@@ -5685,7 +6067,8 @@ let currentUser = null;
 
         function renderLeftSidebar() {
             // Sidebar Artists list in Right Sidebar
-            const allArts = Array.from(new Set(allTracks.map(t => t.artist))).filter(Boolean).sort();
+            const nonPodcastTracks = allTracks.filter(t => !window.isPodcastTrack || !window.isPodcastTrack(t));
+            const allArts = Array.from(new Set(nonPodcastTracks.map(t => t.artist))).filter(a => a && (!window.isPodcastArtistName || !window.isPodcastArtistName(a))).sort();
             const rightCountEl = document.getElementById("right-artist-count");
             if (rightCountEl) rightCountEl.textContent = allArts.length;
 
@@ -5768,6 +6151,7 @@ let currentUser = null;
                             activeTab = "tracks";
                             const paneDash = document.getElementById("pane-dashboard");
                             if (paneDash) paneDash.classList.add("hidden");
+                            if (document.getElementById("pane-artists")) document.getElementById("pane-artists").classList.add("hidden");
                             const paneTracks = document.getElementById("pane-tracks");
                             if (paneTracks) paneTracks.classList.remove("hidden");
                         };
@@ -5802,6 +6186,7 @@ let currentUser = null;
                         activeTab = 'tracks';
                         const paneDash = document.getElementById('pane-dashboard');
                         if (paneDash) paneDash.classList.add('hidden');
+                        if (document.getElementById('pane-artists')) document.getElementById('pane-artists').classList.add('hidden');
                         const paneTracks = document.getElementById('pane-tracks');
                         if (paneTracks) paneTracks.classList.remove('hidden');
                     };
@@ -5849,6 +6234,7 @@ let currentUser = null;
             activeTab = 'tracks';
             const paneDash = document.getElementById('pane-dashboard');
             if (paneDash) paneDash.classList.add('hidden');
+            if (document.getElementById('pane-artists')) document.getElementById('pane-artists').classList.add('hidden');
             const paneTracks = document.getElementById('pane-tracks');
             if (paneTracks) paneTracks.classList.remove('hidden');
             if (document.getElementById('pane-playlists')) document.getElementById('pane-playlists').classList.add('hidden');
@@ -6257,16 +6643,16 @@ let currentUser = null;
         };
 
         function playAlbumQueue(e, trackList) {
-            e.stopPropagation();
-            if (trackList.length === 0) return;
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            if (!Array.isArray(trackList) || trackList.length === 0) return;
             activeQueue = trackList;
             activeQueueIdx = 0;
             loadTrack(activeQueue[0]);
         }
 
         function playAlbumQueueShuffled(e, trackList) {
-            e.stopPropagation();
-            if (trackList.length === 0) return;
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            if (!Array.isArray(trackList) || trackList.length === 0) return;
             const shuffled = [...trackList].sort(() => Math.random() - 0.5);
             activeQueue = shuffled;
             activeQueueIdx = 0;
@@ -6366,85 +6752,6 @@ let currentUser = null;
             window.setCrossfadePhp(secs);
         };
 
-        let phpLyricsMode = localStorage.getItem('php_lyrics_mode') || 'karaoke';
-        let phpLyricsData = [];
-        let currentActiveLineIdx = -1;
-
-        window.updateLyricsButtonsState = function() {
-            const mode = phpLyricsMode;
-            const btnKaraoke = document.getElementById('btn-lyrics-karaoke');
-            const btnStandard = document.getElementById('btn-lyrics-standard');
-            
-            if (mode === 'karaoke') {
-                if (btnKaraoke) btnKaraoke.className = "px-2.5 py-1 font-black uppercase tracking-wider text-[9px] rounded-lg cursor-pointer flex items-center gap-1 transition-all duration-200 bg-sky-500/10 text-sky-400 border border-sky-550/20";
-                if (btnStandard) btnStandard.className = "px-2.5 py-1 font-bold uppercase tracking-wider text-[9px] rounded-lg cursor-pointer flex items-center gap-1 transition-all duration-200 text-slate-500 hover:text-slate-350";
-            } else {
-                if (btnKaraoke) btnKaraoke.className = "px-2.5 py-1 font-bold uppercase tracking-wider text-[9px] rounded-lg cursor-pointer flex items-center gap-1 transition-all duration-200 text-slate-500 hover:text-slate-350";
-                if (btnStandard) btnStandard.className = "px-2.5 py-1 font-black uppercase tracking-wider text-[9px] rounded-lg cursor-pointer flex items-center gap-1 transition-all duration-200 bg-slate-900 text-slate-300 border border-slate-800/80";
-            }
-        };
-
-        window.setLyricsMode = function(mode) {
-            phpLyricsMode = mode;
-            localStorage.setItem('php_lyrics_mode', mode);
-            window.updateLyricsButtonsState();
-            if (window.phpCurrentTrackLyricsRaw) {
-                window.renderLyricsContent();
-            }
-            if (window.lucide) window.lucide.createIcons();
-        };
-
-        window.parseLrc = function(lyricsText) {
-            const lines = lyricsText.split('\n');
-            const lrcData = [];
-            const timestampRegex = /\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\]/g;
-            let hasTimestamps = false;
-
-            for (let line of lines) {
-                line = line.trim();
-                if (!line) continue;
-                
-                timestampRegex.lastIndex = 0;
-                const matches = [...line.matchAll(timestampRegex)];
-                if (matches.length > 0) {
-                    hasTimestamps = true;
-                    const cleanText = line.replace(timestampRegex, '').trim();
-                    for (const match of matches) {
-                        const m = parseInt(match[1], 10);
-                        const s = parseInt(match[2], 10);
-                        const msStr = match[3] || '0';
-                        const ms = parseFloat('0.' + msStr);
-                        const time = m * 60 + s + ms;
-                        lrcData.push({ time, text: cleanText });
-                    }
-                } else {
-                    if (line.startsWith('[') && line.includes(':') && line.endsWith(']')) {
-                        continue;
-                    }
-                    lrcData.push({ time: -1, text: line });
-                }
-            }
-
-            if (!hasTimestamps) {
-                const cleanLines = lines
-                    .map(l => l.trim())
-                    .filter(l => !l.startsWith('[') || !l.endsWith(']'));
-                
-                const aud = document.getElementById('real-audio');
-                const duration = (aud && aud.duration) ? aud.duration : (window.phpCurrentTrack ? window.phpCurrentTrack.duration || 180 : 180);
-                const lineTime = duration / Math.max(1, cleanLines.length);
-                
-                return cleanLines.map((text, idx) => ({
-                    time: idx * lineTime,
-                    text: text
-                }));
-            }
-
-            const finalData = lrcData.filter(item => item.time >= 0);
-            finalData.sort((a, b) => a.time - b.time);
-            return finalData;
-        };
-
         window.renderLyricsContent = function() {
             const contentEl = document.getElementById('lyrics-content');
             if (!contentEl) return;
@@ -6452,86 +6759,13 @@ let currentUser = null;
             const rawLyrics = window.phpCurrentTrackLyricsRaw;
             if (!rawLyrics) return;
             
-            if (phpLyricsMode === 'karaoke') {
-                phpLyricsData = window.parseLrc(rawLyrics);
-                currentActiveLineIdx = -1;
-                
-                if (phpLyricsData.length === 0) {
-                    contentEl.innerHTML = `<p class="text-sm text-slate-500">Nenhuma linha parseável de letras.</p>`;
-                    return;
-                }
-                
-                let html = `<div class="space-y-5 py-12 max-w-lg mx-auto flex flex-col items-center">`;
-                phpLyricsData.forEach((item, index) => {
-                    const cleanTxt = item.text || '...';
-                    html += `
-                        <div id="karaoke-line-${index}" onclick="window.seekAudioTo(${item.time})" class="karaoke-line text-slate-400 font-medium text-base sm:text-lg opacity-60 transition-all duration-300 transform scale-95 origin-center cursor-pointer py-1 hover:text-white hover:scale-100" title="Clique para ir a este trecho">
-                            ${cleanTxt}
-                        </div>
-                    `;
-                });
-                html += `</div>`;
-                contentEl.innerHTML = html;
-                
-                const aud = document.getElementById('real-audio');
-                if (aud) {
-                    window.updateLyricsKaraoke(aud.currentTime);
-                }
-            } else {
-                const display = rawLyrics.replace(/\[\d{2}:\d{2}(?:\.\d{2,3})?\]/g, '').trim();
-                contentEl.innerHTML = `<div class="whitespace-pre-line leading-relaxed text-slate-350 hover:text-white text-sm md:text-base font-medium max-w-lg mx-auto py-6" style="text-shadow: 0 1px 3px rgba(0,0,0,0.5)">${display}</div>`;
-            }
-        };
-
-        window.seekAudioTo = function(seconds) {
-            const aud = document.getElementById('real-audio');
-            if (aud && seconds >= 0) {
-                aud.currentTime = seconds;
-                window.updateLyricsKaraoke(seconds);
-            }
-        };
-
-        window.updateLyricsKaraoke = function(currentTime) {
-            if (phpLyricsMode !== 'karaoke' || phpLyricsData.length === 0) return;
-            
-            let activeIdx = -1;
-            for (let i = 0; i < phpLyricsData.length; i++) {
-                if (currentTime >= phpLyricsData[i].time) {
-                    activeIdx = i;
-                } else {
-                    break;
-                }
-            }
-            
-            if (activeIdx !== currentActiveLineIdx) {
-                if (currentActiveLineIdx !== -1) {
-                    const prevEl = document.getElementById(`karaoke-line-${currentActiveLineIdx}`);
-                    if (prevEl) {
-                        prevEl.className = "karaoke-line text-slate-400 font-medium text-base sm:text-lg opacity-60 transition-all duration-300 transform scale-95 origin-center cursor-pointer py-1 hover:text-white hover:scale-100";
-                    }
-                }
-                
-                currentActiveLineIdx = activeIdx;
-                
-                if (activeIdx !== -1) {
-                    const activeEl = document.getElementById(`karaoke-line-${activeIdx}`);
-                    if (activeEl) {
-                        activeEl.className = "karaoke-line text-sky-400 text-lg sm:text-2xl font-black font-sans leading-relaxed transition-all duration-350 transform scale-105 origin-center brightness-125 drop-shadow-[0_0_12px_rgba(56,189,248,0.35)] py-2";
-                        
-                        const container = document.getElementById('lyrics-content');
-                        if (container && Date.now() - (window.phpLyricsLastScroll || 0) > 4000) {
-                            window.phpLyricsIsProgrammaticScroll = true;
-                            const containerHeight = container.clientHeight;
-                            const lineTop = activeEl.offsetTop;
-                            const lineHeight = activeEl.clientHeight;
-                            container.scrollTo({
-                                top: lineTop - (containerHeight / 2) + (lineHeight / 2),
-                                behavior: 'smooth'
-                            });
-                        }
-                    }
-                }
-            }
+            const display = rawLyrics.replace(/\[\d{2}:\d{2}(?:\.\d{2,3})?\]/g, '').trim();
+            contentEl.innerHTML = '';
+            const wrapper = document.createElement('div');
+            wrapper.className = 'whitespace-pre-line leading-relaxed text-slate-300 text-sm md:text-base font-medium max-w-lg mx-auto py-6';
+            wrapper.style.textShadow = '0 1px 3px rgba(0,0,0,0.5)';
+            wrapper.textContent = display;
+            contentEl.appendChild(wrapper);
         };
 
         window.fetchLyricsPhp = async function(artist, title) {
@@ -6553,7 +6787,6 @@ let currentUser = null;
             if (window.lucide) window.lucide.createIcons();
             
             window.phpCurrentTrackLyricsRaw = '';
-            window.updateLyricsButtonsState();
             
             try {
                 const res = await fetch(API + '?route=lyrics&title=' + encodeURIComponent(title) + '&artist=' + encodeURIComponent(artist));
@@ -6606,19 +6839,6 @@ let currentUser = null;
             const titleInput = document.getElementById('lyrics-search-title');
             
             if (!modal || !titleEl || !artistEl || !contentEl) return;
-            
-            if (!window.phpLyricsListenerAttached) {
-                contentEl.addEventListener('scroll', () => {
-                    if (window.phpLyricsIsProgrammaticScroll) {
-                        window.phpLyricsIsProgrammaticScroll = false;
-                        return;
-                    }
-                    window.phpLyricsLastScroll = Date.now();
-                });
-                window.phpLyricsListenerAttached = true;
-            }
-            window.phpLyricsLastScroll = 0;
-            window.updateLyricsButtonsState();
             
             if (track) {
                 titleEl.textContent = track.title;
@@ -7109,9 +7329,9 @@ document.addEventListener('fullscreenchange', (event) => {
             const btns = document.querySelectorAll('.preset-btn');
             btns.forEach(btn => {
                 if (activeName && btn.id === 'preset-php-' + activeName) {
-                    btn.className = "preset-btn px-1.5 py-1 bg-sky-500/10 border border-sky-500 text-sky-400 rounded-lg text-[10px] transition font-bold shadow-lg shadow-sky-500/5 scale-[1.02]";
+                    btn.className = "preset-btn px-2.5 py-1.5 bg-sky-500/10 border border-sky-500 text-sky-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-bold shadow-lg shadow-sky-500/5 cursor-pointer scale-[1.02]";
                 } else {
-                    btn.className = "preset-btn px-1.5 py-1 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium";
+                    btn.className = "preset-btn px-2.5 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-[10px] hover:border-sky-500 hover:text-sky-400 transition font-medium cursor-pointer";
                 }
             });
         }
@@ -7741,8 +7961,63 @@ document.addEventListener('fullscreenchange', (event) => {
                     }
                     albums[alb].push(track);
                 });
-                
-                let bannerPhoto = artistPhotoUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1000&auto=format&fit=crop&q=80';
+
+                // Collect all unique album covers of this artist for the automatic banner mix & cover picker
+                const artistAlbumCoversList = [];
+                const seenArtistMixCovers = new Set();
+                Object.keys(albums).forEach(albName => {
+                    const trks = albums[albName] || [];
+                    const c = loadedCoversCache[albName] || (trks[0] && (trks[0].coverUrl || trks[0].cover_url || trks[0].cover_path || trks[0].cover)) || '';
+                    if (c && typeof c === 'string' && c.trim() && !seenArtistMixCovers.has(c.trim())) {
+                        seenArtistMixCovers.add(c.trim());
+                        artistAlbumCoversList.push({ album: albName, url: c.trim() });
+                    }
+                });
+                sourceList.forEach(t => {
+                    const c = t.coverUrl || t.cover_url || t.cover_path || t.cover || '';
+                    if (c && typeof c === 'string' && c.trim() && !seenArtistMixCovers.has(c.trim())) {
+                        seenArtistMixCovers.add(c.trim());
+                        artistAlbumCoversList.push({ album: t.album || 'Single', url: c.trim() });
+                    }
+                });
+                window.currentArtistAlbumCoversList = artistAlbumCoversList;
+
+                const defaultArtistFallback = 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1000&auto=format&fit=crop&q=80';
+                let artistCoverPhoto = (window.customArtistPhotos && window.customArtistPhotos[selectedArtist]) || artistPhotoUrl || (artistAlbumCoversList[0] ? artistAlbumCoversList[0].url : defaultArtistFallback);
+
+                // Build automatic mix of the artist's album covers for the hero banner background
+                let bannerMixBackdropHtml = '';
+                if (artistAlbumCoversList.length > 0) {
+                    const totalTiles = 12;
+                    let tilesHtml = '';
+                    for (let i = 0; i < totalTiles; i++) {
+                        const item = artistAlbumCoversList[i % artistAlbumCoversList.length];
+                        const safeAlb = String(item.album || '').replace(/"/g, '&quot;');
+                        tilesHtml += `
+                            <div class="relative w-full h-full overflow-hidden rounded-xl border border-white/10 shadow-lg bg-slate-900">
+                                <img src="${item.url}" referrerpolicy="no-referrer" alt="${safeAlb}" class="w-full h-full object-cover transform hover:scale-110 transition duration-700">
+                            </div>
+                        `;
+                    }
+                    const primaryBlurBg = artistAlbumCoversList[0].url;
+                    bannerMixBackdropHtml = `
+                        <!-- Ambient blurred color base from album covers -->
+                        <img src="${primaryBlurBg}" referrerpolicy="no-referrer" alt="" class="absolute inset-0 w-full h-full object-cover filter blur-2xl opacity-35 scale-110 select-none pointer-events-none">
+                        <!-- Automatic Album Covers Mosaic Mix Grid -->
+                        <div class="absolute -inset-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 grid-rows-2 gap-2 p-2 opacity-60 transform -rotate-2 scale-105 select-none pointer-events-none">
+                            ${tilesHtml}
+                        </div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/75 to-slate-950/25 pointer-events-none"></div>
+                        <div class="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/45 to-transparent pointer-events-none"></div>
+                    `;
+                } else {
+                    bannerMixBackdropHtml = `
+                        <img src="${artistCoverPhoto}" referrerpolicy="no-referrer" alt="" class="absolute inset-0 w-full h-full object-cover filter blur-xl opacity-25 select-none scale-105 pointer-events-none">
+                        <img src="${artistCoverPhoto}" referrerpolicy="no-referrer" alt="${selectedArtist}" class="absolute inset-0 w-full h-full object-contain filter brightness-[0.45] pointer-events-none">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent pointer-events-none"></div>
+                    `;
+                }
+
                 let bioBlock = '';
                 if (loadingArtistBio) {
                     bioBlock = `
@@ -7992,25 +8267,52 @@ document.addEventListener('fullscreenchange', (event) => {
 
                 let html = `
                     <div class="space-y-8 animate-fade-in text-slate-100">
-                        <!-- Featured Artist Banner Hero -->
-                        <div class="relative h-64 md:h-80 rounded-2xl overflow-hidden shadow-2xl border border-slate-900/40 bg-slate-950">
-                            <!-- Blurred backdrop layer to fill potential empty space beautifully -->
-                            <img src="${bannerPhoto}" referrerpolicy="no-referrer" alt="" class="absolute inset-0 w-full h-full object-cover filter blur-xl opacity-25 select-none scale-105 pointer-events-none">
-                            <!-- Foreground complete uncropped artist cover image -->
-                            <img src="${bannerPhoto}" referrerpolicy="no-referrer" alt="${selectedArtist}" class="absolute inset-0 w-full h-full object-contain filter brightness-[0.45]">
-                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent"></div>
-                            
-                            ${currentUser.role === 'admin' ? '<div class="absolute top-4 right-4 z-20 flex gap-2"><button onclick="handleOpenArtistImageSearch()" class="p-2 px-3 bg-slate-950/80 hover:bg-slate-900 text-slate-300 hover:text-white rounded-xl text-[10px] font-black tracking-wider uppercase border border-slate-800/60 shadow-lg cursor-pointer transition select-none flex items-center gap-1.5 backdrop-blur-sm" title="Buscar logo do artista on-line"><i data-lucide=\"search\" class=\"w-3.5 h-3.5 text-sky-400\"></i> Buscar Logo On-line</button><button onclick="triggerArtistBannerUpload()" class="p-2 px-3 bg-slate-950/80 hover:bg-slate-900 text-slate-300 hover:text-white rounded-xl text-[10px] font-black tracking-wider uppercase border border-slate-800/60 shadow-lg cursor-pointer transition select-none flex items-center gap-1.5 backdrop-blur-sm" title="Alterar banner do artista"><i data-lucide=\"image\" class=\"w-3.5 h-3.5 text-sky-400\"></i> Alterar Banner</button></div><input type=\"file\" id=\"artist-banner-input\" accept=\"image/*\" class=\"hidden\" onchange=\"uploadArtistBanner(this)\" />' : ''}
+                        <!-- Featured Artist Banner Hero with Automatic Album Covers Mix -->
+                        <div class="relative min-h-[17rem] md:min-h-[20rem] rounded-2xl overflow-hidden shadow-2xl border border-slate-900/60 bg-slate-950 flex flex-col justify-between">
+                            ${bannerMixBackdropHtml}
 
-                            <div class="absolute bottom-0 left-0 p-6 md:p-8 space-y-3 z-10 w-full flex flex-col md:flex-row md:items-end justify-between gap-4">
-                                <div>
-                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] uppercase font-black bg-sky-500/10 text-sky-400 border border-sky-500/15 mb-2.5">
-                                        <i data-lucide="sparkles" class="w-3 h-3"></i> ARTISTA EXCLUSIVO
-                                    </span>
-                                    <h1 class="text-3xl md:text-5xl font-black text-white tracking-tight">${selectedArtist}</h1>
-                                    <p class="text-xs text-slate-400 font-medium mt-1">
-                                        ${sourceList.length} ${sourceList.length === 1 ? 'música' : 'músicas'} &bull; ${Object.keys(albums).length} ${Object.keys(albums).length === 1 ? 'álbum' : 'álbuns'} em sua biblioteca
-                                    </p>
+                            <div class="relative z-20 p-4 md:p-6 flex flex-wrap items-center justify-between gap-2">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] uppercase font-black bg-slate-950/75 text-sky-400 border border-sky-500/25 backdrop-blur-md shadow-md">
+                                    <i data-lucide="layout-grid" class="w-3 h-3"></i>
+                                    Mix Automático (${artistAlbumCoversList.length} ${artistAlbumCoversList.length === 1 ? 'Capa de Álbum' : 'Capas de Álbuns'})
+                                </span>
+
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <button onclick="openArtistCoverPickerModal()" class="p-2 px-3 bg-sky-500/90 hover:bg-sky-400 text-slate-950 rounded-xl text-[10px] font-black tracking-wider uppercase border border-sky-400/50 shadow-lg cursor-pointer transition select-none flex items-center gap-1.5 backdrop-blur-sm" title="Escolher a foto de capa deste artista">
+                                        <i data-lucide="camera" class="w-3.5 h-3.5"></i> Escolher Foto de Capa
+                                    </button>
+                                    <button onclick="handleOpenArtistImageSearch()" class="p-2 px-3 bg-slate-950/80 hover:bg-slate-900 text-slate-200 hover:text-white rounded-xl text-[10px] font-black tracking-wider uppercase border border-slate-800/70 shadow-lg cursor-pointer transition select-none flex items-center gap-1.5 backdrop-blur-sm" title="Buscar foto do artista on-line">
+                                        <i data-lucide="search" class="w-3.5 h-3.5 text-sky-400"></i> Buscar Foto On-line
+                                    </button>
+                                    <button onclick="triggerArtistBannerUpload()" class="p-2 px-3 bg-slate-950/80 hover:bg-slate-900 text-slate-200 hover:text-white rounded-xl text-[10px] font-black tracking-wider uppercase border border-slate-800/70 shadow-lg cursor-pointer transition select-none flex items-center gap-1.5 backdrop-blur-sm" title="Enviar foto de capa do computador">
+                                        <i data-lucide="upload" class="w-3.5 h-3.5 text-sky-400"></i> Enviar Foto
+                                    </button>
+                                </div>
+                                <input type="file" id="artist-banner-input" accept="image/*" class="hidden" onchange="uploadArtistBanner(this)" />
+                            </div>
+
+                            <div class="relative z-10 p-6 md:p-8 pt-2 w-full flex flex-col md:flex-row md:items-end justify-between gap-5">
+                                <div class="flex flex-col sm:flex-row sm:items-end gap-5">
+                                    <!-- Artist Cover Photo Card -->
+                                    <div onclick="openArtistCoverPickerModal()" class="w-28 h-28 sm:w-32 sm:h-32 md:w-36 md:h-36 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl relative group/artistcover shrink-0 bg-slate-900 cursor-pointer" title="Clique para escolher a foto de capa do artista">
+                                        <img src="${artistCoverPhoto}" referrerpolicy="no-referrer" alt="${selectedArtist}" class="w-full h-full object-cover group-hover/artistcover:scale-105 transition duration-500">
+                                        <div class="absolute inset-0 bg-black/65 opacity-0 group-hover/artistcover:opacity-100 transition duration-200 flex flex-col items-center justify-center p-2 text-center gap-1">
+                                            <div class="w-8 h-8 rounded-full bg-sky-500 text-slate-950 flex items-center justify-center shadow-lg">
+                                                <i data-lucide="camera" class="w-4 h-4"></i>
+                                            </div>
+                                            <span class="text-[9px] font-black uppercase tracking-wider text-white leading-tight">Escolher Foto de Capa</span>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] uppercase font-black bg-sky-500/15 text-sky-400 border border-sky-500/25 mb-2.5 backdrop-blur-sm">
+                                            <i data-lucide="sparkles" class="w-3 h-3"></i> ARTISTA EXCLUSIVO
+                                        </span>
+                                        <h1 class="text-3xl md:text-5xl font-black text-white tracking-tight drop-shadow-md">${selectedArtist}</h1>
+                                        <p class="text-xs text-slate-300 font-medium mt-1 drop-shadow">
+                                            ${sourceList.length} ${sourceList.length === 1 ? 'música' : 'músicas'} &bull; ${Object.keys(albums).length} ${Object.keys(albums).length === 1 ? 'álbum' : 'álbuns'} em sua biblioteca
+                                        </p>
+                                    </div>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2.5">
                                     <button onclick="playArtistByName(event, '${selectedArtist.replace(new RegExp("'", "g"), "\\'")}')" class="px-4 py-2.5 bg-sky-500 hover:bg-sky-600 font-bold text-xs uppercase tracking-wider text-white rounded-xl flex items-center gap-2 transition shadow-lg shadow-sky-500/15 cursor-pointer" title="Tocar todas as músicas do artista em ordem">
@@ -8019,7 +8321,7 @@ document.addEventListener('fullscreenchange', (event) => {
                                     <button onclick="playArtistRandomAlbum(event, '${selectedArtist.replace(new RegExp("'", "g"), "\\'")}')" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 font-bold text-xs uppercase tracking-wider text-white rounded-xl flex items-center gap-2 transition shadow-lg shadow-indigo-600/15 cursor-pointer" title="Tocar um álbum aleatório deste artista">
                                         <i data-lucide="disc" class="w-3.5 h-3.5 text-white"></i> Álbum Aleatório do Artista
                                     </button>
-                                    <button onclick="playArtistByNameShuffled(event, '${selectedArtist.replace(new RegExp("'", "g"), "\\'")}')" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 font-bold text-xs uppercase tracking-wider text-slate-300 hover:text-white rounded-xl flex items-center gap-2 border border-slate-800 transition cursor-pointer" title="Tocar todas as músicas do artista em modo aleatório">
+                                    <button onclick="playArtistByNameShuffled(event, '${selectedArtist.replace(new RegExp("'", "g"), "\\'")}')" class="px-4 py-2.5 bg-slate-900/90 hover:bg-slate-800 font-bold text-xs uppercase tracking-wider text-slate-200 hover:text-white rounded-xl flex items-center gap-2 border border-slate-700/80 transition cursor-pointer backdrop-blur-sm" title="Tocar todas as músicas do artista em modo aleatório">
                                         <i data-lucide="shuffle" class="w-3.5 h-3.5 text-sky-400"></i> Aleatório
                                     </button>
                                 </div>
@@ -8106,9 +8408,14 @@ document.addEventListener('fullscreenchange', (event) => {
                                     ${typeFilterPillsHtml}
                                 </div>
                             </div>
-                            <button onclick="selectedArtist = ''; renderLeftSidebar(); renderTracksTable();" class="text-xs font-semibold px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 transition cursor-pointer shrink-0 self-start sm:self-auto">
-                                Voltar para Biblioteca
-                            </button>
+                            <div class="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                                <button onclick="setTab('artists')" class="text-xs font-semibold px-2.5 py-1.5 bg-indigo-500/15 border border-indigo-500/30 rounded-lg text-indigo-300 hover:text-white hover:bg-indigo-600 transition cursor-pointer flex items-center gap-1.5">
+                                    <i data-lucide="users" class="w-3.5 h-3.5"></i> Todos os Artistas
+                                </button>
+                                <button onclick="selectedArtist = ''; renderLeftSidebar(); renderTracksTable();" class="text-xs font-semibold px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer">
+                                    Voltar para Biblioteca
+                                </button>
+                            </div>
                         </div>
                         
                         <div class="space-y-10 pb-12">
@@ -8317,9 +8624,12 @@ document.addEventListener('fullscreenchange', (event) => {
             const albumsMapSidebar = {};
 
             sourceList.forEach(t => {
+                if (window.isPodcastTrack && window.isPodcastTrack(t)) return;
                 const art = t.artist || "Artista Desconhecido";
                 const alb = t.album || "Álbum Desconhecido";
-                artistsMapSidebar[art] = (artistsMapSidebar[art] || 0) + 1;
+                if (!window.isPodcastArtistName || !window.isPodcastArtistName(art)) {
+                    artistsMapSidebar[art] = (artistsMapSidebar[art] || 0) + 1;
+                }
                 albumsMapSidebar[alb] = (albumsMapSidebar[alb] || 0) + 1;
             });
 
@@ -8700,14 +9010,16 @@ document.addEventListener('fullscreenchange', (event) => {
         };
 
         window.playArtistByName = function(e, artistName) {
-            if (e) e.stopPropagation();
-            const tracks = allTracks.filter(t => t.artist === artistName);
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            const target = String(artistName || '').trim();
+            const tracks = allTracks.filter(t => (!window.isPodcastTrack || !window.isPodcastTrack(t)) && ((t.artist || 'Artista Desconhecido').trim() || 'Artista Desconhecido') === target);
             playAlbumQueue(e, tracks);
         };
 
         window.playArtistRandomAlbum = function(e, artistName) {
-            if (e) e.stopPropagation();
-            const tracks = allTracks.filter(t => t.artist === artistName);
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            const target = String(artistName || '').trim();
+            const tracks = allTracks.filter(t => (!window.isPodcastTrack || !window.isPodcastTrack(t)) && ((t.artist || 'Artista Desconhecido').trim() || 'Artista Desconhecido') === target);
             if (tracks.length === 0) return;
             const albsMap = {};
             tracks.forEach(t => {
@@ -8722,8 +9034,9 @@ document.addEventListener('fullscreenchange', (event) => {
         };
 
         window.playArtistByNameShuffled = function(e, artistName) {
-            if (e) e.stopPropagation();
-            const tracks = allTracks.filter(t => t.artist === artistName);
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            const target = String(artistName || '').trim();
+            const tracks = allTracks.filter(t => (!window.isPodcastTrack || !window.isPodcastTrack(t)) && ((t.artist || 'Artista Desconhecido').trim() || 'Artista Desconhecido') === target);
             playAlbumQueueShuffled(e, tracks);
         };
 
@@ -8816,7 +9129,100 @@ document.addEventListener('fullscreenchange', (event) => {
         };
 
         window.triggerArtistBannerUpload = function() {
-            document.getElementById('artist-banner-input').click();
+            const el = document.getElementById('artist-banner-input');
+            if (el) el.click();
+        };
+
+        window.openArtistCoverPickerModal = function() {
+            if (!selectedArtist) return;
+            const modal = document.getElementById('artist-cover-picker-modal');
+            if (!modal) return;
+            const nameEl = document.getElementById('artist-cover-picker-name');
+            if (nameEl) nameEl.textContent = selectedArtist;
+            const urlInput = document.getElementById('artist-custom-cover-url-input');
+            if (urlInput) {
+                urlInput.value = (window.customArtistPhotos && window.customArtistPhotos[selectedArtist]) || artistPhotoUrl || '';
+            }
+
+            const grid = document.getElementById('artist-cover-picker-albums-grid');
+            const countEl = document.getElementById('artist-cover-picker-albums-count');
+            const coversList = window.currentArtistAlbumCoversList || [];
+            if (countEl) {
+                countEl.textContent = coversList.length + (coversList.length === 1 ? ' capa disponível' : ' capas disponíveis');
+            }
+            if (grid) {
+                if (coversList.length === 0) {
+                    grid.innerHTML = '<div class="col-span-full py-6 text-center text-xs text-slate-500">Nenhuma capa de álbum encontrada para este artista.</div>';
+                } else {
+                    const currentActive = (window.customArtistPhotos && window.customArtistPhotos[selectedArtist]) || artistPhotoUrl || '';
+                    grid.innerHTML = coversList.map(item => {
+                        const safeUrlJs = String(item.url || '').split("'").join("\\'");
+                        const safeAlb = String(item.album || 'Álbum').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        const isSelected = currentActive && currentActive === item.url;
+                        return `
+                            <div onclick="saveCustomArtistCoverPhoto('${safeUrlJs}')" class="group relative aspect-square rounded-xl overflow-hidden bg-slate-900 border-2 ${isSelected ? 'border-sky-400 ring-2 ring-sky-500/30' : 'border-slate-800 hover:border-sky-500/60'} cursor-pointer transition shadow-md">
+                                <img src="${item.url}" referrerpolicy="no-referrer" alt="${safeAlb}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                                <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2">
+                                    <div class="text-[10px] font-bold text-white truncate">${safeAlb}</div>
+                                </div>
+                                <div class="absolute inset-0 bg-sky-500/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                                    <span class="px-2.5 py-1 rounded-lg bg-sky-500 text-slate-950 font-black text-[10px] uppercase tracking-wider shadow-lg">
+                                        Usar Capa
+                                    </span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+
+            modal.classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+        };
+
+        window.closeArtistCoverPickerModal = function() {
+            const modal = document.getElementById('artist-cover-picker-modal');
+            if (modal) modal.classList.add('hidden');
+        };
+
+        window.applyCustomArtistCoverUrlFromInput = function() {
+            const urlInput = document.getElementById('artist-custom-cover-url-input');
+            const val = urlInput ? urlInput.value.trim() : '';
+            if (!val) {
+                alert('Informe uma URL de imagem válida.');
+                return;
+            }
+            window.saveCustomArtistCoverPhoto(val);
+        };
+
+        window.saveCustomArtistCoverPhoto = async function(url) {
+            if (!selectedArtist || !url) return;
+            try {
+                const res = await fetch(API + '?route=update_artist_banner_url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        artist: selectedArtist,
+                        artist_photo: url
+                    })
+                });
+                if (res.ok) {
+                    artistPhotoUrl = url;
+                    if (!window.customArtistPhotos) window.customArtistPhotos = {};
+                    window.customArtistPhotos[selectedArtist] = url;
+                    if (!window.artistRandomCovers) window.artistRandomCovers = {};
+                    window.artistRandomCovers[selectedArtist] = url;
+                    closeArtistCoverPickerModal();
+                    renderLeftSidebar();
+                    renderTracksTable();
+                    if (window.renderArtistsPage) window.renderArtistsPage();
+                } else {
+                    alert('Falha ao salvar foto de capa do artista no servidor.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de comunicação ao salvar foto de capa do artista.');
+            }
         };
 
         window.uploadArtistBanner = async function(input) {
@@ -8835,13 +9241,20 @@ document.addEventListener('fullscreenchange', (event) => {
                 const d = await res.json();
                 if (d.success && d.artist_photo) {
                     artistPhotoUrl = d.artist_photo;
+                    if (!window.customArtistPhotos) window.customArtistPhotos = {};
+                    window.customArtistPhotos[selectedArtist] = d.artist_photo;
+                    if (!window.artistRandomCovers) window.artistRandomCovers = {};
+                    window.artistRandomCovers[selectedArtist] = d.artist_photo;
+                    closeArtistCoverPickerModal();
+                    renderLeftSidebar();
                     renderTracksTable();
+                    if (window.renderArtistsPage) window.renderArtistsPage();
                 } else {
-                    alert(d.error || 'Erro ao enviar banner do artista.');
+                    alert(d.error || 'Erro ao enviar foto de capa do artista.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de rede ao enviar banner do artista.');
+                alert('Erro de rede ao enviar foto de capa do artista.');
             } finally {
                 input.value = '';
             }
@@ -8854,7 +9267,7 @@ document.addEventListener('fullscreenchange', (event) => {
             imageSearchTargetType = 'artist';
             imageSearchAlbumTitle = '';
             
-            const query = selectedArtist + " logo";
+            const query = selectedArtist;
             document.getElementById('image-search-query').value = query;
             document.getElementById('image-search-modal-sub').textContent = selectedArtist;
             
@@ -8880,7 +9293,7 @@ document.addEventListener('fullscreenchange', (event) => {
             const modalTitle = document.querySelector('#image-search-modal h3');
             if (modalTitle) {
                 modalTitle.textContent = imageSearchTargetType === 'artist' 
-                    ? 'Buscar Logo / Foto da Banda' 
+                    ? 'Buscar Foto de Capa do Artista On-line' 
                     : 'Buscar Capa do Álbum On-line';
             }
             document.getElementById('image-search-modal').classList.remove('hidden');
@@ -8985,10 +9398,16 @@ document.addEventListener('fullscreenchange', (event) => {
                     });
                     if (res.ok) {
                         artistPhotoUrl = url;
+                        if (!window.customArtistPhotos) window.customArtistPhotos = {};
+                        window.customArtistPhotos[selectedArtist] = url;
+                        if (!window.artistRandomCovers) window.artistRandomCovers = {};
+                        window.artistRandomCovers[selectedArtist] = url;
                         closeImageSearchModal();
+                        renderLeftSidebar();
                         renderTracksTable();
+                        if (window.renderArtistsPage) window.renderArtistsPage();
                     } else {
-                        alert('Falha ao salvar banner do artista no servidor PHP');
+                        alert('Falha ao salvar foto de capa do artista no servidor PHP');
                     }
                 } else {
                     const res = await fetch(API + '?route=update_album_cover_url', {
@@ -9107,7 +9526,7 @@ document.addEventListener('fullscreenchange', (event) => {
             const titleEl = document.getElementById('table-view-title');
             if (titleEl) titleEl.textContent = "Álbum: " + track.album;
             
-            const panes = ['dashboard', 'tracks', 'config', 'playlists', 'podcast', 'radios', 'reprodutor'];
+            const panes = ['dashboard', 'tracks', 'artists', 'config', 'playlists', 'podcast', 'radios', 'reprodutor'];
             panes.forEach(p => {
                 const el = document.getElementById('pane-' + p);
                 if (el) {
@@ -9130,13 +9549,13 @@ document.addEventListener('fullscreenchange', (event) => {
             const track = activeQueue[activeQueueIdx];
             if (!track || !track.artist) return;
             
-            // Highlight tracks tab visually
-            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'playlists', 'podcast', 'radios', 'reprodutor'];
+            // Highlight artists tab visually
+            const btns = ['dashboard', 'tracks', 'artists', 'favorites', 'config', 'playlists', 'podcast', 'radios', 'reprodutor'];
             btns.forEach(b => {
                 const el = document.getElementById('tab-btn-' + b);
                 if (el) {
-                    if (b === 'tracks') {
-                        el.className = "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-sky-400 bg-sky-550/10 border border-sky-500/20";
+                    if (b === 'artists') {
+                        el.className = "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20";
                     } else {
                         el.className = "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition";
                     }
@@ -9216,7 +9635,7 @@ document.addEventListener('fullscreenchange', (event) => {
             activePlaylistAlbum = '';
             document.getElementById('table-view-title').textContent = "Playlist: " + playlistName;
             
-            const btns = ['dashboard', 'tracks', 'favorites', 'config', 'playlists', 'podcast', 'radios'];
+            const btns = ['dashboard', 'tracks', 'artists', 'favorites', 'config', 'playlists', 'podcast', 'radios', 'reprodutor'];
             btns.forEach(b => {
                 const el = document.getElementById('tab-btn-' + b);
                 if (el) el.className = "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition";
@@ -9230,6 +9649,7 @@ document.addEventListener('fullscreenchange', (event) => {
             renderTracksTable();
             activeTab = 'tracks';
             document.getElementById('pane-dashboard').classList.add('hidden');
+            if (document.getElementById('pane-artists')) document.getElementById('pane-artists').classList.add('hidden');
             if (document.getElementById('pane-playlists')) document.getElementById('pane-playlists').classList.add('hidden');
             document.getElementById('pane-tracks').classList.remove('hidden');
             lucide.createIcons();

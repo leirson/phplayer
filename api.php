@@ -1825,6 +1825,9 @@ Accept: */*
                     if (in_array($pExt, ['mp3', 'wav', 'ogg', 'aac', 'm4a'])) {
                         $pAbs = $pInfo->getPathname();
                         $pRel = str_replace(chr(92), '/', substr($pAbs, strlen($musicDir)));
+                        if (stripos(ltrim($pRel, '/'), 'podcast/') === 0) {
+                            continue;
+                        }
                         $dPath = dirname($pRel);
                         $pParts = explode('/', $pRel);
                         
@@ -1865,6 +1868,9 @@ Accept: */*
                         $absolutePath = $fileinfo->getPathname();
                         $ext = strtolower(pathinfo($fileinfo->getFilename(), PATHINFO_EXTENSION));
                         $relativePath = str_replace(chr(92), '/', substr($absolutePath, strlen($musicDir)));
+                        if (stripos(ltrim($relativePath, '/'), 'podcast/') === 0) {
+                            continue;
+                        }
                         
                         // Let's log any file that is ignored but is in /music
                         if (!in_array($ext, ['mp3', 'wav', 'ogg', 'aac', 'm4a'])) {
@@ -2231,6 +2237,38 @@ Accept: */*
                         }
                         return $tb - $ta;
                     });
+                }
+
+                if (is_array($songs)) {
+                    $registeredPodcastNames = [];
+                    try {
+                        $stPod = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'podcast_feed_%' OR setting_key LIKE 'podcast_artist_%'");
+                        if ($stPod) {
+                            while ($rPod = $stPod->fetch(PDO::FETCH_ASSOC)) {
+                                $kPod = $rPod['setting_key'] ?? '';
+                                if (strpos($kPod, 'podcast_feed_') === 0) {
+                                    $pName = strtolower(trim(substr($kPod, strlen('podcast_feed_'))));
+                                    if ($pName !== '') $registeredPodcastNames[$pName] = true;
+                                } elseif (strpos($kPod, 'podcast_artist_') === 0) {
+                                    $pArt = strtolower(trim($rPod['setting_value'] ?? ''));
+                                    if ($pArt !== '') $registeredPodcastNames[$pArt] = true;
+                                }
+                            }
+                        }
+                    } catch (Throwable $ePod) {}
+
+                    $songs = array_values(array_filter($songs, function($s) use ($registeredPodcastNames) {
+                        $genre = strtolower(trim($s['genre'] ?? ''));
+                        $artist = strtolower(trim($s['artist'] ?? ''));
+                        $album = strtolower(trim($s['album'] ?? ''));
+                        $fName = strtolower(ltrim(str_replace('\\', '/', trim($s['file_name'] ?? '')), '/'));
+                        if ($genre === 'podcast' || $genre === 'podcasts' || strpos($genre, 'podcast') !== false) return false;
+                        if ($artist === 'podcast' || $artist === 'podcasts') return false;
+                        if ($album === 'podcast' || $album === 'podcasts') return false;
+                        if (strpos($fName, 'podcast/') === 0 || strpos($fName, '/podcast/') !== false) return false;
+                        if (!empty($registeredPodcastNames[$artist]) || !empty($registeredPodcastNames[$album])) return false;
+                        return true;
+                    }));
                 }
 
                 while (ob_get_level()) {
@@ -3431,6 +3469,17 @@ Accept: */*
         $stmt = $pdo->prepare("UPDATE songs SET cover_url = ? WHERE artist = ? AND album = ?");
         $stmt->execute([$coverUrl, $artist, $album]);
         echo json_encode(['success' => true, 'cover_url' => $coverUrl]);
+        break;
+
+    case 'artist_photos':
+        $pdo->exec("CREATE TABLE IF NOT EXISTS artist_metadata (
+            artist VARCHAR(255) PRIMARY KEY,
+            artist_photo VARCHAR(1000) DEFAULT NULL,
+            bio TEXT DEFAULT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        $stmt = $pdo->query("SELECT artist, artist_photo FROM artist_metadata WHERE artist_photo IS NOT NULL AND artist_photo != ''");
+        $photos = $stmt ? $stmt->fetchAll(PDO::FETCH_KEY_PAIR) : [];
+        echo json_encode(['success' => true, 'photos' => $photos ?: new stdClass()]);
         break;
 
     case 'update_artist_banner_url':

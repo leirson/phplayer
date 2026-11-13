@@ -1,5 +1,21 @@
 <?php
 $changelog = <<<EOT
+v1.3.6
+- Correção do botão **Artista Aleatório** na página de Artistas (`index.php`): corrigido erro de referência nula (`e.stopPropagation`) em `playAlbumQueue` e `playAlbumQueueShuffled`, além de normalização de nomes de artistas e prevenção de repetição do artista atual.
+- Remoção do modo **Karaoke** na janela de Letras (`index.php`), mantendo a visualização direta e limpa das letras em modo leitura sem sincronização/botões de alternância de karaoke.
+- Correção do tamanho e proporções do **Equalizador de Áudio** (`#equalizer-modal` em `index.php`): ajuste da largura do modal (`max-w-lg`), grade de predefinições (4 colunas), altura da câmara de bandas (`h-72`) e dimensões explícitas dos controles deslizantes verticais para evitar cortes e colapso dos faders.
+
+v1.3.5
+- Remoção de canais e episódios de **Podcast** da lista de artistas em todo o sistema PHP (`index.php`, `mobile.php` e `api.php`), garantindo que podcasts não apareçam na página de Artistas, nas barras laterais de artistas, nos filtros nem na varredura da pasta `/music`.
+
+v1.3.4
+- Na página do artista (`index.php`), adicionado seletor dedicado de **Foto de Capa do Artista** (permitindo escolher entre as capas dos álbuns do artista, enviar foto do computador, colar URL direta ou buscar foto on-line), exibindo a foto de capa em destaque ao lado do título do artista e sincronizando-a com a página de Artistas e barras laterais.
+- No banner da página do artista (`index.php`), implementada geração automática de um **Mix de Capas dos Álbuns** em mosaico com todas as capas dos álbuns daquele artista na biblioteca.
+
+v1.3.3
+- Adicionada página dedicada **Artistas** no menu principal (`index.php`), exibindo todos os artistas da biblioteca em grade com capa, contagem de álbuns e músicas, busca por nome, barra de filtro alfabético (A-Z) e ordenação.
+- Adicionados botões diretos de **Play** (reproduzir todas as músicas do artista em ordem) e **Shuffle** (reproduzir o artista em modo aleatório) em cada card da página de Artistas, além do botão **Artista Aleatório**.
+
 v1.3.2
 - Separação dos álbuns por tipo (`Álbum`, `EP`, `Single`, `Álbum ao Vivo` e `Compilação`) na página do artista em `index.php`, com cabeçalhos de categoria dedicados, contadores, selos visuais nas capas e botões de filtro rápido por categoria.
 - Sincronização completa do campo `album_type` nos modais de edição ID3 individual, edição de álbum completo e edição em massa no `index.php`.

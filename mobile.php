@@ -2936,9 +2936,18 @@ if (!file_exists('config.php')) {
             const queryEl = document.getElementById('artists-search-input');
             const query = queryEl ? queryEl.value.trim().toLowerCase() : '';
 
-            // Group by artist name
+            // Group by artist name (excluding podcasts)
             const artistsMapLocal = {};
             allTracks.forEach(track => {
+                const g = String(track.genre || '').trim().toLowerCase();
+                const a = String(track.artist || '').trim().toLowerCase();
+                const alb = String(track.album || '').trim().toLowerCase();
+                const fn = String(track.file_name || track.fileName || '').trim().toLowerCase().replace(/\\/g, '/');
+                if (g === 'podcast' || g === 'podcasts' || g.includes('podcast')) return;
+                if (a === 'podcast' || a === 'podcasts') return;
+                if (alb === 'podcast' || alb === 'podcasts') return;
+                if (fn.startsWith('podcast/') || fn.includes('/podcast/')) return;
+
                 const artistName = track.artist || 'Artista Desconhecido';
 
                 // If query is present, filter name or track details
