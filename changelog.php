@@ -1,5 +1,8 @@
 <?php
 $changelog = <<<EOT
+v1.3.7
+- Na escolha de **Foto de Capa do Artista** (`index.php` e `api.php`), adicionada busca integrada por **Logo do Artista** e **Foto do Artista** na internet consultando **Spotify**, **Deezer**, **Google Imagens** e **Logo Oficial (Wikimedia/Wikidata)**, com filtros por fonte e seleção direta com um clique.
+
 v1.3.6
 - Correção do botão **Artista Aleatório** na página de Artistas (`index.php`): corrigido erro de referência nula (`e.stopPropagation`) em `playAlbumQueue` e `playAlbumQueueShuffled`, além de normalização de nomes de artistas e prevenção de repetição do artista atual.
 - Remoção do modo **Karaoke** na janela de Letras (`index.php`), mantendo a visualização direta e limpa das letras em modo leitura sem sincronização/botões de alternância de karaoke.

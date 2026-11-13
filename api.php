@@ -3275,18 +3275,264 @@ Accept: */*
 
     case 'search_artist_logo':
         $artist = trim($_GET['artist'] ?? '');
-        $source = trim($_GET['source'] ?? 'google');
+        $source = strtolower(trim($_GET['source'] ?? 'all'));
+        $mode = strtolower(trim($_GET['mode'] ?? 'logo'));
         
         if (empty($artist)) {
             echo json_encode(['success' => false, 'error' => 'A busca exige o nome do artista.']);
             break;
         }
         
-        $cleanArtistParams = trim(preg_replace('/\s+/', ' ', preg_replace('/\b(logo|band|png|hd|headshot|icon|avatar|music|oficial|official|ultra|wide|wallpaper|banner|background)\b/i', '', $artist)));
+        $cleanArtistParams = trim(preg_replace('/\s+/', ' ', preg_replace('/\b(logo|logotipo|band|banda|png|hd|headshot|icon|avatar|music|oficial|official|ultra|wide|wallpaper|banner|background|transparent|vetor|vector)\b/i', '', $artist)));
         if (empty($cleanArtistParams)) $cleanArtistParams = $artist;
         
-        $images = [];
-        
+        $items = [];
+        $seenUrls = [];
+        $addItem = function($url, $srcLabel, $title = '') use (&$items, &$seenUrls) {
+            $url = trim((string)$url);
+            if (empty($url) || (strpos($url, 'http://') !== 0 && strpos($url, 'https://') !== 0)) return;
+            if (strpos($url, '/images/artist//') !== false || strpos($url, '2a96cbd8b46e442fc41c2b86b821562f') !== false) return;
+            if (isset($seenUrls[$url])) return;
+            $seenUrls[$url] = true;
+            $items[] = [
+                'url' => $url,
+                'source' => $srcLabel,
+                'title' => $title
+            ];
+        };
+
+        $fetchUrl = function($url, $headers = [], $timeout = 5) {
+            if (function_exists('curl_init')) {
+                $ch = curl_init($url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0');
+                if (!empty($headers)) {
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+                }
+                $res = curl_exec($ch);
+                curl_close($ch);
+                if (!empty($res)) return $res;
+            }
+            if (ini_get('allow_url_fopen')) {
+                $hdrStr = "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0\r\n";
+                foreach ($headers as $h) {
+                    $hdrStr .= $h . "\r\n";
+                }
+                $ctx = stream_context_create([
+                    'http' => ['method' => 'GET', 'header' => $hdrStr, 'timeout' => $timeout],
+                    'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
+                ]);
+                $res = @file_get_contents($url, false, $ctx);
+                if (!empty($res)) return $res;
+            }
+            return '';
+        };
+
+        // 0. Wikidata lookup for Official Logo (P154), Spotify Artist ID (P1902), and Artist Image (P18)
+        $wikidataSpotifyIds = [];
+        if ($source === 'all' || $source === 'spotify' || $source === 'google') {
+            $wdSearchUrl = 'https://www.wikidata.org/w/api.php?action=wbsearchentities&search=' . urlencode($cleanArtistParams) . '&language=pt&format=json&limit=4';
+            $wdSearchRaw = $fetchUrl($wdSearchUrl, [], 4);
+            if ($wdSearchRaw) {
+                $wdSearchData = json_decode($wdSearchRaw, true);
+                $wdIds = [];
+                foreach (($wdSearchData['search'] ?? []) as $sItem) {
+                    if (!empty($sItem['id'])) $wdIds[] = $sItem['id'];
+                }
+                if (!empty($wdIds)) {
+                    $wdEntUrl = 'https://www.wikidata.org/w/api.php?action=wbgetentities&ids=' . implode('|', $wdIds) . '&props=claims|labels&format=json';
+                    $wdEntRaw = $fetchUrl($wdEntUrl, [], 4);
+                    if ($wdEntRaw) {
+                        $wdEntData = json_decode($wdEntRaw, true);
+                        foreach ($wdIds as $eid) {
+                            $ent = $wdEntData['entities'][$eid] ?? null;
+                            if (!$ent) continue;
+                            $claims = $ent['claims'] ?? [];
+                            $entLabel = $ent['labels']['pt']['value'] ?? $ent['labels']['en']['value'] ?? $cleanArtistParams;
+                            
+                            // P154 = Official Logo Image on Wikimedia Commons
+                            if ($source === 'all' || $source === 'google') {
+                                foreach (($claims['P154'] ?? []) as $c) {
+                                    $logoFile = $c['mainsnak']['datavalue']['value'] ?? '';
+                                    if (!empty($logoFile)) {
+                                        $commonsLogoUrl = 'https://commons.wikimedia.org/wiki/Special:FilePath/' . rawurlencode($logoFile) . '?width=800';
+                                        $addItem($commonsLogoUrl, 'Logo Oficial', $entLabel . ' (Logo)');
+                                    }
+                                }
+                            }
+                            // P1902 = Spotify Artist ID
+                            foreach (($claims['P1902'] ?? []) as $c) {
+                                $spId = $c['mainsnak']['datavalue']['value'] ?? '';
+                                if (!empty($spId) && !in_array($spId, $wikidataSpotifyIds)) {
+                                    $wikidataSpotifyIds[] = $spId;
+                                }
+                            }
+                            // P18 = Commons Artist Image
+                            if ($source === 'all' || $source === 'google') {
+                                foreach (($claims['P18'] ?? []) as $c) {
+                                    $imgFile = $c['mainsnak']['datavalue']['value'] ?? '';
+                                    if (!empty($imgFile)) {
+                                        $commonsImgUrl = 'https://commons.wikimedia.org/wiki/Special:FilePath/' . rawurlencode($imgFile) . '?width=800';
+                                        $addItem($commonsImgUrl, 'Google Imagens', $entLabel);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 1. SPOTIFY SOURCE
+        if ($source === 'all' || $source === 'spotify') {
+            $spotifyIds = $wikidataSpotifyIds;
+
+            // Optional: if admin configured Spotify API credentials in settings
+            try {
+                $stmtSp = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('spotify_client_id', 'spotify_client_secret')");
+                $spCfg = $stmtSp ? $stmtSp->fetchAll(PDO::FETCH_KEY_PAIR) : [];
+                $spClientId = trim($spCfg['spotify_client_id'] ?? '');
+                $spClientSecret = trim($spCfg['spotify_client_secret'] ?? '');
+                if (!empty($spClientId) && !empty($spClientSecret) && function_exists('curl_init')) {
+                    $chTok = curl_init('https://accounts.spotify.com/api/token');
+                    curl_setopt($chTok, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($chTok, CURLOPT_POST, true);
+                    curl_setopt($chTok, CURLOPT_POSTFIELDS, 'grant_type=client_credentials');
+                    curl_setopt($chTok, CURLOPT_HTTPHEADER, [
+                        'Authorization: Basic ' . base64_encode($spClientId . ':' . $spClientSecret),
+                        'Content-Type: application/x-www-form-urlencoded'
+                    ]);
+                    curl_setopt($chTok, CURLOPT_TIMEOUT, 4);
+                    $tokRes = json_decode(curl_exec($chTok), true);
+                    curl_close($chTok);
+                    if (!empty($tokRes['access_token'])) {
+                        $spApiRaw = $fetchUrl(
+                            'https://api.spotify.com/v1/search?q=' . urlencode($cleanArtistParams) . '&type=artist&limit=8',
+                            ['Authorization: Bearer ' . $tokRes['access_token']],
+                            4
+                        );
+                        $spApiData = json_decode($spApiRaw, true);
+                        foreach (($spApiData['artists']['items'] ?? []) as $spArt) {
+                            foreach (($spArt['images'] ?? []) as $spImg) {
+                                if (!empty($spImg['url'])) {
+                                    $addItem($spImg['url'], 'Spotify', $spArt['name'] ?? $cleanArtistParams);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Throwable $eSp) {}
+
+            // Public zero-config Spotify discovery via DuckDuckGo + Spotify oEmbed
+            if (count($spotifyIds) < 5) {
+                $ddgUrl = 'https://html.duckduckgo.com/html/?q=' . urlencode('site:open.spotify.com/artist ' . $cleanArtistParams);
+                $ddgHtml = $fetchUrl($ddgUrl, [], 5);
+                if (!empty($ddgHtml)) {
+                    if (preg_match_all('/open\.spotify\.com(?:%2F|\/)(?:intl-[a-z-]+(?:%2F|\/))?artist(?:%2F|\/)([a-zA-Z0-9]{22})/i', $ddgHtml, $spMatches)) {
+                        foreach ($spMatches[1] as $foundId) {
+                            if (!in_array($foundId, $spotifyIds)) {
+                                $spotifyIds[] = $foundId;
+                            }
+                            if (count($spotifyIds) >= 6) break;
+                        }
+                    }
+                }
+            }
+
+            foreach (array_slice($spotifyIds, 0, 6) as $spId) {
+                $oembedRaw = $fetchUrl('https://open.spotify.com/oembed?url=https://open.spotify.com/artist/' . urlencode($spId), [], 4);
+                if (!empty($oembedRaw)) {
+                    $oeData = json_decode($oembedRaw, true);
+                    if (!empty($oeData['thumbnail_url'])) {
+                        $addItem($oeData['thumbnail_url'], 'Spotify', $oeData['title'] ?? $cleanArtistParams);
+                    }
+                }
+            }
+        }
+
+        // 2. DEEZER SOURCE
+        if ($source === 'all' || $source === 'deezer') {
+            $deezerUrl = 'https://api.deezer.com/search/artist?q=' . urlencode($cleanArtistParams) . '&limit=12';
+            $resDz = $fetchUrl($deezerUrl, [], 5);
+            if ($resDz) {
+                $dataDz = json_decode($resDz, true);
+                foreach (($dataDz['data'] ?? []) as $item) {
+                    $img = $item['picture_xl'] ?? $item['picture_big'] ?? $item['picture_medium'] ?? $item['picture'] ?? '';
+                    if (!empty($img)) {
+                        $addItem($img, 'Deezer', $item['name'] ?? $cleanArtistParams);
+                    }
+                }
+            }
+        }
+
+        // 3. GOOGLE IMAGES (Logo / Artist Image Search)
+        if ($source === 'all' || $source === 'google') {
+            $searchQuery = $artist;
+            if ($mode === 'logo' && stripos($searchQuery, 'logo') === false) {
+                $searchQuery = $cleanArtistParams . ' logo';
+            }
+
+            // 3a. Google Images HTML (gbv=1)
+            $googleUrl = 'https://www.google.com/search?q=' . urlencode($searchQuery) . '&tbm=isch&safe=active&gbv=1';
+            $gHtml = $fetchUrl($googleUrl, ['Cookie: CONSENT=YES+cb.20230510-17-p0.en+FX+999;'], 5);
+            if (!empty($gHtml)) {
+                if (preg_match_all('/imgurl=([^&\\x22\\x27\\s>]+)/i', $gHtml, $imgresMatches)) {
+                    foreach (array_slice(array_unique($imgresMatches[1]), 0, 10) as $imgUrlEncoded) {
+                        $u = urldecode($imgUrlEncoded);
+                        if (!empty($u) && strpos($u, 'google') === false && strpos($u, 'gstatic') === false && strpos($u, 'schema.org') === false) {
+                            $addItem($u, 'Google Imagens', $searchQuery);
+                        }
+                    }
+                }
+                if (preg_match_all('/(https?:\/\/encrypted-tbn0\.gstatic\.com\/images\?q=tbn:[a-zA-Z0-9_\-%&\+=:]+)/i', $gHtml, $matches)) {
+                    foreach (array_slice(array_unique($matches[1]), 0, 14) as $tbnUrl) {
+                        $addItem($tbnUrl, 'Google Imagens', $searchQuery);
+                    }
+                }
+            }
+
+            // 3b. Bing Images high-res & thumbnail extraction (works reliably even when Google serves JS challenge)
+            $bingUrl = 'https://www.bing.com/images/search?q=' . urlencode($searchQuery);
+            $bHtml = $fetchUrl($bingUrl, [], 5);
+            if (!empty($bHtml)) {
+                $bMurls = [];
+                $bTurls = [];
+                if (preg_match_all('/murl&quot;:&quot;(https?:\/\/.+?)&quot;/i', $bHtml, $mMatches)) {
+                    $bMurls = $mMatches[1];
+                }
+                if (preg_match_all('/turl&quot;:&quot;(https?:\/\/.+?)&quot;/i', $bHtml, $tMatches)) {
+                    $bTurls = $tMatches[1];
+                }
+                $maxBing = max(count($bTurls), count($bMurls));
+                for ($bi = 0; $bi < min($maxBing, 16); $bi++) {
+                    // Prefer reliable Bing thumbnail CDN URL or direct high-res murl
+                    if (!empty($bTurls[$bi])) {
+                        $addItem(html_entity_decode($bTurls[$bi], ENT_QUOTES), 'Google Imagens', $searchQuery);
+                    } elseif (!empty($bMurls[$bi])) {
+                        $addItem(html_entity_decode($bMurls[$bi], ENT_QUOTES), 'Google Imagens', $searchQuery);
+                    }
+                }
+            }
+
+            // 3c. Yahoo Images fallback if still few results
+            if (count($items) < 6) {
+                $yahooUrl = 'https://images.search.yahoo.com/search/images?p=' . urlencode($searchQuery);
+                $yHtml = $fetchUrl($yahooUrl, [], 5);
+                if (!empty($yHtml)) {
+                    if (preg_match_all('/(https?:\/\/tse\d+\.mm\.bing\.net\/th\?id=[^&"\x27\s]+)/i', $yHtml, $yMatches)) {
+                        foreach (array_slice(array_unique($yMatches[1]), 0, 12) as $yu) {
+                            $addItem($yu, 'Google Imagens', $searchQuery);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. LAST.FM SOURCE
         if ($source === 'lastfm') {
             $stmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'lastfm_api_key'");
             $stmt->execute();
@@ -3294,162 +3540,27 @@ Accept: */*
             $apiKey = $customKey ?: 'b25b959554ed76058ac220b7b2e0a026';
             
             $lastfmUrl = 'http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=' . urlencode($cleanArtistParams) . '&api_key=' . $apiKey . '&format=json';
-            $ch = curl_init($lastfmUrl);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-            $res = curl_exec($ch);
-            curl_close($ch);
-            
-            if ($res) {
-                $data = json_decode($res, true);
+            $resLfm = $fetchUrl($lastfmUrl, [], 5);
+            if ($resLfm) {
+                $data = json_decode($resLfm, true);
                 $imgs = $data['artist']['image'] ?? [];
-                if (!empty($imgs)) {
-                    $mega = '';
+                foreach (['mega', 'extralarge', 'large'] as $sz) {
                     foreach ($imgs as $img) {
-                        if ($img['size'] === 'mega') $mega = $img['#text'];
-                    }
-                    if (empty($mega)) {
-                        foreach ($imgs as $img) {
-                            if ($img['size'] === 'extralarge') $mega = $img['#text'];
+                        if (($img['size'] ?? '') === $sz && !empty($img['#text'])) {
+                            $addItem($img['#text'], 'Last.fm', $cleanArtistParams);
                         }
-                    }
-                    if (empty($mega)) {
-                        foreach ($imgs as $img) {
-                            if ($img['size'] === 'large') $mega = $img['#text'];
-                        }
-                    }
-                    if (!empty($mega)) {
-                        $images[] = $mega;
-                    }
-                }
-            }
-        } else if ($source === 'deezer') {
-            $deezerUrl = 'https://api.deezer.com/search/artist?q=' . urlencode($cleanArtistParams);
-            $ch = curl_init($deezerUrl);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0');
-            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-            $res = curl_exec($ch);
-            curl_close($ch);
-            
-            if ($res) {
-                $data = json_decode($res, true);
-                $items = $data['data'] ?? [];
-                foreach ($items as $item) {
-                    $img = $item['picture_xl'] ?? $item['picture_big'] ?? $item['picture_medium'] ?? $item['picture'] ?? '';
-                    if (!empty($img)) {
-                        $images[] = $img;
-                    }
-                }
-            }
-        } else {
-            $query = $artist;
-            // Clean noise terms
-            $cleanArtist = preg_replace('/\b(logo|band|png|hd|headshot|icon|avatar|music|oficial|official|ultra|wide|wallpaper|banner|background)\b/i', '', $query);
-            $cleanArtist = trim(preg_replace('/\s+/', ' ', $cleanArtist));
-            if (empty($cleanArtist)) {
-                $cleanArtist = $query;
-            }
-
-            // 1. Deezer Artist Search
-            $deezerUrl = 'https://api.deezer.com/search/artist?q=' . urlencode($cleanArtist);
-            if (function_exists('curl_init')) {
-                $ch = curl_init($deezerUrl);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0');
-                curl_setopt($ch, CURLOPT_TIMEOUT, 4);
-                $resDz = curl_exec($ch);
-                curl_close($ch);
-                if ($resDz) {
-                    $dataDz = json_decode($resDz, true);
-                    if (isset($dataDz['data']) && is_array($dataDz['data'])) {
-                        foreach ($dataDz['data'] as $item) {
-                            $pics = [
-                                $item['picture_xl'] ?? '',
-                                $item['picture_big'] ?? '',
-                                $item['picture_medium'] ?? '',
-                                $item['picture'] ?? ''
-                            ];
-                            foreach ($pics as $pic) {
-                                if (!empty($pic) && !in_array($pic, $images)) {
-                                    $images[] = $pic;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 2. iTunes Album Search
-            $itunesUrl = 'https://itunes.apple.com/search?term=' . urlencode($cleanArtist) . '&entity=album&limit=15';
-            if (function_exists('curl_init')) {
-                $ch = curl_init($itunesUrl);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0');
-                curl_setopt($ch, CURLOPT_TIMEOUT, 4);
-                $resItunes = curl_exec($ch);
-                curl_close($ch);
-                if ($resItunes) {
-                    $dataIt = json_decode($resItunes, true);
-                    if (isset($dataIt['results']) && is_array($dataIt['results'])) {
-                        foreach ($dataIt['results'] as $item) {
-                            if (!empty($item['artworkUrl100'])) {
-                                $highRes = str_replace('100x100bb.jpg', '1000x1000bb.jpg', $item['artworkUrl100']);
-                                if (!in_array($highRes, $images)) {
-                                    $images[] = $highRes;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 3. Google HTML fallback (only if empty)
-            if (empty($images)) {
-                $googleUrl = 'https://www.google.com/search?q=' . urlencode($query) . '&tbm=isch&safe=active&gbv=1';
-                $html = '';
-                
-                if (function_exists('curl_init')) {
-                    $ch = curl_init($googleUrl);
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0');
-                    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                    curl_setopt($ch, CURLOPT_TIMEOUT, 6);
-                    curl_setopt($ch, CURLOPT_COOKIE, 'CONSENT=YES+cb.20230510-17-p0.en+FX+999;');
-                    $html = curl_exec($ch);
-                    curl_close($ch);
-                }
-                
-                if (empty($html) && ini_get('allow_url_fopen')) {
-                    $opts = [
-                        'http' => [
-                            'method' => 'GET',
-                            'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0
-" .
-                                        "Cookie: CONSENT=YES+cb.20230510-17-p0.en+FX+999;
-"
-                        ],
-                        'ssl' => [
-                            'verify_peer' => false,
-                            'verify_peer_name' => false
-                        ]
-                    ];
-                    $context = stream_context_create($opts);
-                    $html = @file_get_contents($googleUrl, false, $context);
-                }
-
-                if (!empty($html)) {
-                    preg_match_all('/(https?:\/\/encrypted-tbn0\.gstatic\.com\/images\?q=tbn:[a-zA-Z0-9_\-%&\+=]+)/i', $html, $matches);
-                    if (!empty($matches[1])) {
-                        $images = array_slice(array_unique($matches[1]), 0, 16);
                     }
                 }
             }
         }
         
-        $images = array_values(array_slice(array_unique($images), 0, 24));
-        echo json_encode(['success' => true, 'images' => $images]);
+        $items = array_values(array_slice($items, 0, 32));
+        $images = array_values(array_map(function($it) { return $it['url']; }, $items));
+        echo json_encode([
+            'success' => true,
+            'images' => $images,
+            'items' => $items
+        ]);
         break;
 
     case 'update_album_cover_url':

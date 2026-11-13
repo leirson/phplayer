@@ -2176,15 +2176,21 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                 </div>
 
                 <!-- Source Select Tabs -->
-                <div id="image-search-tabs-container" class="flex bg-[#070a12] p-1 rounded-xl border border-slate-900/40">
-                    <input type="hidden" id="image-search-source" value="google">
-                    <button id="src-tab-google" onclick="setImageSearchSource('google')" class="flex-1 text-center py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition bg-slate-900 text-white shadow-sm border border-slate-800/30">
-                        Google
+                <div id="image-search-tabs-container" class="flex flex-wrap bg-[#070a12] p-1 rounded-xl border border-slate-900/40 gap-1">
+                    <input type="hidden" id="image-search-source" value="all">
+                    <button id="src-tab-all" onclick="setImageSearchSource('all')" class="flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition bg-slate-900 text-white shadow-sm border border-slate-800/30 cursor-pointer">
+                        Todos
                     </button>
-                    <button id="src-tab-deezer" onclick="setImageSearchSource('deezer')" class="flex-1 text-center py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-white font-black">
+                    <button id="src-tab-spotify" onclick="setImageSearchSource('spotify')" class="flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-white cursor-pointer">
+                        Spotify
+                    </button>
+                    <button id="src-tab-deezer" onclick="setImageSearchSource('deezer')" class="flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-white cursor-pointer">
                         Deezer
                     </button>
-                    <button id="src-tab-lastfm" onclick="setImageSearchSource('lastfm')" class="flex-1 text-center py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-white font-black">
+                    <button id="src-tab-google" onclick="setImageSearchSource('google')" class="flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-white cursor-pointer">
+                        Google Imagens
+                    </button>
+                    <button id="src-tab-lastfm" onclick="setImageSearchSource('lastfm')" class="flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-white cursor-pointer">
                         Last.fm
                     </button>
                 </div>
@@ -2665,7 +2671,56 @@ define('DONT_EXIT_ON_DB_ERROR', true);
             </div>
 
             <div class="p-5 space-y-5 overflow-y-auto flex-1 custom-scroll">
-                <!-- Quick Upload or Search Options -->
+                <!-- Online Search for Artist Logo / Photo (Spotify, Deezer, Google Images) -->
+                <div class="bg-slate-950/80 border border-slate-800/90 rounded-2xl p-4 space-y-3.5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="globe" class="w-4 h-4 text-sky-400"></i>
+                            <span class="text-[11px] font-black uppercase tracking-wider text-white">Buscar Logo / Imagem do Artista na Internet</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" id="artist-cover-mode-logo" onclick="setArtistCoverOnlineQueryMode('logo')" class="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-sky-500/15 text-sky-400 border border-sky-500/40 cursor-pointer transition">
+                                Logo do Artista
+                            </button>
+                            <button type="button" id="artist-cover-mode-photo" onclick="setArtistCoverOnlineQueryMode('photo')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-900 text-slate-400 hover:text-white border border-slate-800 cursor-pointer transition">
+                                Foto do Artista
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Search input + button -->
+                    <div class="flex gap-2">
+                        <input type="text" id="artist-cover-online-query" placeholder="Ex: Nome do Artista logo..." class="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 font-semibold focus:outline-none focus:border-sky-500 transition" onkeydown="if(event.key === 'Enter'){ event.preventDefault(); searchArtistCoverOnline(); }">
+                        <button type="button" onclick="searchArtistCoverOnline()" class="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0">
+                            <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                            Buscar
+                        </button>
+                    </div>
+
+                    <!-- Source tabs: Todos, Spotify, Deezer, Google Imagens -->
+                    <div class="flex flex-wrap bg-[#070a12] p-1 rounded-xl border border-slate-900 gap-1">
+                        <input type="hidden" id="artist-cover-online-source" value="all">
+                        <button type="button" id="artist-cover-src-all" onclick="setArtistCoverOnlineSource('all')" class="flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition bg-sky-500/15 text-sky-400 border border-sky-500/30 cursor-pointer">
+                            Todos
+                        </button>
+                        <button type="button" id="artist-cover-src-spotify" onclick="setArtistCoverOnlineSource('spotify')" class="flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-emerald-400 cursor-pointer">
+                            Spotify
+                        </button>
+                        <button type="button" id="artist-cover-src-deezer" onclick="setArtistCoverOnlineSource('deezer')" class="flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-purple-400 cursor-pointer">
+                            Deezer
+                        </button>
+                        <button type="button" id="artist-cover-src-google" onclick="setArtistCoverOnlineSource('google')" class="flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-sky-400 cursor-pointer">
+                            Google Imagens
+                        </button>
+                    </div>
+
+                    <!-- Online Results Grid -->
+                    <div id="artist-cover-online-results-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-64 overflow-y-auto custom-scroll pr-1">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Upload from computer or Paste Image URL -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button type="button" onclick="closeArtistCoverPickerModal(); triggerArtistBannerUpload();" class="p-3.5 bg-slate-900/70 hover:bg-slate-900 border border-slate-800 hover:border-sky-500/40 rounded-xl flex items-center gap-3 text-left transition cursor-pointer group">
                         <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 group-hover:scale-105 transition shrink-0">
@@ -2677,25 +2732,14 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                         </div>
                     </button>
 
-                    <button type="button" onclick="closeArtistCoverPickerModal(); handleOpenArtistImageSearch();" class="p-3.5 bg-slate-900/70 hover:bg-slate-900 border border-slate-800 hover:border-indigo-500/40 rounded-xl flex items-center gap-3 text-left transition cursor-pointer group">
-                        <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-105 transition shrink-0">
-                            <i data-lucide="globe" class="w-4 h-4"></i>
+                    <div class="bg-slate-950/60 border border-slate-900 rounded-xl p-3 space-y-1.5 flex flex-col justify-center">
+                        <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Ou cole a URL direta da imagem / logo</label>
+                        <div class="flex gap-1.5">
+                            <input type="text" id="artist-custom-cover-url-input" placeholder="https://exemplo.com/logo.png" class="flex-1 min-w-0 bg-slate-900/80 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500">
+                            <button type="button" onclick="applyCustomArtistCoverUrlFromInput()" class="px-3 py-1.5 bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-[11px] rounded-lg transition cursor-pointer shrink-0">
+                                Aplicar
+                            </button>
                         </div>
-                        <div>
-                            <div class="text-xs font-bold text-white group-hover:text-indigo-400 transition">Buscar Foto On-line</div>
-                            <div class="text-[10px] text-slate-400">Pesquisar foto oficial no Google, Deezer ou Last.fm</div>
-                        </div>
-                    </button>
-                </div>
-
-                <!-- Paste Image URL -->
-                <div class="bg-slate-950/60 border border-slate-900 rounded-xl p-3.5 space-y-2">
-                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Ou cole a URL direta de uma imagem</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="artist-custom-cover-url-input" placeholder="https://exemplo.com/foto-do-artista.jpg" class="flex-1 bg-slate-900/80 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500">
-                        <button type="button" onclick="applyCustomArtistCoverUrlFromInput()" class="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs rounded-xl transition cursor-pointer shrink-0">
-                            Aplicar URL
-                        </button>
                     </div>
                 </div>
 
@@ -9133,6 +9177,8 @@ document.addEventListener('fullscreenchange', (event) => {
             if (el) el.click();
         };
 
+        window.artistCoverOnlineMode = 'logo';
+
         window.openArtistCoverPickerModal = function() {
             if (!selectedArtist) return;
             const modal = document.getElementById('artist-cover-picker-modal');
@@ -9142,6 +9188,13 @@ document.addEventListener('fullscreenchange', (event) => {
             const urlInput = document.getElementById('artist-custom-cover-url-input');
             if (urlInput) {
                 urlInput.value = (window.customArtistPhotos && window.customArtistPhotos[selectedArtist]) || artistPhotoUrl || '';
+            }
+
+            const onlineQueryInput = document.getElementById('artist-cover-online-query');
+            if (onlineQueryInput) {
+                onlineQueryInput.value = window.artistCoverOnlineMode === 'logo'
+                    ? (selectedArtist + ' logo')
+                    : selectedArtist;
             }
 
             const grid = document.getElementById('artist-cover-picker-albums-grid');
@@ -9178,6 +9231,120 @@ document.addEventListener('fullscreenchange', (event) => {
 
             modal.classList.remove('hidden');
             if (window.lucide) lucide.createIcons();
+            window.searchArtistCoverOnline();
+        };
+
+        window.setArtistCoverOnlineQueryMode = function(mode) {
+            window.artistCoverOnlineMode = mode === 'photo' ? 'photo' : 'logo';
+            const btnLogo = document.getElementById('artist-cover-mode-logo');
+            const btnPhoto = document.getElementById('artist-cover-mode-photo');
+            if (btnLogo && btnPhoto) {
+                if (window.artistCoverOnlineMode === 'logo') {
+                    btnLogo.className = "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-sky-500/15 text-sky-400 border border-sky-500/40 cursor-pointer transition";
+                    btnPhoto.className = "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-900 text-slate-400 hover:text-white border border-slate-800 cursor-pointer transition";
+                } else {
+                    btnPhoto.className = "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-sky-500/15 text-sky-400 border border-sky-500/40 cursor-pointer transition";
+                    btnLogo.className = "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-900 text-slate-400 hover:text-white border border-slate-800 cursor-pointer transition";
+                }
+            }
+            const onlineQueryInput = document.getElementById('artist-cover-online-query');
+            if (onlineQueryInput && selectedArtist) {
+                onlineQueryInput.value = window.artistCoverOnlineMode === 'logo'
+                    ? (selectedArtist + ' logo')
+                    : selectedArtist;
+            }
+            window.searchArtistCoverOnline();
+        };
+
+        window.setArtistCoverOnlineSource = function(src) {
+            const srcInput = document.getElementById('artist-cover-online-source');
+            if (srcInput) srcInput.value = src;
+            ['all', 'spotify', 'deezer', 'google'].forEach(s => {
+                const btn = document.getElementById('artist-cover-src-' + s);
+                if (!btn) return;
+                if (s === src) {
+                    const activeColor = s === 'spotify'
+                        ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40'
+                        : s === 'deezer'
+                        ? 'bg-purple-500/15 text-purple-400 border-purple-500/40'
+                        : 'bg-sky-500/15 text-sky-400 border-sky-500/30';
+                    btn.className = `flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition border cursor-pointer ${activeColor}`;
+                } else {
+                    btn.className = "flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-white border border-transparent cursor-pointer";
+                }
+            });
+            window.searchArtistCoverOnline();
+        };
+
+        window.getSourceBadgeClassPhp = function(sourceName) {
+            const s = String(sourceName || '').toLowerCase();
+            if (s.includes('spotify')) return 'bg-emerald-500/90 text-slate-950';
+            if (s.includes('deezer')) return 'bg-purple-500/90 text-white';
+            if (s.includes('logo')) return 'bg-amber-400/95 text-slate-950';
+            if (s.includes('last')) return 'bg-rose-500/90 text-white';
+            return 'bg-sky-500/90 text-slate-950';
+        };
+
+        window.searchArtistCoverOnline = async function() {
+            const grid = document.getElementById('artist-cover-online-results-grid');
+            if (!grid) return;
+            const queryInput = document.getElementById('artist-cover-online-query');
+            const query = (queryInput && queryInput.value.trim()) ? queryInput.value.trim() : (selectedArtist ? selectedArtist + ' logo' : '');
+            if (!query) return;
+            const src = document.getElementById('artist-cover-online-source')?.value || 'all';
+            const mode = window.artistCoverOnlineMode || 'logo';
+
+            grid.innerHTML = `
+                <div class="col-span-full py-10 flex flex-col items-center justify-center gap-2">
+                    <i data-lucide="loader" class="w-6 h-6 animate-spin text-sky-400"></i>
+                    <span class="text-[10px] font-mono text-slate-400 uppercase tracking-widest animate-pulse">Buscando logos e imagens em Spotify, Deezer e Google Imagens...</span>
+                </div>
+            `;
+            if (window.lucide) lucide.createIcons();
+
+            try {
+                const url = API + '?route=search_artist_logo&artist=' + encodeURIComponent(query) + '&source=' + encodeURIComponent(src) + '&mode=' + encodeURIComponent(mode);
+                const res = await fetch(url);
+                const data = await res.json();
+                const items = (data && Array.isArray(data.items) && data.items.length > 0)
+                    ? data.items
+                    : ((data && Array.isArray(data.images)) ? data.images.map(u => ({ url: u, source: src === 'all' ? 'Web' : src, title: query })) : []);
+
+                if (items.length > 0) {
+                    grid.innerHTML = items.map(it => {
+                        const imgUrl = String(it.url || '');
+                        const safeUrlJs = imgUrl.split("'").join("\\'");
+                        const badgeText = String(it.source || 'Web');
+                        const badgeCls = window.getSourceBadgeClassPhp(badgeText);
+                        return `
+                            <div onclick="saveCustomArtistCoverPhoto('${safeUrlJs}')" class="group relative aspect-square rounded-xl overflow-hidden bg-slate-900 border border-slate-800 hover:border-sky-400 cursor-pointer transition shadow-md flex items-center justify-center p-1">
+                                <img src="${imgUrl}" referrerpolicy="no-referrer" alt="Logo / Foto" class="w-full h-full object-contain group-hover:scale-105 transition duration-300" onerror="this.closest('.group').style.display='none'">
+                                <span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider shadow ${badgeCls}">
+                                    ${badgeText}
+                                </span>
+                                <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                                    <span class="px-2.5 py-1 rounded-lg bg-sky-500 text-slate-950 font-black text-[10px] uppercase tracking-wider shadow-lg">
+                                        Usar Imagem
+                                    </span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    grid.innerHTML = `
+                        <div class="col-span-full py-8 text-center text-xs text-slate-500">
+                            Nenhuma imagem encontrada para "${query}". Tente alterar o termo ou a fonte acima.
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                console.error(err);
+                grid.innerHTML = `
+                    <div class="col-span-full py-8 text-center text-xs text-rose-400">
+                        Erro ao buscar imagens on-line.
+                    </div>
+                `;
+            }
         };
 
         window.closeArtistCoverPickerModal = function() {
@@ -9267,7 +9434,7 @@ document.addEventListener('fullscreenchange', (event) => {
             imageSearchTargetType = 'artist';
             imageSearchAlbumTitle = '';
             
-            const query = selectedArtist;
+            const query = selectedArtist ? (selectedArtist + ' logo') : '';
             document.getElementById('image-search-query').value = query;
             document.getElementById('image-search-modal-sub').textContent = selectedArtist;
             
@@ -9288,12 +9455,12 @@ document.addEventListener('fullscreenchange', (event) => {
         window.openImageSearchModal = function(query) {
             const tabs = document.getElementById('image-search-tabs-container');
             if (tabs) {
-                tabs.classList.add('hidden');
+                tabs.classList.remove('hidden');
             }
             const modalTitle = document.querySelector('#image-search-modal h3');
             if (modalTitle) {
                 modalTitle.textContent = imageSearchTargetType === 'artist' 
-                    ? 'Buscar Foto de Capa do Artista On-line' 
+                    ? 'Buscar Logo / Foto do Artista On-line' 
                     : 'Buscar Capa do Álbum On-line';
             }
             document.getElementById('image-search-modal').classList.remove('hidden');
@@ -9305,13 +9472,13 @@ document.addEventListener('fullscreenchange', (event) => {
             if (sourceInput) {
                 sourceInput.value = src;
             }
-            ['google', 'deezer', 'lastfm'].forEach(s => {
+            ['all', 'spotify', 'deezer', 'google', 'lastfm'].forEach(s => {
                 const button = document.getElementById('src-tab-' + s);
                 if (button) {
                     if (s === src) {
-                        button.className = "flex-1 text-center py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition bg-slate-900 text-white shadow-sm border border-slate-800/30";
+                        button.className = "flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition bg-slate-900 text-white shadow-sm border border-slate-800/30 cursor-pointer";
                     } else {
-                        button.className = "flex-1 text-center py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-white font-black";
+                        button.className = "flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-white cursor-pointer";
                     }
                 }
             });
@@ -9331,7 +9498,7 @@ document.addEventListener('fullscreenchange', (event) => {
                 <div class="h-48 flex flex-col items-center justify-center gap-2.5">
                     <i data-lucide="loader" class="w-8 h-8 animate-spin text-sky-500"></i>
                     <p class="text-[11px] font-mono text-slate-500 uppercase tracking-widest animate-pulse">
-                        Varrendo o banco de imagens público...
+                        Buscando em Spotify, Deezer e Google Imagens...
                     </p>
                 </div>
             `;
@@ -9339,22 +9506,31 @@ document.addEventListener('fullscreenchange', (event) => {
             
             try {
                 let url = '';
+                const src = document.getElementById('image-search-source')?.value || 'all';
                 if (imageSearchTargetType === 'artist') {
-                    const src = document.getElementById('image-search-source')?.value || 'google';
-                    url = API + '?route=search_artist_logo&artist=' + encodeURIComponent(query) + '&source=' + src;
+                    url = API + '?route=search_artist_logo&artist=' + encodeURIComponent(query) + '&source=' + encodeURIComponent(src);
                 } else {
-                    const src = document.getElementById('image-search-source')?.value || 'google';
-                    url = API + '?route=search_images&q=' + encodeURIComponent(query) + '&source=' + src + '&artist=' + encodeURIComponent(selectedArtist || '') + '&album=' + encodeURIComponent(imageSearchAlbumTitle || '');
+                    const albumSrc = (src === 'all' || src === 'spotify') ? 'google' : src;
+                    url = API + '?route=search_images&q=' + encodeURIComponent(query) + '&source=' + encodeURIComponent(albumSrc) + '&artist=' + encodeURIComponent(selectedArtist || '') + '&album=' + encodeURIComponent(imageSearchAlbumTitle || '');
                 }
                 const res = await fetch(url);
                 const data = await res.json();
+                const items = (data && Array.isArray(data.items) && data.items.length > 0)
+                    ? data.items
+                    : ((data && Array.isArray(data.images)) ? data.images.map(u => ({ url: u, source: '' })) : []);
                 
-                if (data.success && data.images && data.images.length > 0) {
+                if (data.success && items.length > 0) {
                     let html = '<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">';
-                    data.images.forEach(imgUrl => {
+                    items.forEach(it => {
+                        const imgUrl = String(it.url || '');
+                        const badgeText = String(it.source || '');
+                        const badgeHtml = badgeText
+                            ? `<span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider shadow ${window.getSourceBadgeClassPhp(badgeText)}">${badgeText}</span>`
+                            : '';
                         html += `
-                            <div onclick="selectScrapedImage('${imgUrl.split(String.fromCharCode(39)).join(String.fromCharCode(92, 39))}')" class="group aspect-square bg-slate-900 border border-slate-850 rounded-xl overflow-hidden cursor-pointer relative hover:border-sky-500/70 transition duration-150 shadow-sm">
-                                <img src="${imgUrl}" alt="Scraped Result" class="w-full h-full object-cover group-hover:scale-103 duration-300 transition" referrerpolicy="no-referrer" onerror="this.style.display='none'">
+                            <div onclick="selectScrapedImage('${imgUrl.split(String.fromCharCode(39)).join(String.fromCharCode(92, 39))}')" class="group aspect-square bg-slate-900 border border-slate-850 rounded-xl overflow-hidden cursor-pointer relative hover:border-sky-500/70 transition duration-150 shadow-sm flex items-center justify-center">
+                                <img src="${imgUrl}" alt="Scraped Result" class="w-full h-full object-contain group-hover:scale-103 duration-300 transition" referrerpolicy="no-referrer" onerror="this.closest('.group').style.display='none'">
+                                ${badgeHtml}
                                 <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition duration-150 flex flex-col items-center justify-center p-2 text-center">
                                     <span class="text-[10px] font-black tracking-widest text-[#ffffff] uppercase leading-none bg-sky-500 px-1.5 py-0.5 rounded-sm">
                                         Selecionar
