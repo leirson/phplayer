@@ -3410,46 +3410,40 @@ let currentUser = null;
         window.artistRandomCovers = window.artistRandomCovers || {};
         window.customArtistPhotos = window.customArtistPhotos || {};
 
+        window.getOfficialArtistPhoto = function(artistName) {
+            if (!artistName || !window.customArtistPhotos) return null;
+            const cleanTarget = String(artistName).trim();
+            if (!cleanTarget) return null;
+
+            const isValidArtistPhoto = (val) => {
+                if (!val || typeof val !== 'string') return false;
+                const v = val.trim();
+                if (!v || v === 'no_photo' || v === 'no_cover') return false;
+                if (v.startsWith('images/cover_')) return false;
+                return true;
+            };
+
+            if (isValidArtistPhoto(window.customArtistPhotos[artistName])) {
+                return window.customArtistPhotos[artistName].trim();
+            }
+            if (isValidArtistPhoto(window.customArtistPhotos[cleanTarget])) {
+                return window.customArtistPhotos[cleanTarget].trim();
+            }
+
+            const lowerTarget = cleanTarget.toLowerCase();
+            const keys = Object.keys(window.customArtistPhotos);
+            for (let i = 0; i < keys.length; i++) {
+                const k = keys[i];
+                if (k.trim().toLowerCase() === lowerTarget && isValidArtistPhoto(window.customArtistPhotos[k])) {
+                    return window.customArtistPhotos[k].trim();
+                }
+            }
+            return null;
+        };
+
+        // Retorna EXCLUSIVAMENTE a capa oficial do artista (nunca usa capa de álbum das músicas)
         window.getRandomCoverForArtist = function(artistName, artistSongs) {
-            if (!artistName) return null;
-            if (window.customArtistPhotos && window.customArtistPhotos[artistName] && window.customArtistPhotos[artistName] !== 'no_photo' && window.customArtistPhotos[artistName] !== 'no_cover') {
-                return window.customArtistPhotos[artistName];
-            }
-            if (window.artistRandomCovers && window.artistRandomCovers[artistName] && window.artistRandomCovers[artistName] !== 'no_photo' && window.artistRandomCovers[artistName] !== 'no_cover') {
-                return window.artistRandomCovers[artistName];
-            }
-            if (!artistSongs) {
-                artistSongs = (allTracks || []).filter(t => t.artist === artistName);
-            }
-            const coversList = [];
-            const seen = new Set();
-            (artistSongs || []).forEach(t => {
-                const c = t.cover_url || t.coverUrl || t.cover_path || t.cover;
-                if (c && typeof c === 'string') {
-                    const clean = c.trim();
-                    if (clean && !clean.includes('placeholder') && !seen.has(clean)) {
-                        seen.add(clean);
-                        coversList.push(clean);
-                    }
-                }
-            });
-
-            let chosen = null;
-            if (coversList.length > 0) {
-                const randIdx = Math.floor(Math.random() * coversList.length);
-                chosen = coversList[randIdx];
-            } else {
-                const fallbackTrack = (artistSongs || []).find(t => t.cover_url || t.coverUrl || t.cover_path || t.cover);
-                if (fallbackTrack) {
-                    chosen = fallbackTrack.cover_url || fallbackTrack.coverUrl || fallbackTrack.cover_path || fallbackTrack.cover;
-                }
-            }
-
-            if (chosen) {
-                if (!window.artistRandomCovers) window.artistRandomCovers = {};
-                window.artistRandomCovers[artistName] = chosen;
-            }
-            return chosen;
+            return window.getOfficialArtistPhoto(artistName);
         };
 
         window.setDashboardAlbumsProgress = function(percent, message) {
@@ -6040,7 +6034,7 @@ let currentUser = null;
         async function runArtistCoversAutoSync(btn) {
             const origText = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Verificando artistas (Lote 1)...';
+            btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Sincronizando capas de todos os artistas...';
             lucide.createIcons();
 
             const panel = document.getElementById('artist-covers-sync-panel');
@@ -6056,7 +6050,7 @@ let currentUser = null;
             if (logEl) logEl.innerHTML = '';
             if (badge) {
                 badge.className = 'text-[10px] font-bold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
-                badge.textContent = 'Sincronizando...';
+                badge.textContent = 'Sincronizando todos os artistas...';
             }
 
             let totalUpdated = 0;
@@ -6064,15 +6058,17 @@ let currentUser = null;
             let totalSpotify = 0;
             let totalDownloaded = 0;
             let totalNotFound = 0;
-            let currentBatch = 1;
+            let totalChecked = 0;
+            let isFirstPass = true;
 
             try {
                 while (true) {
                     const res = await fetch('api.php?route=artist_covers_sync', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ reset: currentBatch === 1 })
+                        body: JSON.stringify({ reset: isFirstPass })
                     });
+                    isFirstPass = false;
                     const data = await res.json();
 
                     if (!res.ok || data.error) {
@@ -6090,13 +6086,14 @@ let currentUser = null;
                     const batchDownloaded = data.downloaded_count || 0;
                     const batchNotFound = data.not_found_count || 0;
                     const pendingCount = data.artists_pending || 0;
-                    const batchChecked = data.batch_checked || 0;
+                    const batchChecked = (data.batch_checked !== undefined ? data.batch_checked : data.artists_processed) || 0;
 
                     totalUpdated += batchUpdated;
                     totalDeezer += batchDeezer;
                     totalSpotify += batchSpotify;
                     totalDownloaded += batchDownloaded;
                     totalNotFound += batchNotFound;
+                    totalChecked += batchChecked;
 
                     if (statUpdated) statUpdated.textContent = String(totalUpdated);
                     if (statDeezer) statDeezer.textContent = String(totalDeezer);
@@ -6108,19 +6105,21 @@ let currentUser = null;
                         data.processed_items.forEach(item => {
                             const row = document.createElement('div');
                             row.className = 'flex items-center justify-between gap-2 bg-slate-900/60 border border-slate-800/80 px-2.5 py-1.5 rounded-lg';
-                            if (item.status === 'saved') {
-                                const srcBadge = item.source === 'deezer'
+                            const isSaved = (item.ok === true || item.status === 'saved');
+                            const localPath = item.local_path || item.photo || '';
+                            const srcLower = String(item.source || '').toLowerCase();
+
+                            if (isSaved && localPath) {
+                                const srcBadge = srcLower.includes('deezer')
                                     ? '<span class="px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[9px] font-black uppercase">1ª Deezer</span>'
-                                    : (item.source === 'spotify'
+                                    : (srcLower.includes('spotify')
                                         ? '<span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[9px] font-black uppercase">1ª Spotify</span>'
-                                        : '<span class="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-[9px] font-black uppercase"> Convertido Local</span>');
-                                row.innerHTML = `<div class="truncate text-white font-semibold">${item.artist}</div><div class="flex items-center gap-2 shrink-0">${srcBadge}<span class="text-[10px] text-emerald-400">${item.local_path || ''}</span></div>`;
-                                if (item.local_path) {
-                                    if (!window.customArtistPhotos) window.customArtistPhotos = {};
-                                    window.customArtistPhotos[item.artist] = item.local_path;
-                                    if (!window.artistRandomCovers) window.artistRandomCovers = {};
-                                    window.artistRandomCovers[item.artist] = item.local_path;
-                                }
+                                        : '<span class="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-[9px] font-black uppercase">Servidor Local</span>');
+                                row.innerHTML = `<div class="truncate text-white font-semibold">${item.artist}</div><div class="flex items-center gap-2 shrink-0">${srcBadge}<span class="text-[10px] text-emerald-400">${localPath}</span></div>`;
+                                if (!window.customArtistPhotos) window.customArtistPhotos = {};
+                                window.customArtistPhotos[item.artist] = localPath;
+                                if (!window.artistRandomCovers) window.artistRandomCovers = {};
+                                window.artistRandomCovers[item.artist] = localPath;
                             } else {
                                 row.innerHTML = `<div class="truncate text-slate-400">${item.artist}</div><span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[9px] font-bold uppercase shrink-0">Sem capa no Deezer/Spotify</span>`;
                             }
@@ -6128,30 +6127,34 @@ let currentUser = null;
                         });
                     }
 
+                    renderLeftSidebar();
+                    if (window.renderArtistsPage) window.renderArtistsPage();
+
                     if (pendingCount === 0 || batchChecked === 0) {
                         break;
                     }
 
-                    currentBatch++;
-                    btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Lote ' + currentBatch + ' • Salvos: ' + totalUpdated + ' (Faltam ' + pendingCount + ')...';
+                    btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Sincronizando Todos (' + totalChecked + ' verificados • Faltam ' + pendingCount + ')...';
                     lucide.createIcons();
 
-                    await new Promise(resolve => setTimeout(resolve, 250));
+                    await new Promise(resolve => setTimeout(resolve, 150));
                 }
 
                 if (badge) {
                     badge.className = 'text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-                    badge.textContent = 'Concluído (' + totalUpdated + ' capas salvas no servidor)';
+                    badge.textContent = 'Concluído (' + totalUpdated + ' capas de artistas salvas no servidor)';
                 }
 
                 alert(
-                    'Sincronização de Capas de Artistas concluída!\n\n' +
-                    '• Total de capas salvas no servidor: ' + totalUpdated + '\n' +
+                    'Sincronização de Capas de Todos os Artistas concluída!\n\n' +
+                    '• Total de artistas verificados: ' + totalChecked + '\n' +
+                    '• Capas de artistas salvas no servidor: ' + totalUpdated + '\n' +
                     '• Localizadas no Deezer (1ª opção): ' + totalDeezer + '\n' +
                     '• Localizadas no Spotify (fallback automático): ' + totalSpotify + '\n' +
                     '• Arquivos baixados na pasta /images/: ' + totalDownloaded
                 );
                 await loadData();
+                renderLeftSidebar();
                 if (window.renderArtistsPage) window.renderArtistsPage();
             } catch (err) {
                 console.error(err);
@@ -8417,11 +8420,19 @@ document.addEventListener('fullscreenchange', (event) => {
                 window.currentArtistAlbumCoversList = artistAlbumCoversList;
 
                 const defaultArtistFallback = 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1000&auto=format&fit=crop&q=80';
-                let artistCoverPhoto = (window.customArtistPhotos && window.customArtistPhotos[selectedArtist]) || artistPhotoUrl || (artistAlbumCoversList[0] ? artistAlbumCoversList[0].url : defaultArtistFallback);
+                const officialArtistPhoto = (window.getOfficialArtistPhoto && window.getOfficialArtistPhoto(selectedArtist)) || (artistPhotoUrl && artistPhotoUrl !== 'no_photo' && artistPhotoUrl !== 'no_cover' && !artistPhotoUrl.startsWith('images/cover_') ? artistPhotoUrl : '');
+                let artistCoverPhoto = officialArtistPhoto || defaultArtistFallback;
 
-                // Build automatic mix of the artist's album covers for the hero banner background
+                // Priorizar a capa oficial do artista no banner principal; usar mosaico apenas se o artista ainda não tiver capa própria
                 let bannerMixBackdropHtml = '';
-                if (artistAlbumCoversList.length > 0) {
+                if (officialArtistPhoto) {
+                    bannerMixBackdropHtml = `
+                        <img src="${officialArtistPhoto}" referrerpolicy="no-referrer" alt="" class="absolute inset-0 w-full h-full object-cover filter blur-xl opacity-30 select-none scale-105 pointer-events-none">
+                        <img src="${officialArtistPhoto}" referrerpolicy="no-referrer" alt="${selectedArtist}" class="absolute inset-0 w-full h-full object-cover object-center filter brightness-[0.45] pointer-events-none">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent pointer-events-none"></div>
+                        <div class="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/40 to-transparent pointer-events-none"></div>
+                    `;
+                } else if (artistAlbumCoversList.length > 0) {
                     const totalTiles = 12;
                     let tilesHtml = '';
                     for (let i = 0; i < totalTiles; i++) {
@@ -9775,11 +9786,13 @@ document.addEventListener('fullscreenchange', (event) => {
                     })
                 });
                 if (res.ok) {
-                    artistPhotoUrl = url;
+                    const data = await res.json().catch(() => ({}));
+                    const savedPhotoUrl = data.artist_photo || url;
+                    artistPhotoUrl = savedPhotoUrl;
                     if (!window.customArtistPhotos) window.customArtistPhotos = {};
-                    window.customArtistPhotos[selectedArtist] = url;
+                    window.customArtistPhotos[selectedArtist] = savedPhotoUrl;
                     if (!window.artistRandomCovers) window.artistRandomCovers = {};
-                    window.artistRandomCovers[selectedArtist] = url;
+                    window.artistRandomCovers[selectedArtist] = savedPhotoUrl;
                     closeArtistCoverPickerModal();
                     renderLeftSidebar();
                     renderTracksTable();

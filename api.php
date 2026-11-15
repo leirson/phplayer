@@ -925,31 +925,41 @@ try {
                 return '';
             };
 
-            // 1. PRIMEIRA OPÇÃO: DEEZER (primeira imagem localizada no Deezer)
-            $deezerUrl = 'https://api.deezer.com/search/artist?q=' . urlencode($artist) . '&limit=10';
-            $resDz = $httpGet($deezerUrl, [], 5);
-            if ($resDz !== '') {
-                $dataDz = @json_decode($resDz, true);
-                if (!empty($dataDz['data']) && is_array($dataDz['data'])) {
-                    // Priorizar correspondência exata de nome se houver, senão pegar a primeira válida da lista
-                    $normTarget = mb_strtolower($artist);
-                    foreach ($dataDz['data'] as $item) {
-                        $itemName = mb_strtolower(trim((string)($item['name'] ?? '')));
-                        $img = $item['picture_xl'] ?? $item['picture_big'] ?? $item['picture_medium'] ?? $item['picture'] ?? '';
-                        if ($itemName === $normTarget && phplayer_is_valid_remote_artist_image($img)) {
-                            return ['url' => $img, 'source' => 'Deezer'];
+            // 1. PRIMEIRA OPÇÃO: DEEZER (primeira imagem de ARTISTA localizada no Deezer)
+            $deezerQueries = [$artist];
+            $cleanedArtist = trim((string)preg_replace('/\s+(?:feat\.?|ft\.?|part\.?|participação|with)\s+.*/iu', '', $artist));
+            if ($cleanedArtist !== '' && mb_strtolower($cleanedArtist) !== mb_strtolower($artist)) {
+                $deezerQueries[] = $cleanedArtist;
+            }
+
+            foreach ($deezerQueries as $dzQuery) {
+                $deezerUrl = 'https://api.deezer.com/search/artist?q=' . urlencode($dzQuery) . '&limit=10';
+                $resDz = $httpGet($deezerUrl, [], 5);
+                if ($resDz !== '') {
+                    $dataDz = @json_decode($resDz, true);
+                    if (!empty($dataDz['data']) && is_array($dataDz['data'])) {
+                        $normTarget = mb_strtolower($dzQuery);
+                        // Priorizar correspondência exata de nome se houver, senão pegar a 1ª capa de artista válida da lista
+                        foreach ($dataDz['data'] as $item) {
+                            if (isset($item['type']) && $item['type'] !== 'artist') continue;
+                            $itemName = mb_strtolower(trim((string)($item['name'] ?? '')));
+                            $img = $item['picture_xl'] ?? $item['picture_big'] ?? $item['picture_medium'] ?? $item['picture'] ?? '';
+                            if ($itemName === $normTarget && strpos($img, '/images/cover/') === false && phplayer_is_valid_remote_artist_image($img)) {
+                                return ['url' => $img, 'source' => 'Deezer'];
+                            }
                         }
-                    }
-                    foreach ($dataDz['data'] as $item) {
-                        $img = $item['picture_xl'] ?? $item['picture_big'] ?? $item['picture_medium'] ?? $item['picture'] ?? '';
-                        if (phplayer_is_valid_remote_artist_image($img)) {
-                            return ['url' => $img, 'source' => 'Deezer'];
+                        foreach ($dataDz['data'] as $item) {
+                            if (isset($item['type']) && $item['type'] !== 'artist') continue;
+                            $img = $item['picture_xl'] ?? $item['picture_big'] ?? $item['picture_medium'] ?? $item['picture'] ?? '';
+                            if (strpos($img, '/images/cover/') === false && phplayer_is_valid_remote_artist_image($img)) {
+                                return ['url' => $img, 'source' => 'Deezer'];
+                            }
                         }
                     }
                 }
             }
 
-            // 2. SEGUNDA OPÇÃO AUTOMÁTICA: SPOTIFY (se não localizar no Deezer, pegar a primeira do Spotify)
+            // 2. SEGUNDA OPÇÃO AUTOMÁTICA: SPOTIFY (se não localizar no Deezer, pegar a 1ª capa de ARTISTA do Spotify)
             // 2a) Tentar via Spotify Web API oficial caso credenciais estejam configuradas
             if ($pdo) {
                 try {
@@ -991,60 +1001,77 @@ try {
                 } catch (Throwable $eSp) {}
             }
 
-            // 2b) Buscar Spotify Artist ID via Wikidata (P1902) e Wikipedia PT/EN -> Spotify oEmbed público
             $spotifyIds = [];
-            $wdIds = [];
 
-            foreach (['pt', 'en'] as $lang) {
-                $wdSearchUrl = 'https://www.wikidata.org/w/api.php?action=wbsearchentities&search=' . urlencode($artist) . '&language=' . $lang . '&format=json&limit=4';
-                $wdRaw = $httpGet($wdSearchUrl, [], 4);
-                if ($wdRaw !== '') {
-                    $wdData = @json_decode($wdRaw, true);
-                    foreach (($wdData['search'] ?? []) as $sItem) {
-                        $qid = $sItem['id'] ?? '';
-                        if ($qid !== '' && !in_array($qid, $wdIds)) {
-                            $wdIds[] = $qid;
+            // 2b) Busca direta por perfil de artista no Spotify (open.spotify.com/artist/{id}) via DuckDuckGo HTML
+            $ddgUrl = 'https://html.duckduckgo.com/html/?q=' . urlencode('site:open.spotify.com/artist "' . $artist . '"');
+            $ddgRaw = $httpGet($ddgUrl, ['Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8'], 4);
+            if ($ddgRaw !== '') {
+                $decodedDdg = rawurldecode($ddgRaw);
+                if (preg_match_all('#open\.spotify\.com/(?:intl-[a-zA-Z-]+/)?artist/([a-zA-Z0-9]{22})#', $decodedDdg, $ddgMatches)) {
+                    foreach ($ddgMatches[1] as $foundSpId) {
+                        if (!in_array($foundSpId, $spotifyIds)) {
+                            $spotifyIds[] = $foundSpId;
                         }
+                        if (count($spotifyIds) >= 3) break;
                     }
                 }
-                if (count($wdIds) >= 4) break;
             }
 
-            if (empty($wdIds)) {
-                foreach (['pt', 'en'] as $wpLang) {
-                    $wpUrl = 'https://' . $wpLang . '.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=' . urlencode($artist) . '&gsrlimit=4&prop=pageprops&format=json';
-                    $wpRaw = $httpGet($wpUrl, [], 4);
-                    if ($wpRaw !== '') {
-                        $wpData = @json_decode($wpRaw, true);
-                        foreach (($wpData['query']['pages'] ?? []) as $pg) {
-                            $qid = $pg['pageprops']['wikibase_item'] ?? '';
+            // 2c) Buscar Spotify Artist ID via Wikidata (P1902 = Spotify artist ID) e Wikipedia PT/EN
+            if (empty($spotifyIds)) {
+                $wdIds = [];
+                foreach (['pt', 'en'] as $lang) {
+                    $wdSearchUrl = 'https://www.wikidata.org/w/api.php?action=wbsearchentities&search=' . urlencode($artist) . '&language=' . $lang . '&format=json&limit=4';
+                    $wdRaw = $httpGet($wdSearchUrl, [], 4);
+                    if ($wdRaw !== '') {
+                        $wdData = @json_decode($wdRaw, true);
+                        foreach (($wdData['search'] ?? []) as $sItem) {
+                            $qid = $sItem['id'] ?? '';
                             if ($qid !== '' && !in_array($qid, $wdIds)) {
                                 $wdIds[] = $qid;
                             }
                         }
                     }
-                    if (!empty($wdIds)) break;
+                    if (count($wdIds) >= 4) break;
                 }
-            }
 
-            if (!empty($wdIds)) {
-                $wdEntUrl = 'https://www.wikidata.org/w/api.php?action=wbgetentities&ids=' . implode('|', array_slice($wdIds, 0, 6)) . '&props=claims&format=json';
-                $wdEntRaw = $httpGet($wdEntUrl, [], 4);
-                if ($wdEntRaw !== '') {
-                    $wdEntData = @json_decode($wdEntRaw, true);
-                    foreach ($wdIds as $eid) {
-                        $claims = $wdEntData['entities'][$eid]['claims'] ?? [];
-                        foreach (($claims['P1902'] ?? []) as $c) {
-                            $spId = $c['mainsnak']['datavalue']['value'] ?? '';
-                            if ($spId !== '' && !in_array($spId, $spotifyIds)) {
-                                $spotifyIds[] = $spId;
+                if (empty($wdIds)) {
+                    foreach (['pt', 'en'] as $wpLang) {
+                        $wpUrl = 'https://' . $wpLang . '.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=' . urlencode($artist) . '&gsrlimit=4&prop=pageprops&format=json';
+                        $wpRaw = $httpGet($wpUrl, [], 4);
+                        if ($wpRaw !== '') {
+                            $wpData = @json_decode($wpRaw, true);
+                            foreach (($wpData['query']['pages'] ?? []) as $pg) {
+                                $qid = $pg['pageprops']['wikibase_item'] ?? '';
+                                if ($qid !== '' && !in_array($qid, $wdIds)) {
+                                    $wdIds[] = $qid;
+                                }
+                            }
+                        }
+                        if (!empty($wdIds)) break;
+                    }
+                }
+
+                if (!empty($wdIds)) {
+                    $wdEntUrl = 'https://www.wikidata.org/w/api.php?action=wbgetentities&ids=' . implode('|', array_slice($wdIds, 0, 6)) . '&props=claims&format=json';
+                    $wdEntRaw = $httpGet($wdEntUrl, [], 4);
+                    if ($wdEntRaw !== '') {
+                        $wdEntData = @json_decode($wdEntRaw, true);
+                        foreach ($wdIds as $eid) {
+                            $claims = $wdEntData['entities'][$eid]['claims'] ?? [];
+                            foreach (($claims['P1902'] ?? []) as $c) {
+                                $spId = $c['mainsnak']['datavalue']['value'] ?? '';
+                                if ($spId !== '' && !in_array($spId, $spotifyIds)) {
+                                    $spotifyIds[] = $spId;
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // 2c) Fallback adicional para descobrir o Spotify Artist ID via MusicBrainz URL relations
+            // 2d) Fallback adicional para descobrir o Spotify Artist ID via MusicBrainz URL relations
             if (empty($spotifyIds)) {
                 $mbSearchUrl = 'https://musicbrainz.org/ws/2/artist/?query=artist:' . urlencode('"' . $artist . '"') . '&limit=2&fmt=json';
                 $mbRaw = $httpGet($mbSearchUrl, [], 4);
@@ -1070,7 +1097,7 @@ try {
                 }
             }
 
-            // Obter a primeira imagem do Spotify via endpoint oficial oEmbed
+            // Obter a primeira imagem de ARTISTA do Spotify via endpoint oficial oEmbed
             foreach ($spotifyIds as $spId) {
                 $oeRaw = $httpGet('https://open.spotify.com/oembed?url=https://open.spotify.com/artist/' . rawurlencode($spId), [], 4);
                 if ($oeRaw !== '') {
@@ -4672,7 +4699,7 @@ try {
             artist_photo VARCHAR(1000) DEFAULT NULL,
             bio TEXT DEFAULT NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        $stmt = $pdo->query("SELECT artist, artist_photo FROM artist_metadata WHERE artist_photo IS NOT NULL AND artist_photo != '' AND artist_photo != 'no_photo' AND artist_photo != 'no_cover'");
+        $stmt = $pdo->query("SELECT artist, artist_photo FROM artist_metadata WHERE artist_photo IS NOT NULL AND artist_photo != '' AND artist_photo != 'no_photo' AND artist_photo != 'no_cover' AND artist_photo NOT LIKE 'images/cover_%'");
         $photos = $stmt ? $stmt->fetchAll(PDO::FETCH_KEY_PAIR) : [];
         echo json_encode(['success' => true, 'photos' => $photos ?: new stdClass()]);
         break;
@@ -4745,6 +4772,13 @@ try {
             exit(json_encode(['error' => 'Método não permitido.']));
         }
 
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            @session_write_close();
+        }
+        @set_time_limit(0);
+        @ignore_user_abort(true);
+
+        $syncStartTime = microtime(true);
         $tables = get_songs_tables($pdo);
         $pdo->exec("CREATE TABLE IF NOT EXISTS artist_metadata (
             artist VARCHAR(255) PRIMARY KEY,
@@ -4752,12 +4786,12 @@ try {
             bio TEXT DEFAULT NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-        // No primeiro lote (reset=1), limpamos 'no_photo'/'no_cover' para re-verificar todos os artistas sem imagem
-        // e também limpamos registros cujo arquivo local em /images tenha sido apagado do servidor
+        // No início da sincronização (reset=1), limpamos 'no_photo'/'no_cover', capas de álbuns atribuídas por engano (images/cover_%)
+        // e também registros cujo arquivo local em /images tenha sido apagado do servidor
         $resetFlag = !empty($input['reset']) || !empty($_GET['reset']);
         if ($resetFlag) {
             try {
-                $pdo->exec("UPDATE artist_metadata SET artist_photo = '' WHERE artist_photo IN ('no_photo', 'no_cover')");
+                $pdo->exec("UPDATE artist_metadata SET artist_photo = '' WHERE artist_photo IN ('no_photo', 'no_cover') OR artist_photo LIKE 'images/cover_%'");
                 $stmtCheckLocal = $pdo->query("SELECT artist, artist_photo FROM artist_metadata WHERE artist_photo IS NOT NULL AND artist_photo != ''");
                 if ($stmtCheckLocal) {
                     $updMissing = $pdo->prepare("UPDATE artist_metadata SET artist_photo = '' WHERE artist = ?");
@@ -4774,91 +4808,195 @@ try {
             } catch (Throwable $eReset) {}
         }
 
-        // Selecionar todos os artistas únicos do catálogo (excluindo podcasts e desconhecidos)
-        // que estão sem imagem OU cuja imagem ainda é uma URL externa (não baixada para o servidor /images)
+        // Selecionar TODOS os artistas únicos do catálogo (excluindo podcasts e desconhecidos)
+        // que estão sem capa de artista OU cuja imagem é capa de álbum (images/cover_%) OU ainda é URL externa
         $unionParts = [];
         foreach ($tables as $t) {
-            $unionParts[] = "SELECT artist, genre FROM `" . $t . "`";
+            $unionParts[] = "SELECT TRIM(artist) AS artist, genre FROM `" . $t . "`";
         }
         $unionArtistsSql = "SELECT DISTINCT s.artist, am.artist_photo AS existing_photo
             FROM (" . implode(" UNION ALL ", $unionParts) . ") s
             LEFT JOIN artist_metadata am ON s.artist = am.artist
             WHERE s.artist IS NOT NULL
-              AND TRIM(s.artist) != ''
-              AND LOWER(TRIM(s.artist)) NOT IN ('artista desconhecido', 'unknown artist', 'various artists', 'vários artistas')
-              AND (s.genre IS NULL OR LOWER(TRIM(s.genre)) != 'podcast')
+              AND s.artist != ''
+              AND LOWER(s.artist) NOT IN ('artista desconhecido', 'unknown artist', 'various artists', 'vários artistas', 'podcast', 'podcasts', 'rádio on-line')
+              AND (s.genre IS NULL OR LOWER(TRIM(s.genre)) NOT IN ('podcast', 'podcasts'))
               AND (
                   am.artist IS NULL
                   OR am.artist_photo IS NULL
                   OR am.artist_photo = ''
+                  OR am.artist_photo LIKE 'images/cover_%'
                   OR am.artist_photo LIKE 'http://%'
                   OR am.artist_photo LIKE 'https://%'
               )";
 
-        $stmtTotalPending = $pdo->query("SELECT COUNT(*) FROM (" . $unionArtistsSql . ") AS t");
-        $artistsPendingInitial = intval($stmtTotalPending ? $stmtTotalPending->fetchColumn() : 0);
-
-        $stmtBatch = $pdo->query("SELECT artist, existing_photo FROM (" . $unionArtistsSql . ") AS t LIMIT 10");
-        $batchRows = $stmtBatch ? $stmtBatch->fetchAll(PDO::FETCH_ASSOC) : [];
+        $stmtAllPending = $pdo->query("SELECT artist, existing_photo FROM (" . $unionArtistsSql . ") AS t");
+        $allPendingRows = $stmtAllPending ? $stmtAllPending->fetchAll(PDO::FETCH_ASSOC) : [];
+        $artistsPendingInitial = count($allPendingRows);
 
         $artistUpdated = 0;
         $deezerCount = 0;
         $spotifyCount = 0;
         $downloadedCount = 0;
+        $notFoundCount = 0;
+        $processedCount = 0;
         $processedItems = [];
 
-        foreach ($batchRows as $row) {
-            $art = trim((string)($row['artist'] ?? ''));
-            $existingPhoto = trim((string)($row['existing_photo'] ?? ''));
-            if ($art === '') continue;
+        // Processar TODOS os artistas em ondas paralelas via curl_multi_init (25 por onda para máxima velocidade)
+        $chunks = array_chunk($allPendingRows, 25);
+        foreach ($chunks as $chunk) {
+            // Pré-buscar no Deezer em paralelo para todos os artistas da onda que não têm URL válida prévia
+            $deezerResultsMap = [];
+            if (function_exists('curl_multi_init') && function_exists('curl_init')) {
+                $mh = @curl_multi_init();
+                $handles = [];
+                if ($mh) {
+                    foreach ($chunk as $idx => $row) {
+                        $art = trim((string)($row['artist'] ?? ''));
+                        $existingPhoto = trim((string)($row['existing_photo'] ?? ''));
+                        if ($art === '') continue;
+                        if ((strpos($existingPhoto, 'http://') === 0 || strpos($existingPhoto, 'https://') === 0) && phplayer_is_valid_remote_artist_image($existingPhoto)) {
+                            continue;
+                        }
+                        $dzUrl = 'https://api.deezer.com/search/artist?q=' . urlencode($art) . '&limit=10';
+                        $ch = @curl_init($dzUrl);
+                        if ($ch) {
+                            @curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                            @curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                            @curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                            @curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+                            @curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+                            @curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                            @curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.36');
+                            @curl_multi_add_handle($mh, $ch);
+                            $handles[$idx] = ['ch' => $ch, 'artist' => $art];
+                        }
+                    }
 
-            $savedLocalPath = '';
-            $usedSource = 'none';
+                    if (!empty($handles)) {
+                        $running = null;
+                        do {
+                            $status = @curl_multi_exec($mh, $running);
+                            if ($running > 0) {
+                                @curl_multi_select($mh, 0.2);
+                            }
+                        } while ($running > 0 && $status === CURLM_OK);
 
-            // Caso o artista já tivesse uma URL externa atribuída anteriormente, baixá-la para o servidor
-            if ((strpos($existingPhoto, 'http://') === 0 || strpos($existingPhoto, 'https://') === 0) && phplayer_is_valid_remote_artist_image($existingPhoto)) {
-                $savedLocalPath = phplayer_download_and_save_image($existingPhoto, 'artist', $art);
-                if ($savedLocalPath !== '') {
-                    $usedSource = (stripos($existingPhoto, 'dzcdn.net') !== false || stripos($existingPhoto, 'deezer.com') !== false)
-                        ? 'Deezer'
-                        : ((stripos($existingPhoto, 'scdn.co') !== false || stripos($existingPhoto, 'spotify') !== false) ? 'Spotify' : 'Download Local');
+                        foreach ($handles as $idx => $hInfo) {
+                            $ch = $hInfo['ch'];
+                            $art = $hInfo['artist'];
+                            $rawDz = @curl_multi_getcontent($ch);
+                            $httpCode = (int)@curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                            @curl_multi_remove_handle($mh, $ch);
+                            @curl_close($ch);
+
+                            if ($httpCode >= 200 && $httpCode < 300 && !empty($rawDz)) {
+                                $dataDz = @json_decode($rawDz, true);
+                                if (!empty($dataDz['data']) && is_array($dataDz['data'])) {
+                                    $normTarget = mb_strtolower($art);
+                                    $pickedDz = '';
+                                    foreach ($dataDz['data'] as $item) {
+                                        if (isset($item['type']) && $item['type'] !== 'artist') continue;
+                                        $itemName = mb_strtolower(trim((string)($item['name'] ?? '')));
+                                        $img = $item['picture_xl'] ?? $item['picture_big'] ?? $item['picture_medium'] ?? $item['picture'] ?? '';
+                                        if ($itemName === $normTarget && strpos($img, '/images/cover/') === false && phplayer_is_valid_remote_artist_image($img)) {
+                                            $pickedDz = $img;
+                                            break;
+                                        }
+                                    }
+                                    if ($pickedDz === '') {
+                                        foreach ($dataDz['data'] as $item) {
+                                            if (isset($item['type']) && $item['type'] !== 'artist') continue;
+                                            $img = $item['picture_xl'] ?? $item['picture_big'] ?? $item['picture_medium'] ?? $item['picture'] ?? '';
+                                            if (strpos($img, '/images/cover/') === false && phplayer_is_valid_remote_artist_image($img)) {
+                                                $pickedDz = $img;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if ($pickedDz !== '') {
+                                        $deezerResultsMap[$idx] = $pickedDz;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    @curl_multi_close($mh);
                 }
             }
 
-            // Se estava sem imagem (ou se a URL externa antiga falhou), buscar 1ª no Deezer -> se não houver, 1ª no Spotify
-            if ($savedLocalPath === '') {
-                $found = phplayer_find_artist_cover_deezer_or_spotify($art, $pdo);
-                if (!empty($found['url'])) {
-                    $savedLocalPath = phplayer_download_and_save_image($found['url'], 'artist', $art);
+            foreach ($chunk as $idx => $row) {
+                $art = trim((string)($row['artist'] ?? ''));
+                $existingPhoto = trim((string)($row['existing_photo'] ?? ''));
+                if ($art === '') continue;
+
+                $processedCount++;
+                $savedLocalPath = '';
+                $usedSource = 'none';
+
+                // 1) Se já tinha URL externa de artista atribuída, baixá-la para o servidor (/images/artist_...)
+                if ((strpos($existingPhoto, 'http://') === 0 || strpos($existingPhoto, 'https://') === 0) && strpos($existingPhoto, '/images/cover/') === false && phplayer_is_valid_remote_artist_image($existingPhoto)) {
+                    $savedLocalPath = phplayer_download_and_save_image($existingPhoto, 'artist', $art);
                     if ($savedLocalPath !== '') {
-                        $usedSource = $found['source'];
+                        $usedSource = (stripos($existingPhoto, 'dzcdn.net') !== false || stripos($existingPhoto, 'deezer.com') !== false)
+                            ? 'Deezer'
+                            : ((stripos($existingPhoto, 'scdn.co') !== false || stripos($existingPhoto, 'spotify') !== false) ? 'Spotify' : 'Download Local');
                     }
                 }
+
+                // 2) Se encontrou no resultado paralelo do Deezer (1ª opção)
+                if ($savedLocalPath === '' && !empty($deezerResultsMap[$idx])) {
+                    $savedLocalPath = phplayer_download_and_save_image($deezerResultsMap[$idx], 'artist', $art);
+                    if ($savedLocalPath !== '') {
+                        $usedSource = 'Deezer';
+                    }
+                }
+
+                // 3) Se não achou no pré-fetch ou se falhou o download, usar busca completa (Deezer -> Spotify automático)
+                if ($savedLocalPath === '') {
+                    $found = phplayer_find_artist_cover_deezer_or_spotify($art, $pdo);
+                    if (!empty($found['url'])) {
+                        $savedLocalPath = phplayer_download_and_save_image($found['url'], 'artist', $art);
+                        if ($savedLocalPath !== '') {
+                            $usedSource = $found['source'];
+                        }
+                    }
+                }
+
+                if ($savedLocalPath !== '') {
+                    $up = $pdo->prepare("INSERT INTO artist_metadata (artist, artist_photo) VALUES (?, ?) ON DUPLICATE KEY UPDATE artist_photo = VALUES(artist_photo)");
+                    $up->execute([$art, $savedLocalPath]);
+                    $artistUpdated++;
+                    $downloadedCount++;
+                    if (strcasecmp($usedSource, 'Deezer') === 0) $deezerCount++;
+                    if (strcasecmp($usedSource, 'Spotify') === 0) $spotifyCount++;
+                    $processedItems[] = [
+                        'artist' => $art,
+                        'source' => $usedSource,
+                        'status' => 'saved',
+                        'local_path' => $savedLocalPath,
+                        'photo' => $savedLocalPath,
+                        'ok' => true
+                    ];
+                } else {
+                    $notFoundCount++;
+                    $up = $pdo->prepare("INSERT INTO artist_metadata (artist, artist_photo) VALUES (?, 'no_photo') ON DUPLICATE KEY UPDATE artist_photo = 'no_photo'");
+                    $up->execute([$art]);
+                    $processedItems[] = [
+                        'artist' => $art,
+                        'source' => 'Não localizado',
+                        'status' => 'not_found',
+                        'local_path' => null,
+                        'photo' => null,
+                        'ok' => false
+                    ];
+                }
             }
 
-            if ($savedLocalPath !== '') {
-                $up = $pdo->prepare("INSERT INTO artist_metadata (artist, artist_photo) VALUES (?, ?) ON DUPLICATE KEY UPDATE artist_photo = VALUES(artist_photo)");
-                $up->execute([$art, $savedLocalPath]);
-                $artistUpdated++;
-                $downloadedCount++;
-                if ($usedSource === 'Deezer') $deezerCount++;
-                if ($usedSource === 'Spotify') $spotifyCount++;
-                $processedItems[] = [
-                    'artist' => $art,
-                    'source' => $usedSource,
-                    'photo' => $savedLocalPath,
-                    'ok' => true
-                ];
-            } else {
-                // Marcar como 'no_photo' para não travar os lotes seguintes na mesma execução
-                $up = $pdo->prepare("INSERT INTO artist_metadata (artist, artist_photo) VALUES (?, 'no_photo') ON DUPLICATE KEY UPDATE artist_photo = 'no_photo'");
-                $up->execute([$art]);
-                $processedItems[] = [
-                    'artist' => $art,
-                    'source' => 'Não localizado',
-                    'photo' => null,
-                    'ok' => false
-                ];
+            // Janela segura de 18s por requisição HTTP para evitar 504 Gateway Timeout em hospedagens com milhares de artistas;
+            // se ainda restarem artistas após 18s, o frontend continua imediatamente na próxima requisição até zerar.
+            if ((microtime(true) - $syncStartTime) >= 18.0) {
+                break;
             }
         }
 
@@ -4867,14 +5005,17 @@ try {
 
         echo json_encode([
             'success' => true,
-            'artists_processed' => count($batchRows),
+            'batch_checked' => $processedCount,
+            'artists_processed' => $processedCount,
+            'artists_initial' => $artistsPendingInitial,
             'artists_updated' => $artistUpdated,
             'deezer_count' => $deezerCount,
             'spotify_count' => $spotifyCount,
             'downloaded_count' => $downloadedCount,
+            'not_found_count' => $notFoundCount,
             'artists_pending' => $artistsPendingFinal,
             'processed_items' => $processedItems,
-            'message' => "Lote concluído! {$artistUpdated} capas de artistas baixadas para o servidor (Deezer: {$deezerCount}, Spotify: {$spotifyCount}). Restantes: {$artistsPendingFinal}"
+            'message' => "Sincronização de capas de artistas: {$artistUpdated} baixadas para o servidor (Deezer: {$deezerCount}, Spotify: {$spotifyCount}). Restantes: {$artistsPendingFinal}"
         ]);
         break;
 

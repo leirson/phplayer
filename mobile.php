@@ -1958,6 +1958,25 @@ if (!file_exists('config.php')) {
                 
                 window.allTracksOriginal = [...rawTracks];
 
+                // Carregar capas oficiais de artistas (nunca usar capas de álbuns nos artistas)
+                window.customArtistPhotos = window.customArtistPhotos || {};
+                try {
+                    const rPhotos = await fetch('api.php?route=artist_photos');
+                    if (rPhotos.ok) {
+                        const dPhotos = await rPhotos.json();
+                        if (dPhotos && dPhotos.photos && typeof dPhotos.photos === 'object') {
+                            const cleaned = {};
+                            Object.keys(dPhotos.photos).forEach(k => {
+                                const v = String(dPhotos.photos[k] || '').trim();
+                                if (v && v !== 'no_photo' && v !== 'no_cover' && !v.startsWith('images/cover_')) {
+                                    cleaned[k] = window.getAbsoluteUrl(v);
+                                }
+                            });
+                            window.customArtistPhotos = cleaned;
+                        }
+                    }
+                } catch (ePh) {}
+
                 // Fetch favorites catalog with protective sub-try block
                 if (currentUser) {
                     try {
@@ -2974,9 +2993,22 @@ if (!file_exists('config.php')) {
                 }
 
                 if (!artistsMapLocal[artistName]) {
+                    let officialPhoto = '';
+                    if (window.customArtistPhotos) {
+                        const cleanName = String(artistName).trim();
+                        if (window.customArtistPhotos[artistName]) {
+                            officialPhoto = window.customArtistPhotos[artistName];
+                        } else if (window.customArtistPhotos[cleanName]) {
+                            officialPhoto = window.customArtistPhotos[cleanName];
+                        } else {
+                            const lower = cleanName.toLowerCase();
+                            const foundKey = Object.keys(window.customArtistPhotos).find(k => k.trim().toLowerCase() === lower);
+                            if (foundKey) officialPhoto = window.customArtistPhotos[foundKey];
+                        }
+                    }
                     artistsMapLocal[artistName] = {
                         name: artistName,
-                        photo: track.cover_url || '',
+                        photo: officialPhoto,
                         tracksCount: 0,
                         albums: []
                     };
