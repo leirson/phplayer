@@ -1,5 +1,9 @@
 <?php
 $changelog = <<<EOT
+v1.4.9
+- Fallback automático para o nome da pasta do artista no PHP (`api.php`): quando a tag ID3 do arquivo estiver ausente, vazia ou com marcador genérico (`Artista Desconhecido`, `Unknown Artist`, `Unknown`, `Desconhecido`, etc.), o escaneamento (`?route=scan`), a reparação do banco (`?route=repair_db`) e a listagem (`?route=tracks`) extraem automaticamente o artista (e o álbum, quando aplicável) a partir da estrutura de pastas `/music/ARTISTA/ALBUM`.
+- Correção do parser ID3v2 (`$getMp3Meta` em `api.php`) para ignorar frames vazios (`size <= 0`) em vez de ler bytes de frames subsequentes e atualização automática de faixas já cadastradas no banco que estavam sem artista identificado ao re-escanear a pasta `/music`.
+
 v1.4.8
 - Correção da **Sincronização de Capas de Artistas** (`api.php` e `index.php`): removido o limite que processava apenas de 10 em 10 artistas; agora o sincronismo processa **todos os artistas sem capa** automaticamente via requisições paralelas `curl_multi_init` no Deezer (1ª opção) e fallback automático para o Spotify (API oficial, busca direta de perfil `open.spotify.com/artist`, Wikidata `P1902` e MusicBrainz + Spotify oEmbed), baixando todas as imagens para `images/artist_...` no servidor.
 - Separação estrita entre **Capa do Artista** e **Capa dos Álbuns** (`index.php`, `mobile.php` e `api.php`): os cartões de artistas, barra lateral, página do artista e versão mobile agora utilizam exclusivamente a **capa oficial do artista** (`artist_metadata.artist_photo`), sem reutilizar capas de álbuns (`songs.cover_url`), limpando automaticamente qualquer capa de álbum (`images/cover_...`) atribuída por engano ao cadastro de artistas.

@@ -497,7 +497,8 @@ try {
                 $sizeBytes = substr($data, $pos + 4, 4);
                 if (strlen($sizeBytes) < 4) return '';
                 $size = (ord($sizeBytes[0]) << 24) | (ord($sizeBytes[1]) << 16) | (ord($sizeBytes[2]) << 8) | ord($sizeBytes[3]);
-                if ($size <= 0 || $size > 512) $size = 64;
+                if ($size <= 0) return '';
+                if ($size > 512) $size = 64;
                 $frameContent = substr($data, $pos + 10, $size);
                 
                 if (strlen($frameContent) < 1) return '';
@@ -647,6 +648,99 @@ try {
         }
         return $meta;
     };
+
+    if (!function_exists('phplayer_is_unknown_artist')) {
+        function phplayer_is_unknown_artist($name) {
+            $clean = mb_strtolower(trim((string)$name), 'UTF-8');
+            if ($clean === '') return true;
+            $placeholders = [
+                'artista desconhecido',
+                'desconhecido',
+                'unknown artist',
+                'unknown',
+                'sem artista',
+                'no artist',
+                'artist',
+                'artista',
+                'n/a',
+                'na',
+                '-',
+                '--',
+                '?',
+                'none',
+                'null'
+            ];
+            if (in_array($clean, $placeholders, true)) return true;
+            if (preg_replace('/[\s\.\-\_\?\!]+/u', '', $clean) === '') return true;
+            return false;
+        }
+    }
+
+    if (!function_exists('phplayer_is_unknown_album')) {
+        function phplayer_is_unknown_album($name) {
+            $clean = mb_strtolower(trim((string)$name), 'UTF-8');
+            if ($clean === '') return true;
+            $placeholders = [
+                'álbum desconhecido',
+                'album desconhecido',
+                'desconhecido',
+                'unknown album',
+                'unknown',
+                'sem álbum',
+                'sem album',
+                'no album',
+                'album',
+                'álbum',
+                'n/a',
+                'na',
+                '-',
+                '--',
+                '?',
+                'none',
+                'null'
+            ];
+            if (in_array($clean, $placeholders, true)) return true;
+            if (preg_replace('/[\s\.\-\_\?\!]+/u', '', $clean) === '') return true;
+            return false;
+        }
+    }
+
+    if (!function_exists('phplayer_extract_folder_meta')) {
+        function phplayer_extract_folder_meta($relativePath) {
+            $norm = trim(str_replace('\\', '/', (string)$relativePath), '/');
+            if (stripos($norm, 'music/') === 0) {
+                $norm = substr($norm, 6);
+            }
+            $parts = array_values(array_filter(explode('/', $norm), function($p) {
+                return $p !== '' && $p !== '.';
+            }));
+
+            $artistFolder = null;
+            $albumFolder = 'Single';
+
+            if (count($parts) >= 3) {
+                // Exemplo: /music/ARTISTA/ALBUM/musica.mp3
+                $artistFolder = trim($parts[0]);
+                $candidateAlbum = trim($parts[count($parts) - 2]);
+                if (count($parts) >= 4 && preg_match('/^(cd|disc|disco|volume|vol\.?)\s*\d+$/i', $candidateAlbum)) {
+                    $albumFolder = trim($parts[count($parts) - 3]);
+                } else {
+                    $albumFolder = $candidateAlbum;
+                }
+            } elseif (count($parts) === 2) {
+                // Exemplo: /music/ARTISTA/musica.mp3
+                $artistFolder = trim($parts[0]);
+                $albumFolder = 'Single';
+            }
+
+            return [
+                'artist' => ($artistFolder !== null && $artistFolder !== '') ? $artistFolder : 'Artista Desconhecido',
+                'album' => ($albumFolder !== '') ? $albumFolder : 'Single',
+                'has_artist_folder' => ($artistFolder !== null && $artistFolder !== '' && !phplayer_is_unknown_artist($artistFolder)),
+                'parts_count' => count($parts)
+            ];
+        }
+    }
 
     // Helper para verificar se o usuário atual é administrador
     if (!function_exists('is_admin_user')) {
@@ -2719,6 +2813,35 @@ try {
 
                 // Limpa 'no_cover' das URLs de capa
                 $pdo->query("UPDATE `" . $t . "` SET cover_url = REPLACE(cover_url, 'no_cover', '')");
+
+                // Recupera nome do artista (e álbum) pela pasta /music/ARTISTA/ALBUM quando não identificado
+                $stmtUnk = $pdo->query("SELECT id, artist, album, file_name, genre FROM `" . $t . "`");
+                if ($stmtUnk) {
+                    while ($rowUnk = $stmtUnk->fetch(PDO::FETCH_ASSOC)) {
+                        $fNameUnk = ltrim(str_replace('\\', '/', trim($rowUnk['file_name'] ?? '')), '/');
+                        $gUnk = strtolower(trim($rowUnk['genre'] ?? ''));
+                        if ($fNameUnk === '' || strpos($fNameUnk, 'http') === 0 || strpos($fNameUnk, 'music_') === 0 || stripos($fNameUnk, 'podcast/') === 0 || strpos($gUnk, 'podcast') !== false) {
+                            continue;
+                        }
+                        $fMetaUnk = phplayer_extract_folder_meta($fNameUnk);
+                        if ($fMetaUnk['has_artist_folder']) {
+                            $upFields = [];
+                            $upVals = [];
+                            if (phplayer_is_unknown_artist($rowUnk['artist'] ?? '')) {
+                                $upFields[] = "artist = ?";
+                                $upVals[] = $fMetaUnk['artist'];
+                            }
+                            if ((phplayer_is_unknown_album($rowUnk['album'] ?? '') || ($rowUnk['album'] ?? '') === 'Single') && $fMetaUnk['album'] !== 'Single') {
+                                $upFields[] = "album = ?";
+                                $upVals[] = $fMetaUnk['album'];
+                            }
+                            if (!empty($upFields)) {
+                                $upVals[] = $rowUnk['id'];
+                                $pdo->prepare("UPDATE `" . $t . "` SET " . implode(', ', $upFields) . " WHERE id = ?")->execute($upVals);
+                            }
+                        }
+                    }
+                }
             }
 
             echo json_encode(['status' => 'ok', 'message' => 'Reparação realizada com sucesso! Limpeza concluída de caracteres nulos e falhas de encoding.']);
@@ -2921,20 +3044,20 @@ try {
                     $pExt = strtolower(pathinfo($pInfo->getFilename(), PATHINFO_EXTENSION));
                     if (in_array($pExt, ['mp3', 'wav', 'ogg', 'aac', 'm4a'])) {
                         $pAbs = $pInfo->getPathname();
-                        $pRel = str_replace(chr(92), '/', substr($pAbs, strlen($musicDir)));
-                        if (stripos(ltrim($pRel, '/'), 'podcast/') === 0) {
+                        $pRel = ltrim(str_replace(chr(92), '/', substr($pAbs, strlen($musicDir))), '/');
+                        if (stripos($pRel, 'podcast/') === 0) {
                             continue;
                         }
                         $dPath = dirname($pRel);
-                        $pParts = explode('/', $pRel);
+                        $pFolderMeta = phplayer_extract_folder_meta($pRel);
                         
-                        // Default guess artist
-                        $pArtist = count($pParts) >= 2 ? $pParts[0] : 'Artista Desconhecido';
+                        // Default guess artist from folder (/music/ARTISTA/ALBUM)
+                        $pArtist = $pFolderMeta['artist'];
                         
-                        // Overwrite with MP3 Tag
+                        // Overwrite with MP3 Tag only if valid artist identified
                         if ($pExt === 'mp3') {
                             $pMeta = $getMp3Meta($pAbs);
-                            if (!empty($pMeta['tag_artist'])) {
+                            if (!empty($pMeta['tag_artist']) && !phplayer_is_unknown_artist($pMeta['tag_artist'])) {
                                 $pArtist = $pMeta['tag_artist'];
                             }
                         }
@@ -2964,8 +3087,8 @@ try {
                         $totalPhysicalFiles++;
                         $absolutePath = $fileinfo->getPathname();
                         $ext = strtolower(pathinfo($fileinfo->getFilename(), PATHINFO_EXTENSION));
-                        $relativePath = str_replace(chr(92), '/', substr($absolutePath, strlen($musicDir)));
-                        if (stripos(ltrim($relativePath, '/'), 'podcast/') === 0) {
+                        $relativePath = ltrim(str_replace(chr(92), '/', substr($absolutePath, strlen($musicDir))), '/');
+                        if (stripos($relativePath, 'podcast/') === 0) {
                             continue;
                         }
                         
@@ -2982,8 +3105,10 @@ try {
                         $existing_table = '';
                         $existing_id = null;
                         $existing_title = '';
+                        $existing_artist = '';
+                        $existing_album = '';
                         foreach ($tables as $t) {
-                            $stmtCheck = $pdo->prepare("SELECT id, title, album_year, genre, track_number FROM `" . $t . "` WHERE file_name = ? LIMIT 1");
+                            $stmtCheck = $pdo->prepare("SELECT id, title, artist, album, album_year, genre, track_number FROM `" . $t . "` WHERE file_name = ? LIMIT 1");
                             $stmtCheck->execute([$relativePath]);
                             $row = $stmtCheck->fetch();
                             if ($row) {
@@ -2991,6 +3116,8 @@ try {
                                 $existing_table = $t;
                                 $existing_id = $row['id'];
                                 $existing_title = $row['title'];
+                                $existing_artist = $row['artist'] ?? '';
+                                $existing_album = $row['album'] ?? '';
                                 $existing_year = $row['album_year'];
                                 $existing_genre = $row['genre'];
                                 $existing_track_number = $row['track_number'];
@@ -2998,13 +3125,17 @@ try {
                             }
                         }
 
+                        $folderMeta = phplayer_extract_folder_meta($relativePath);
+
                         if ($file_exists_in_db) {
-                            write_scan_log("Já Registrado: '$relativePath' (Tabela: '$existing_table'). Verificando metadata para número da faixa, ano e gênero...");
+                            write_scan_log("Já Registrado: '$relativePath' (Tabela: '$existing_table'). Verificando metadata para artista, número da faixa, ano e gênero...");
+                            $updateClauses = [];
+                            $updateParams = [];
+                            $meta = null;
+
                             if ($ext === 'mp3') {
                                 try {
                                     $meta = $getMp3Meta($absolutePath);
-                                    $updateClauses = [];
-                                    $updateParams = [];
 
                                     if (!empty($meta['tag_track_number'])) {
                                         $meta_track_num = (int)$meta['tag_track_number'];
@@ -3048,33 +3179,72 @@ try {
                                         $updateParams[] = $meta['tag_genre'];
                                         write_scan_log("- Gênero necessita atualização para: '{$meta['tag_genre']}'");
                                     }
-
-                                    if (count($updateClauses) > 0) {
-                                        $updateParams[] = $existing_id;
-                                        $pdo->prepare("UPDATE `" . $existing_table . "` SET " . implode(", ", $updateClauses) . " WHERE id = ?")->execute($updateParams);
-                                        write_scan_log("- Metadados atualizados com sucesso!");
-                                    }
                                 } catch (Exception $id3Exc) {
                                     write_scan_log("- Aviso: Falha ao ler ID3 do MP3 já existente: " . $id3Exc->getMessage());
                                 }
                             }
+
+                            if (phplayer_is_unknown_artist($existing_artist)) {
+                                $resolvedArtist = '';
+                                if ($meta && !empty($meta['tag_artist']) && !phplayer_is_unknown_artist($meta['tag_artist'])) {
+                                    $resolvedArtist = $meta['tag_artist'];
+                                } elseif ($folderMeta['has_artist_folder']) {
+                                    $resolvedArtist = $folderMeta['artist'];
+                                }
+                                if ($resolvedArtist !== '' && !phplayer_is_unknown_artist($resolvedArtist)) {
+                                    $updateClauses[] = "artist = ?";
+                                    $updateParams[] = $resolvedArtist;
+                                    write_scan_log("- Artista não identificado ('$existing_artist') -> Atualizado pela pasta/ID3 para: '$resolvedArtist'");
+                                }
+                            }
+
+                            if (phplayer_is_unknown_album($existing_album) || ($existing_album === 'Single' && $folderMeta['album'] !== 'Single')) {
+                                $resolvedAlbum = '';
+                                if ($folderMeta['album'] !== 'Single') {
+                                    $resolvedAlbum = $folderMeta['album'];
+                                } elseif ($meta && !empty($meta['tag_album']) && !phplayer_is_unknown_album($meta['tag_album'])) {
+                                    $resolvedAlbum = $meta['tag_album'];
+                                }
+                                if ($resolvedAlbum !== '' && !phplayer_is_unknown_album($resolvedAlbum) && $resolvedAlbum !== $existing_album) {
+                                    $updateClauses[] = "album = ?";
+                                    $updateParams[] = $resolvedAlbum;
+                                    write_scan_log("- Álbum atualizado para: '$resolvedAlbum'");
+                                }
+                            }
+
+                            if (count($updateClauses) > 0) {
+                                $updateParams[] = $existing_id;
+                                $pdo->prepare("UPDATE `" . $existing_table . "` SET " . implode(", ", $updateClauses) . " WHERE id = ?")->execute($updateParams);
+                                write_scan_log("- Metadados atualizados com sucesso!");
+                            }
                         } else {
                             write_scan_log("Sincronizando novo arquivo: '$relativePath'");
-                            $parts = explode('/', $relativePath);
                             $dPath = dirname($relativePath);
                             
                             // Check if this folder has multiple different artists
-                            $isFolderMultiArtist = isset($folderArtistsMap[$dPath]) && (count(array_unique(array_map('strtolower', array_map('trim', $folderArtistsMap[$dPath])))) > 1);
+                            $uniqueFolderArtists = isset($folderArtistsMap[$dPath])
+                                ? array_values(array_unique(array_map(function($a) { return mb_strtolower(trim($a), 'UTF-8'); }, $folderArtistsMap[$dPath])))
+                                : [];
+                            $isFolderMultiArtist = false;
+                            if (count($uniqueFolderArtists) > 1) {
+                                $folderArtistLower = mb_strtolower(trim($folderMeta['artist']), 'UTF-8');
+                                $allMatchFolderArtist = $folderMeta['has_artist_folder'] && count(array_filter($uniqueFolderArtists, function($ua) use ($folderArtistLower) {
+                                    return strpos($ua, $folderArtistLower) !== false || strpos($folderArtistLower, $ua) !== false;
+                                })) === count($uniqueFolderArtists);
+                                if (!$allMatchFolderArtist) {
+                                    $isFolderMultiArtist = true;
+                                }
+                            }
                             
-                            // Set artist from the main/top folder under /music
-                            $artist = count($parts) >= 2 ? $parts[0] : 'Artista Desconhecido';
+                            // Set artist from the main/top folder under /music (/music/ARTISTA/ALBUM)
+                            $artist = $folderMeta['artist'];
                             
                             // If multi-artist, set album to folder name and artist to 'Varios Artistas'
                             if ($isFolderMultiArtist) {
                                 $album = ($dPath !== '.' ? basename($dPath) : 'Single');
                                 $artist = 'Varios Artistas';
                             } else {
-                                $album = count($parts) >= 3 ? $parts[count($parts) - 2] : 'Single';
+                                $album = $folderMeta['album'];
                             }
                             
                             $lastName = basename($relativePath);
@@ -3084,6 +3254,8 @@ try {
                             
                             $genre = 'Local Scan';
                             $duration = 210;
+                            $meta = [];
+                            $albumYear = null;
                             
                             write_scan_log("- Guesses iniciais pelo Caminho do Arquivo -> Artista: '$artist', Álbum: '$album', Título: '$title'");
  
@@ -3121,20 +3293,21 @@ try {
                                         $title = preg_replace('/^\d+\s*-\s*/', '', trim($title));
                                     }
 
-                                    $albumYear = null;
                                     if (!empty($meta['tag_year'])) {
                                         $albumYear = $meta['tag_year'];
                                     }
 
-                                    // Set artist name to the ID3 artist metadata tag if it exists so we know who sings this track!
-                                    if (!$isFolderMultiArtist && !empty($meta['tag_artist'])) {
+                                    // Set artist name to the ID3 artist metadata tag if valid; otherwise keep folder artist (/music/ARTISTA/ALBUM)
+                                    if (!$isFolderMultiArtist && !empty($meta['tag_artist']) && !phplayer_is_unknown_artist($meta['tag_artist'])) {
                                         $artist = $meta['tag_artist'];
+                                    } elseif (!$isFolderMultiArtist && phplayer_is_unknown_artist($artist) && $folderMeta['has_artist_folder']) {
+                                        $artist = $folderMeta['artist'];
                                     }
                                     
                                     // If NOT a multi-artist folder, use ID3 tag_album if possible.
                                     // Otherwise, strictly leave it as the parent directory name.
                                     if (!$isFolderMultiArtist) {
-                                        if (($album === 'Single' || empty($album)) && !empty($meta['tag_album'])) {
+                                        if (($album === 'Single' || phplayer_is_unknown_album($album)) && !empty($meta['tag_album']) && !phplayer_is_unknown_album($meta['tag_album'])) {
                                             $album = $meta['tag_album'];
                                         }
                                     } else {
@@ -3145,6 +3318,11 @@ try {
                                 } catch (Exception $id3Exc) {
                                     write_scan_log("- Aviso: Falha ao ler ID3 do MP3: " . $id3Exc->getMessage());
                                 }
+                            }
+
+                            // Garantia final: se não identificou o artista, usa o nome da pasta (/music/ARTISTA/ALBUM)
+                            if (phplayer_is_unknown_artist($artist) && $folderMeta['has_artist_folder']) {
+                                $artist = $folderMeta['artist'];
                             }
  
                             $insertTable = get_insert_song_table($pdo);
@@ -3366,6 +3544,23 @@ try {
                         if (!empty($registeredPodcastNames[$artist]) || !empty($registeredPodcastNames[$album])) return false;
                         return true;
                     }));
+
+                    // Fallback dinâmico: caso alguma faixa no banco esteja sem artista identificado, usa o nome da pasta (/music/ARTISTA/ALBUM)
+                    foreach ($songs as &$songItem) {
+                        if (phplayer_is_unknown_artist($songItem['artist'] ?? '')) {
+                            $fNameItem = ltrim(str_replace('\\', '/', trim($songItem['file_name'] ?? '')), '/');
+                            if ($fNameItem !== '' && strpos($fNameItem, 'http') !== 0 && strpos($fNameItem, 'music_') !== 0 && stripos($fNameItem, 'podcast/') !== 0) {
+                                $fMetaItem = phplayer_extract_folder_meta($fNameItem);
+                                if ($fMetaItem['has_artist_folder']) {
+                                    $songItem['artist'] = $fMetaItem['artist'];
+                                    if (phplayer_is_unknown_album($songItem['album'] ?? '') && $fMetaItem['album'] !== 'Single') {
+                                        $songItem['album'] = $fMetaItem['album'];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    unset($songItem);
                 }
 
                 while (ob_get_level()) {
@@ -3460,10 +3655,10 @@ try {
                             $title = preg_replace('/^\d+\s*-\s*/', '', trim($title));
                         }
 
-                        if (!empty($meta['tag_artist'])) {
+                        if (!empty($meta['tag_artist']) && !phplayer_is_unknown_artist($meta['tag_artist'])) {
                             $artist = $meta['tag_artist'];
                         }
-                        if (!empty($meta['tag_album'])) {
+                        if (!empty($meta['tag_album']) && !phplayer_is_unknown_album($meta['tag_album'])) {
                             $album = $meta['tag_album'];
                         }
                         if (!empty($meta['tag_genre']) && $meta['tag_genre'] !== 'Local Scan') {
