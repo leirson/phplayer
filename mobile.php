@@ -1627,7 +1627,7 @@ if (!file_exists('config.php')) {
             return cleanServer + delimiter + urlString;
         };
 
-        // Interceptador global do fetch no index.php para propagar o cabeçalho X-Username e resolver a URL absoluta do servidor
+        // Interceptador global do fetch no mobile.php para propagar X-Username, admin_username e resolver a URL absoluta do servidor
         const origFetch = window.fetch;
         try {
             Object.defineProperty(window, 'fetch', {
@@ -1637,8 +1637,18 @@ if (!file_exists('config.php')) {
                         resource = window.getAbsoluteUrl(resource);
                         config = config || {};
                         config.headers = config.headers || {};
-                        if (currentUser && currentUser.username) {
-                            config.headers['X-Username'] = currentUser.username;
+                        let uName = (currentUser && currentUser.username) ? currentUser.username : '';
+                        if (!uName) {
+                            try {
+                                const savedU = JSON.parse(localStorage.getItem('mobile_user') || localStorage.getItem('phplayer_user') || 'null');
+                                if (savedU && savedU.username) uName = savedU.username;
+                            } catch (e) {}
+                        }
+                        if (uName) {
+                            config.headers['X-Username'] = uName;
+                            if (!resource.includes('admin_username=')) {
+                                resource += (resource.includes('?') ? '&' : '?') + 'admin_username=' + encodeURIComponent(uName);
+                            }
                         }
                     }
                     return origFetch(resource, config);
@@ -2600,9 +2610,17 @@ if (!file_exists('config.php')) {
             
             const isRadio = track.artist === 'Rádio On-line' || track.album === 'Sintonizada' || String(track.file_name || track.fileName || "").includes('://');
 
+            audio.onerror = null;
             if (isRadio) {
                 const streamUrl = track.fileName || track.file_name || track.url;
-                audio.src = window.getAbsoluteUrl(API + '?route=proxy_radio&url=' + encodeURIComponent(streamUrl));
+                audio.src = window.getAbsoluteUrl(API + '?route=proxy_radio&url=' + encodeURIComponent(streamUrl) + '&name=' + encodeURIComponent(track.title || '') + '&_t=' + Date.now());
+                audio.onerror = function() {
+                    audio.onerror = null;
+                    if (!mobileAudioContext && streamUrl && (streamUrl.startsWith('http://') || streamUrl.startsWith('https://')) && !streamUrl.includes('.m3u') && !streamUrl.includes('.pls')) {
+                        audio.src = streamUrl;
+                        audio.play().catch(() => {});
+                    }
+                };
             } else {
                 // Build streaming URL from api with Cache Support
                 const rawUrl = window.getAbsoluteUrl(API + '?route=stream&id=' + track.id);
@@ -2652,7 +2670,7 @@ if (!file_exists('config.php')) {
                     console.error('Falha de reprodução automática de áudio:', err);
                 });
 
-            if (track && track.id) {
+            if (track && track.id && !isRadio) {
                 logTrackPlay(track.id);
             }
 
@@ -3070,10 +3088,10 @@ if (!file_exists('config.php')) {
         ];
 
         const RADIO_PRESETS_POOL = [
-            { name: 'Kiss FM', url: 'https://www.radios.com.br/play/playlist/26885/listen-radio.m3u' },
-            { name: 'Elite Rock', url: 'https://www.radios.com.br/play/playlist/93525/listen-radio.m3u' },
-            { name: 'Jovem Pan News', url: 'https://www.radios.com.br/play/playlist/8800/listen-radio.m3u' },
-            { name: 'Antena 1', url: 'https://www.radios.com.br/play/playlist/11927/listen-radio.m3u' }
+            { name: 'Kiss FM', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO_KISSFM_ADP.aac' },
+            { name: '89 FM A Rádio Rock', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO_89FM_ADP.aac' },
+            { name: 'Jovem Pan News', url: 'https://stream.zeno.fm/vlcraijc6yiuv' },
+            { name: 'Antena 1', url: 'https://antenaone.crossradio.com.br/stream/1' }
         ];
 
         function renderPodcastSuggestionsMobile() {
@@ -3627,7 +3645,7 @@ if (!file_exists('config.php')) {
                     card.className = "group relative bg-slate-950/45 hover:bg-slate-900/50 border rounded-2xl p-4 transition-all duration-300 transform hover:-translate-y-0.5 cursor-pointer flex flex-col justify-between h-36 " +
                         (isCurrentRadio ? "border-emerald-500 shadow-lg shadow-emerald-500/5" : "border-slate-900/90 hover:border-slate-800");
 
-                    card.onclick = () => playRadioPhp(radio.id, radio.name, radio.resolved_url || radio.url);
+                    card.onclick = () => playRadioPhp(radio.id, radio.name, radio.resolved_url || radio.resolvedUrl || radio.url);
 
                     const deleteBtnHtml = (currentUser && currentUser.role === 'admin') ? `<button onclick="handleDeleteRadioPhp('${radio.id}', event)" class="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition" title="Remover Rádio"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>` : '';
 

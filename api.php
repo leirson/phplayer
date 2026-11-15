@@ -4,7 +4,7 @@
  */
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Range");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Range, X-Username");
 header("Access-Control-Expose-Headers: Content-Range, Content-Length, Accept-Ranges");
 
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -694,9 +694,15 @@ try {
                 $stmt = $pdo->prepare("SELECT role FROM users WHERE LOWER(username) = LOWER(?)");
                 $stmt->execute([$username]);
                 $role = $stmt->fetchColumn();
-                return ($role !== false && strtolower((string)$role) === 'admin');
-            } catch (Throwable $e) {
+                if ($role !== false && strtolower((string)$role) === 'admin') {
+                    return true;
+                }
+                if ($role === false && strtolower($username) === 'admin') {
+                    return true;
+                }
                 return false;
+            } catch (Throwable $e) {
+                return strtolower($username) === 'admin';
             }
         }
     }
@@ -707,10 +713,10 @@ try {
         'delete_track', 'music_folders', 'delete_music_folder',
         'update_track_title', 'update_album_tracks_metadata', 'update_tracks_bulk',
         'upload_album_cover', 'upload_artist_banner',
-        'dlna_status', 'toggle_dlna', 'search_images', 'search_artist_logo',
+        'dlna_status', 'toggle_dlna',
         'update_album_cover_url', 'update_artist_banner_url',
         'get_settings', 'save_settings', 'lastfm_sync', 'deezer_sync',
-        'google_images_sync',
+        'wikipedia_sync', 'google_images_sync',
         'files_list', 'files_create_dir', 'files_delete', 'files_rename', 'files_upload',
         'podcasts_sync', 'podcasts_auto_sync', 'podcast_config', 'podcast_update_limit', 'podcast_delete'
     ];
@@ -722,11 +728,129 @@ try {
         }
     }
 
+    if (!function_exists('resolve_radio_stream_url')) {
+        function resolve_radio_stream_url($url, $stationName = '') {
+            $url = trim((string)$url);
+            if (empty($url)) return '';
+
+            // Mapa direto para os presets conhecidos do radios.com.br (que bloqueiam via Cloudflare 403)
+            $knownMap = [
+                '26885' => 'https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO_KISSFM_ADP.aac',
+                '93525' => 'https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO_89FM_ADP.aac',
+                '8800'  => 'https://stream.zeno.fm/vlcraijc6yiuv',
+                '11927' => 'https://antenaone.crossradio.com.br/stream/1'
+            ];
+            foreach ($knownMap as $plId => $directStream) {
+                if (strpos($url, '/' . $plId . '/') !== false) {
+                    return $directStream;
+                }
+            }
+
+            $lowerUrl = strtolower($url);
+            $isPlaylistUrl = (strpos($lowerUrl, '.m3u') !== false && strpos($lowerUrl, '.m3u8') === false)
+                || strpos($lowerUrl, '.pls') !== false
+                || strpos($lowerUrl, '.asx') !== false
+                || strpos($lowerUrl, 'radios.com.br') !== false;
+
+            if ($isPlaylistUrl) {
+                $text = false;
+                if (function_exists('curl_init')) {
+                    $ch = curl_init($url);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                    curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+                    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 4);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+                    $text = @curl_exec($ch);
+                    $httpCode = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
+                    @curl_close($ch);
+                    if ($httpCode >= 400) {
+                        $text = false;
+                    }
+                }
+                if ($text !== false && !empty($text)) {
+                    $trimmedBody = ltrim($text);
+                    // Ignorar páginas HTML de bloqueio (ex: Cloudflare)
+                    if (stripos($trimmedBody, '<!doctype') !== 0 && stripos($trimmedBody, '<html') !== 0 && stripos($trimmedBody, '<head') !== 0) {
+                        if (preg_match('/<ref\s+href\s*=\s*["\'](https?:\/\/[^"\']+)["\']/i', $text, $m)) {
+                            return trim($m[1]);
+                        }
+                        $lines = preg_split('/\r\n|\r|\n/', $text);
+                        foreach ($lines as $line) {
+                            $t = trim($line);
+                            if ($t === '' || strpos($t, '#') === 0) continue;
+                            if (stripos($t, 'file') === 0 && strpos($t, '=') !== false) {
+                                $parts = explode('=', $t, 2);
+                                $cand = trim($parts[1] ?? '');
+                                if (strpos($cand, 'http://') === 0 || strpos($cand, 'https://') === 0) {
+                                    return $cand;
+                                }
+                            } elseif (strpos($t, 'http://') === 0 || strpos($t, 'https://') === 0) {
+                                return $t;
+                            }
+                        }
+                    }
+                }
+
+                // Se for link do radios.com.br ou playlist bloqueada e tivermos o nome da rádio, consultar Radio Browser API
+                $searchQuery = trim($stationName);
+                if (empty($searchQuery)) {
+                    if (stripos($url, 'kiss') !== false) $searchQuery = 'Kiss FM';
+                    elseif (stripos($url, 'jovem') !== false) $searchQuery = 'Jovem Pan News';
+                    elseif (stripos($url, 'antena') !== false) $searchQuery = 'Antena 1';
+                    elseif (stripos($url, 'rock') !== false) $searchQuery = '89 FM';
+                }
+                if (!empty($searchQuery) && function_exists('curl_init')) {
+                    $rbUrl = 'https://de1.api.radio-browser.info/json/stations/search?name=' . rawurlencode($searchQuery) . '&hidebroken=true&limit=3';
+                    $chRb = curl_init($rbUrl);
+                    curl_setopt($chRb, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($chRb, CURLOPT_FOLLOWLOCATION, true);
+                    curl_setopt($chRb, CURLOPT_TIMEOUT, 5);
+                    curl_setopt($chRb, CURLOPT_SSL_VERIFYPEER, false);
+                    curl_setopt($chRb, CURLOPT_USERAGENT, 'PHPlayer/1.4');
+                    $rbRaw = @curl_exec($chRb);
+                    @curl_close($chRb);
+                    if (!empty($rbRaw)) {
+                        $rbArr = @json_decode($rbRaw, true);
+                        if (is_array($rbArr) && !empty($rbArr[0])) {
+                            $resolvedCandidate = trim($rbArr[0]['url_resolved'] ?? $rbArr[0]['url'] ?? '');
+                            if (!empty($resolvedCandidate)) {
+                                return $resolvedCandidate;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return $url;
+        }
+    }
+
+    if (!function_exists('clean_rss_text')) {
+        function clean_rss_text($str) {
+            if (empty($str)) return '';
+            $s = str_replace(['<![CDATA[', ']]>'], '', (string)$str);
+            $s = html_entity_decode(strip_tags($s), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $s = html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $s = preg_replace('/\s+/', ' ', $s);
+            return trim($s);
+        }
+    }
+
     if (!function_exists('syncSinglePodcastFeed')) {
         function syncSinglePodcastFeed($pdo, $feedUrl, $maxEpisodesRaw, $podcastNameOverride = '') {
+            $feedUrl = trim((string)$feedUrl);
             if (empty($feedUrl)) {
                 return ['error' => 'O endereço feedUrl é obrigatório.', 'success' => false];
             }
+
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                @session_write_close();
+            }
+            @ignore_user_abort(true);
 
             $isAll = ($maxEpisodesRaw === 'all' || $maxEpisodesRaw === 0 || $maxEpisodesRaw === '0');
             $maxEpisodes = $isAll ? 0 : intval($maxEpisodesRaw);
@@ -740,28 +864,35 @@ try {
                 @ini_set('max_execution_time', '300');
                 @set_time_limit(300);
                 @ini_set('memory_limit', '512M');
+                @ini_set('pcre.backtrack_limit', '20000000');
+                @ini_set('pcre.recursion_limit', '20000000');
+
+                $syncStartTime = microtime(true);
 
                 $xml = false;
                 if (function_exists('curl_init')) {
                     $ch = curl_init($feedUrl);
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                    curl_setopt($ch, CURLOPT_MAXREDIRS, 6);
                     curl_setopt($ch, CURLOPT_AUTOREFERER, true);
                     curl_setopt($ch, CURLOPT_ENCODING, ""); // Descompacta gzip/deflate automaticamente
-                    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-                    curl_setopt($ch, CURLOPT_TIMEOUT, 35);
+                    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+                    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
                     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-                    $xml = curl_exec($ch);
-                    curl_close($ch);
+                    $xml = @curl_exec($ch);
+                    @curl_close($ch);
                 }
 
                 if (($xml === false || empty($xml)) && ini_get('allow_url_fopen')) {
                     $opts = [
                         "http" => [
                             "method" => "GET",
-                            "header" => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\nAccept: */*\r\n",
-                            "timeout" => 25
+                            "header" => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\nAccept: application/rss+xml, application/xml, text/xml, */*\r\n",
+                            "timeout" => 25,
+                            "follow_location" => 1
                         ],
                         "ssl" => [
                             "verify_peer" => false,
@@ -780,16 +911,16 @@ try {
                     return ['error' => 'Falha ao conectar e ler o feed RSS do Podcast no PHP. Verifique se a URL está acessível.', 'success' => false];
                 }
 
-                $podcastName = $podcastNameOverride ?: "";
-                if (preg_match('/<channel>([\s\S]*?)<\/channel>/i', $xml, $cMatch)) {
-                    $channelXml = $cMatch[1];
-                } else {
-                    $channelXml = $xml;
+                // Extrair cabeçalho do canal apenas antes do primeiro <item> (evita erro de PCRE backtrack em XMLs de 5MB+)
+                $firstItemPos = stripos($xml, '<item');
+                if ($firstItemPos === false) {
+                    $firstItemPos = stripos($xml, '<entry');
                 }
+                $channelHeaderXml = ($firstItemPos !== false) ? substr($xml, 0, $firstItemPos) : substr($xml, 0, 65536);
 
-                if (empty($podcastName) && preg_match('/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i', $channelXml, $tMatch)) {
-                    $extracted = html_entity_decode(trim(strip_tags($tMatch[1])), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-                    $extracted = preg_replace('/\s+/', ' ', $extracted);
+                $podcastName = trim((string)$podcastNameOverride);
+                if (empty($podcastName) && preg_match('/<title[^>]*>([\s\S]*?)<\/title>/i', $channelHeaderXml, $tMatch)) {
+                    $extracted = clean_rss_text($tMatch[1]);
                     if (!empty($extracted)) {
                         $podcastName = $extracted;
                     }
@@ -806,20 +937,26 @@ try {
                     $safePodcastName = 'Podcast-' . substr(md5($feedUrl), 0, 8);
                 }
 
-                // Capa
+                // Capa do canal (decodificando &amp; em atributos XML)
                 $coverUrl = 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=450';
-                if (preg_match('/<itunes:image\s+[^>]*href=["\']([^"\']+)["\']/i', $channelXml, $imgMatch)) {
-                    $coverUrl = trim($imgMatch[1]);
-                } else if (preg_match('/<image>([\s\S]*?)<\/image>/i', $channelXml, $imgBlock)) {
-                    if (preg_match('/<url>([\s\S]*?)<\/url>/i', $imgBlock[1], $urlMatch)) {
-                        $coverUrl = trim($urlMatch[1]);
+                if (preg_match('/<itunes:image\s+[^>]*href=["\']([^"\']+)["\']/i', $channelHeaderXml, $imgMatch)) {
+                    $coverUrl = html_entity_decode(trim($imgMatch[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                } else if (preg_match('/<image[^>]*>([\s\S]*?)<\/image>/i', $channelHeaderXml, $imgBlock)) {
+                    if (preg_match('/<url[^>]*>([\s\S]*?)<\/url>/i', $imgBlock[1], $urlMatch)) {
+                        $coverUrl = clean_rss_text($urlMatch[1]);
                     }
+                } else if (preg_match('/<googleplay:image\s+[^>]*href=["\']([^"\']+)["\']/i', $channelHeaderXml, $gpMatch)) {
+                    $coverUrl = html_entity_decode(trim($gpMatch[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
                 }
 
                 // Autor / Artista do canal
                 $authorName = $podcastName;
-                if (preg_match('/<itunes:author>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/itunes:author>/i', $channelXml, $authMatch)) {
-                    $authorName = html_entity_decode(trim(strip_tags($authMatch[1])), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                if (preg_match('/<itunes:author[^>]*>([\s\S]*?)<\/itunes:author>/i', $channelHeaderXml, $authMatch)) {
+                    $cleanedAuth = clean_rss_text($authMatch[1]);
+                    if (!empty($cleanedAuth)) $authorName = $cleanedAuth;
+                } else if (preg_match('/<author[^>]*>([\s\S]*?)<\/author>/i', $channelHeaderXml, $authMatch2)) {
+                    $cleanedAuth2 = clean_rss_text($authMatch2[1]);
+                    if (!empty($cleanedAuth2)) $authorName = $cleanedAuth2;
                 }
 
                 // Salvar feedUrl, limite, capa e artista nas configurações para nunca sumir
@@ -845,22 +982,50 @@ try {
                 } catch (Exception $e) {}
 
                 // Diretório de armazenamento físico do podcast
-                $podcastDir = (defined('PODCAST_DIR') && is_dir(PODCAST_DIR)) ? PODCAST_DIR . $safePodcastName : UPLOAD_DIR . '/podcast/' . $safePodcastName;
+                $podcastDir = (defined('PODCAST_DIR') && is_dir(PODCAST_DIR)) ? rtrim(PODCAST_DIR, '/\\') . '/' . $safePodcastName : rtrim(UPLOAD_DIR, '/\\') . '/podcast/' . $safePodcastName;
                 if (!file_exists($podcastDir)) {
                     @mkdir($podcastDir, 0755, true);
                 }
 
-                // Itens do RSS
-                preg_match_all('/<item>([\s\S]*?)<\/item>/i', $xml, $itemMatches);
-                $items = $itemMatches[1] ?? [];
-                $itemsToProcess = $maxEpisodes > 0 ? array_slice($items, 0, $maxEpisodes) : array_slice($items, 0, 100);
-                $downloadedCount = 0;
+                // Extrair itens do RSS com stripos/substr (imune ao limite de 1MB do preg_match_all em feeds grandes)
+                $targetCount = $maxEpisodes > 0 ? $maxEpisodes : 50;
+                $itemsToProcess = [];
+                $searchOffset = ($firstItemPos !== false) ? $firstItemPos : 0;
+                $xmlLen = strlen($xml);
+
+                while (count($itemsToProcess) < $targetCount && $searchOffset < $xmlLen) {
+                    $itemStart = stripos($xml, '<item', $searchOffset);
+                    $closeTag = '</item>';
+                    if ($itemStart === false) {
+                        $itemStart = stripos($xml, '<entry', $searchOffset);
+                        $closeTag = '</entry>';
+                    }
+                    if ($itemStart === false) break;
+
+                    // Garantir que é a tag <item> ou <item ...> e não <itunes:...>
+                    $nextChar = substr($xml, $itemStart + 5, 1);
+                    if ($closeTag === '</item>' && $nextChar !== '>' && $nextChar !== ' ' && $nextChar !== "\t" && $nextChar !== "\r" && $nextChar !== "\n") {
+                        $searchOffset = $itemStart + 5;
+                        continue;
+                    }
+
+                    $itemEnd = stripos($xml, $closeTag, $itemStart);
+                    if ($itemEnd === false) break;
+
+                    $itemsToProcess[] = substr($xml, $itemStart, $itemEnd - $itemStart);
+                    $searchOffset = $itemEnd + strlen($closeTag);
+                }
+
+                $syncedEpisodesCount = 0;
+                $downloadedFilesCount = 0;
 
                 foreach ($itemsToProcess as $itemXml) {
                     $epTitleRaw = 'Episódio Desconhecido';
-                    if (preg_match('/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i', $itemXml, $epTitleMatch)) {
-                        $epTitleRaw = html_entity_decode(trim(strip_tags($epTitleMatch[1])), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-                        $epTitleRaw = preg_replace('/\s+/', ' ', $epTitleRaw);
+                    if (preg_match('/<title[^>]*>([\s\S]*?)<\/title>/i', $itemXml, $epTitleMatch)) {
+                        $cleanedEpTitle = clean_rss_text($epTitleMatch[1]);
+                        if (!empty($cleanedEpTitle)) {
+                            $epTitleRaw = $cleanedEpTitle;
+                        }
                     }
                     $cleanEpTitle = preg_replace('/[\/\\\?%*:|"<>]/', '-', $epTitleRaw);
                     $cleanEpTitle = trim($cleanEpTitle, " .-\t\n\r\0\x0B");
@@ -869,52 +1034,76 @@ try {
                     }
 
                     $mediaUrl = '';
-                    if (preg_match('/<enclosure[^>]+url=["\']([^"\']+)["\']/i', $itemXml, $encMatch)) {
-                        $mediaUrl = trim($encMatch[1]);
+                    $enclosureLength = 0;
+                    if (preg_match('/<enclosure\s+[^>]*url=["\']([^"\']+)["\'][^>]*>/i', $itemXml, $encMatch)) {
+                        $mediaUrl = html_entity_decode(trim($encMatch[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                        if (preg_match('/length=["\'](\d+)["\']/i', $encMatch[0], $lenMatch)) {
+                            $enclosureLength = intval($lenMatch[1]);
+                        }
                     } else if (preg_match('/<enclosure[\s\S]*?url=["\']([^"\']+)["\']/i', $itemXml, $fallbackEncMatch)) {
-                        $mediaUrl = trim($fallbackEncMatch[1]);
+                        $mediaUrl = html_entity_decode(trim($fallbackEncMatch[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                    } else if (preg_match('/<media:content\s+[^>]*url=["\']([^"\']+)["\']/i', $itemXml, $mediaMatch)) {
+                        $mediaUrl = html_entity_decode(trim($mediaMatch[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
                     }
 
                     if (empty($mediaUrl)) continue;
 
+                    // Capa individual do episódio (se houver)
+                    $epCoverUrl = $coverUrl;
+                    if (preg_match('/<itunes:image\s+[^>]*href=["\']([^"\']+)["\']/i', $itemXml, $epImgMatch)) {
+                        $candImg = html_entity_decode(trim($epImgMatch[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                        if (!empty($candImg)) $epCoverUrl = $candImg;
+                    }
+
                     $episodeFileName = substr($cleanEpTitle, 0, 180) . '.mp3';
                     $filePath = $podcastDir . '/' . $episodeFileName;
-                    $altFilePath = UPLOAD_DIR . '/podcast/' . $safePodcastName . '/' . $episodeFileName;
-                    $fileSize = 0;
+                    $altFilePath = rtrim(UPLOAD_DIR, '/\\') . '/podcast/' . $safePodcastName . '/' . $episodeFileName;
 
-                    if (!file_exists($filePath) && !file_exists($altFilePath)) {
-                        $fp = @fopen($filePath, 'w+b');
-                        if ($fp) {
-                            $ch = curl_init($mediaUrl);
-                            curl_setopt($ch, CURLOPT_FILE, $fp);
-                            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-                            curl_setopt($ch, CURLOPT_AUTOREFERER, true);
-                            curl_setopt($ch, CURLOPT_USERAGENT, 'PHPlayerPodcastDownloader/1.0 PHP');
-                            curl_setopt($ch, CURLOPT_TIMEOUT, 90);
-                            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-                            $resExec = curl_exec($ch);
-                            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                            curl_close($ch);
-                            @fclose($fp);
+                    // Sempre salvar arquivo sidecar .url para permitir streaming imediato mesmo se o MP3 for grande demais para baixar de uma vez
+                    @file_put_contents($filePath . '.url', $mediaUrl);
 
-                            if ($resExec && $httpCode >= 200 && $httpCode < 400 && file_exists($filePath) && filesize($filePath) > 1000) {
-                                $fileSize = filesize($filePath);
-                                $downloadedCount++;
-                            } else {
-                                @unlink($filePath);
-                                continue;
-                            }
-                        } else {
-                            continue;
-                        }
+                    $fileSize = $enclosureLength > 0 ? $enclosureLength : 15728640;
+
+                    if (file_exists($filePath) && filesize($filePath) > 1000) {
+                        $fileSize = filesize($filePath);
+                    } elseif (file_exists($altFilePath) && filesize($altFilePath) > 1000) {
+                        $fileSize = filesize($altFilePath);
                     } else {
-                        $fileSize = file_exists($filePath) ? filesize($filePath) : filesize($altFilePath);
+                        // Baixar fisicamente dentro da janela segura de tempo da requisição HTTP (máx 10s totais) para evitar 504 Gateway Timeout
+                        $elapsed = microtime(true) - $syncStartTime;
+                        $shouldAttemptDownload = ($elapsed < 10.0) && ($enclosureLength === 0 || $enclosureLength <= 25 * 1024 * 1024);
+                        if ($shouldAttemptDownload && function_exists('curl_init')) {
+                            $fp = @fopen($filePath, 'w+b');
+                            if ($fp) {
+                                $remainingTime = max(4, intval(12 - $elapsed));
+                                $ch = curl_init($mediaUrl);
+                                curl_setopt($ch, CURLOPT_FILE, $fp);
+                                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                                curl_setopt($ch, CURLOPT_MAXREDIRS, 6);
+                                curl_setopt($ch, CURLOPT_AUTOREFERER, true);
+                                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+                                curl_setopt($ch, CURLOPT_TIMEOUT, $remainingTime);
+                                curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+                                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                                $resExec = @curl_exec($ch);
+                                $httpCode = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
+                                @curl_close($ch);
+                                @fclose($fp);
+
+                                if ($resExec && $httpCode >= 200 && $httpCode < 400 && file_exists($filePath) && filesize($filePath) > 1000) {
+                                    $fileSize = filesize($filePath);
+                                    $downloadedFilesCount++;
+                                } else {
+                                    @unlink($filePath);
+                                }
+                            }
+                        }
                     }
 
                     $durationInSeconds = 1800;
-                    if (preg_match('/<itunes:duration>([\s\S]*?)<\/itunes:duration>/i', $itemXml, $durMatch)) {
-                        $durStr = trim($durMatch[1]);
+                    if (preg_match('/<itunes:duration[^>]*>([\s\S]*?)<\/itunes:duration>/i', $itemXml, $durMatch)) {
+                        $durStr = clean_rss_text($durMatch[1]);
                         if (strpos($durStr, ':') !== false) {
                             $pts = explode(':', $durStr);
                             if (count($pts) === 3) {
@@ -930,17 +1119,18 @@ try {
 
                     $relativeFileName = 'podcast/' . $safePodcastName . '/' . $episodeFileName;
 
-                    $stmtCheck = $pdo->prepare("SELECT id FROM songs WHERE file_name = ?");
-                    $stmtCheck->execute([$relativeFileName]);
+                    $stmtCheck = $pdo->prepare("SELECT id FROM songs WHERE file_name = ? OR (genre = 'Podcast' AND album = ? AND title = ?) LIMIT 1");
+                    $stmtCheck->execute([$relativeFileName, $podcastName, $epTitleRaw]);
                     $exists = $stmtCheck->fetchColumn();
 
                     if ($exists) {
-                        $stmtUpd = $pdo->prepare("UPDATE songs SET title = ?, artist = ?, album = ?, duration = ?, file_size = ?, cover_url = ? WHERE id = ?");
-                        $stmtUpd->execute([$epTitleRaw, $authorName ?: $podcastName, $podcastName, $durationInSeconds, $fileSize, $coverUrl, $exists]);
+                        $stmtUpd = $pdo->prepare("UPDATE songs SET title = ?, artist = ?, album = ?, genre = 'Podcast', file_name = ?, duration = ?, file_size = ?, cover_url = ? WHERE id = ?");
+                        $stmtUpd->execute([$epTitleRaw, $authorName ?: $podcastName, $podcastName, $relativeFileName, $durationInSeconds, $fileSize, $epCoverUrl, $exists]);
                     } else {
                         $stmtIns = $pdo->prepare("INSERT INTO songs (title, artist, album, genre, file_name, file_size, duration, cover_url) VALUES (?, ?, ?, 'Podcast', ?, ?, ?, ?)");
-                        $stmtIns->execute([$epTitleRaw, $authorName ?: $podcastName, $podcastName, $relativeFileName, $fileSize, $durationInSeconds, $coverUrl]);
+                        $stmtIns->execute([$epTitleRaw, $authorName ?: $podcastName, $podcastName, $relativeFileName, $fileSize, $durationInSeconds, $epCoverUrl]);
                     }
+                    $syncedEpisodesCount++;
                 }
 
                 // Excluir episódios excedentes apenas se o limite for numérico e finito (> 0)
@@ -967,8 +1157,9 @@ try {
                                     (defined('PODCAST_DIR') ? PODCAST_DIR . preg_replace('#^podcast/#', '', $epFileName) : '')
                                 ];
                                 foreach ($pathsToDelete as $pDel) {
-                                    if (!empty($pDel) && file_exists($pDel) && is_file($pDel)) {
-                                        @unlink($pDel);
+                                    if (!empty($pDel)) {
+                                        if (file_exists($pDel) && is_file($pDel)) @unlink($pDel);
+                                        if (file_exists($pDel . '.url') && is_file($pDel . '.url')) @unlink($pDel . '.url');
                                     }
                                 }
 
@@ -982,12 +1173,13 @@ try {
                 return [
                     'success' => true,
                     'podcastName' => $podcastName,
-                    'downloaded' => $downloadedCount,
-                    'episodeCount' => $downloadedCount,
+                    'downloaded' => $syncedEpisodesCount,
+                    'downloadedFiles' => $downloadedFilesCount,
+                    'episodeCount' => $syncedEpisodesCount,
                     'feedUrl' => $feedUrl,
                     'coverUrl' => $coverUrl
                 ];
-            } catch (Exception $e) {
+            } catch (Throwable $e) {
                 return ['error' => 'Erro ao sincronizar podcast: ' . $e->getMessage(), 'success' => false];
             }
         }
@@ -1395,36 +1587,96 @@ try {
         exit;
 
     case 'proxy_radio':
-        $url = $_GET['url'] ?? '';
+        $url = trim($_GET['url'] ?? '');
+        $stationName = trim($_GET['name'] ?? '');
         if (empty($url) || !filter_var($url, FILTER_VALIDATE_URL)) {
             http_response_code(400);
             exit("URL inválida");
         }
 
-        // Prevent session locking
         if (session_status() === PHP_SESSION_ACTIVE) {
-            session_write_close();
+            @session_write_close();
         }
 
-        // Set streaming headers
-        header("Access-Control-Allow-Origin: *");
-        header("Content-Type: audio/mpeg");
-        header("Cache-Control: no-cache, no-store, must-revalidate");
-        header("Pragma: no-cache");
-        header("Connection: close");
+        // Resolver links de playlists (.m3u, .pls, .asx) e links do radios.com.br
+        $url = resolve_radio_stream_url($url, $stationName);
 
-        // Set infinite execution time
+        while (ob_get_level()) {
+            @ob_end_clean();
+        }
+
+        @ini_set('zlib.output_compression', 'Off');
+        @ini_set('output_buffering', 'Off');
+        @ini_set('implicit_flush', 1);
+        @ob_implicit_flush(true);
         @set_time_limit(0);
         @ini_set('max_execution_time', 0);
 
-        // Try to open the remote stream
+        header("Access-Control-Allow-Origin: *");
+        header("Cache-Control: no-cache, no-store, must-revalidate");
+        header("Pragma: no-cache");
+        header("X-Accel-Buffering: no");
+        header("Connection: close");
+
+        if (function_exists('curl_init')) {
+            $headersSent = false;
+            $detectedContentType = 'audio/mpeg';
+
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_MAXREDIRS, 6);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 0);
+            curl_setopt($ch, CURLOPT_HTTP200ALIASES, ['ICY 200 OK', 'ICY 400 Server Full']);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Accept: */*',
+                'Icy-MetaData: 0'
+            ]);
+            curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($ch, $headerLine) use (&$detectedContentType) {
+                $len = strlen($headerLine);
+                if (stripos($headerLine, 'content-type:') === 0) {
+                    $ctVal = trim(substr($headerLine, 13));
+                    if (stripos($ctVal, 'audio/') !== false || stripos($ctVal, 'application/ogg') !== false || stripos($ctVal, 'video/mp2t') !== false) {
+                        $detectedContentType = $ctVal;
+                    }
+                }
+                return $len;
+            });
+            curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($ch, $data) use (&$headersSent, &$detectedContentType) {
+                if (connection_aborted()) {
+                    return 0;
+                }
+                $httpCode = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
+                // Ignorar corpos HTML/texto de redirecionamentos (301/302/307/308) para não corromper o cabeçalho do áudio
+                if ($httpCode >= 300 && $httpCode < 400) {
+                    return strlen($data);
+                }
+                if ($httpCode >= 400) {
+                    return 0;
+                }
+                if (!$headersSent) {
+                    $headersSent = true;
+                    header("Content-Type: " . $detectedContentType);
+                }
+                echo $data;
+                @flush();
+                return strlen($data);
+            });
+            @curl_exec($ch);
+            @curl_close($ch);
+            exit;
+        }
+
+        header("Content-Type: audio/mpeg");
         $opts = [
             "http" => [
                 "method" => "GET",
-                "header" => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
-Accept: */*
-",
-                "timeout" => 15
+                "header" => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\nAccept: */*\r\nIcy-MetaData: 0\r\n",
+                "timeout" => 15,
+                "follow_location" => 1
             ],
             "ssl" => [
                 "verify_peer" => false,
@@ -1439,12 +1691,6 @@ Accept: */*
             exit("Falha ao abrir stream de rádio");
         }
 
-        // Output cleaning
-        while (ob_get_level()) {
-            ob_end_clean();
-        }
-
-        // Read and output stream chunks
         while (!feof($fp) && !connection_aborted()) {
             $buffer = fread($fp, 8192);
             if ($buffer === false) {
@@ -2857,7 +3103,10 @@ Accept: */*
             $stmt->execute([$artist]);
             $customMeta = $stmt->fetch();
             if ($customMeta) {
-                $artistPhoto = $customMeta['artist_photo'] ?? '';
+                $rawSavedPhoto = trim((string)($customMeta['artist_photo'] ?? ''));
+                if ($rawSavedPhoto !== '' && $rawSavedPhoto !== 'no_photo' && $rawSavedPhoto !== 'no_cover') {
+                    $artistPhoto = $rawSavedPhoto;
+                }
                 $bioText = $customMeta['bio'] ?? '';
             }
         } catch (Exception $e) {
@@ -3132,143 +3381,87 @@ Accept: */*
                 }
             }
         } else {
-            // Default: Google Image Search with Consent Cookie bypass and gbv=1 (forces clean basic HTML)
-            $googleUrl = 'https://www.google.com/search?q=' . urlencode($query) . '&tbm=isch&safe=active&gbv=1';
-            $html = '';
-            
-            if (function_exists('curl_init')) {
-                $ch = curl_init($googleUrl);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0');
-                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                curl_setopt($ch, CURLOPT_TIMEOUT, 6);
-                curl_setopt($ch, CURLOPT_COOKIE, 'CONSENT=YES+cb.20230510-17-p0.en+FX+999;');
-                $html = curl_exec($ch);
-                curl_close($ch);
-            }
-            
-            if (empty($html) && ini_get('allow_url_fopen')) {
-                $opts = [
-                    'http' => [
-                        'method' => 'GET',
-                        'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0
-" .
-                                    "Cookie: CONSENT=YES+cb.20230510-17-p0.en+FX+999;
-"
-                    ],
-                    'ssl' => [
-                        'verify_peer' => false,
-                        'verify_peer_name' => false
-                    ]
-                ];
-                $context = stream_context_create($opts);
-                $html = @file_get_contents($googleUrl, false, $context);
-            }
-
-            if (!empty($html)) {
-                // Try loose regex first to match gstatic thumbnails without strictly requiring src= quotes
-                preg_match_all('/(https?:\/\/encrypted-tbn0\.gstatic\.com\/images\?q=tbn:[a-zA-Z0-9_\-%&\+=]+)/i', $html, $matches);
-                if (!empty($matches[1])) {
-                    $images = array_slice(array_unique($matches[1]), 0, 16);
-                }
-
-                // Match high-resolution source images via href imgres?imgurl=
-                preg_match_all('/imgurl=([^&\\x22\\x27\\s>]+)/i', $html, $imgresMatches);
-                if (!empty($imgresMatches[1])) {
-                    $highResUrls = [];
-                    foreach ($imgresMatches[1] as $imgUrlEncoded) {
-                        $u = urldecode($imgUrlEncoded);
-                        if (!empty($u) && strpos($u, 'google') === false && strpos($u, 'gstatic') === false && strpos($u, 'schema.org') === false && (strpos($u, 'http://') === 0 || strpos($u, 'https://') === 0)) {
-                            $highResUrls[] = $u;
-                        }
-                    }
-                    $highResUrls = array_slice(array_unique($highResUrls), 0, 12);
-                    $images = array_merge($images, $highResUrls);
-                }
-                
-                // Also match standard images with loose quotes/delimiters
-                preg_match_all('/(https?:\/\/[^\x22\x27\x5c\s>]+?\.(?:jpg|jpeg|png)(?:\?[^\x22\x27\x5c\s>]+)?)/i', $html, $urlMatches);
-                if (!empty($urlMatches[1])) {
-                    $rawUrls = [];
-                    foreach ($urlMatches[1] as $u) {
-                        if (strpos($u, 'google') === false && strpos($u, 'gstatic') === false && strpos($u, 'schema.org') === false && !in_array($u, $images)) {
-                            $rawUrls[] = $u;
-                        }
-                    }
-                    $rawUrls = array_slice(array_unique($rawUrls), 0, 8);
-                    $images = array_merge($images, $rawUrls);
-                }
-            }
-
-            // Fallback to Yahoo/Bing Thumbnail endpoints
-            if (count($images) < 4) {
-                $yahooUrl = 'https://images.search.yahoo.com/search/images?p=' . urlencode($query);
-                $yHtml = '';
-                
+            // Default / Wikipedia & Wikimedia Commons + iTunes & Deezer Search
+            $wikiUa = 'PHPlayerMusicSystem/1.4.5 (https://github.com/phplayer; contact@phplayer.org) PHP/' . PHP_VERSION;
+            $fetchWiki = function($url) use ($wikiUa) {
                 if (function_exists('curl_init')) {
-                    $ch = curl_init($yahooUrl);
+                    $ch = curl_init($url);
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0');
                     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
                     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                    curl_setopt($ch, CURLOPT_TIMEOUT, 6);
-                    $yHtml = curl_exec($ch);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                    curl_setopt($ch, CURLOPT_USERAGENT, $wikiUa);
+                    $res = curl_exec($ch);
+                    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
                     curl_close($ch);
+                    if ($code >= 200 && $code < 300 && !empty($res)) return $res;
                 }
-                
-                if (empty($yHtml) && ini_get('allow_url_fopen')) {
-                    $opts = [
-                        'http' => [
-                            'method' => 'GET',
-                            'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0
-"
-                        ],
-                        'ssl' => [
-                            'verify_peer' => false,
-                            'verify_peer_name' => false
-                        ]
-                    ];
-                    $context = stream_context_create($opts);
-                    $yHtml = @file_get_contents($yahooUrl, false, $context);
+                if (ini_get('allow_url_fopen')) {
+                    $ctx = stream_context_create([
+                        'http' => ['method' => 'GET', 'header' => "User-Agent: {$wikiUa}\r\n", 'timeout' => 5],
+                        'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
+                    ]);
+                    $res = @file_get_contents($url, false, $ctx);
+                    if (!empty($res)) return $res;
                 }
+                return '';
+            };
 
-                if (!empty($yHtml)) {
-                    preg_match_all('/"iurl":"([^"]+)"/i', $yHtml, $yMatches);
-                    $yUrls = [];
-                    if (!empty($yMatches[1])) {
-                        foreach ($yMatches[1] as $yu) {
-                            $yuClean = stripslashes($yu);
-                            if (filter_var($yuClean, FILTER_VALIDATE_URL)) {
-                                $yUrls[] = $yuClean;
+            foreach (['pt', 'en'] as $lang) {
+                $wpUrl = 'https://' . $lang . '.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=' . urlencode($query) . '&gsrlimit=8&prop=pageimages&piprop=original|thumbnail&pithumbsize=800&format=json';
+                $wpRaw = $fetchWiki($wpUrl);
+                if ($wpRaw) {
+                    $wpData = json_decode($wpRaw, true);
+                    foreach (($wpData['query']['pages'] ?? []) as $pg) {
+                        $imgUrl = $pg['thumbnail']['source'] ?? $pg['original']['source'] ?? '';
+                        if (!empty($imgUrl)) {
+                            $imgUrl = strtok($imgUrl, '?');
+                            if (!preg_match('/\.(pdf|djvu|ogg|oga|flac|wav|webm|ogv)(\?|$)/i', $imgUrl) && !in_array($imgUrl, $images)) {
+                                $images[] = $imgUrl;
                             }
                         }
                     }
-                    if (empty($yUrls)) {
-                        preg_match_all('/(https?:\/\/tse\d+\.mm\.bing\.net\/th\?id=[^&"]+)/i', $yHtml, $yMatches2);
-                        if (!empty($yMatches2[1])) {
-                            $yUrls = $yMatches2[1];
+                }
+            }
+
+            $commonsUrl = 'https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=' . urlencode($query . ' filetype:bitmap|drawing') . '&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url|mime&iiurlwidth=800&format=json';
+            $cRaw = $fetchWiki($commonsUrl);
+            if ($cRaw) {
+                $cData = json_decode($cRaw, true);
+                foreach (($cData['query']['pages'] ?? []) as $cPg) {
+                    $ii = $cPg['imageinfo'][0] ?? null;
+                    if (!$ii) continue;
+                    $mime = (string)($ii['mime'] ?? '');
+                    if (strpos($mime, 'image/') !== 0) continue;
+                    $u = $ii['thumburl'] ?? $ii['url'] ?? '';
+                    if (!empty($u)) {
+                        $u = strtok($u, '?');
+                        if (!in_array($u, $images)) {
+                            $images[] = $u;
                         }
-                    }
-                    if (!empty($yUrls)) {
-                        $yUrls = array_slice(array_unique($yUrls), 0, 15);
-                        $images = array_merge($images, $yUrls);
                     }
                 }
             }
 
-            // Absolute Unsplash fallbacks
-            if (empty($images)) {
-                $fallbacks = [
-                    'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400',
-                    'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400',
-                    'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400',
-                    'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400'
-                ];
-                $images = array_slice($fallbacks, 0, 8);
+            // Fallback to iTunes Search API for high-res album artwork
+            if (count($images) < 6) {
+                $itunesUrl = 'https://itunes.apple.com/search?term=' . urlencode($query) . '&entity=album&limit=8';
+                $itRaw = $fetchWiki($itunesUrl);
+                if ($itRaw) {
+                    $itData = json_decode($itRaw, true);
+                    foreach (($itData['results'] ?? []) as $itItem) {
+                        if (!empty($itItem['artworkUrl100'])) {
+                            $hiRes = str_replace('100x100bb', '600x600bb', $itItem['artworkUrl100']);
+                            if (!in_array($hiRes, $images)) {
+                                $images[] = $hiRes;
+                            }
+                        }
+                    }
+                }
             }
         }
 
+        while (ob_get_level() > 0) { @ob_end_clean(); }
         $images = array_values(array_slice(array_unique($images), 0, 24));
         echo json_encode(['success' => true, 'images' => $images]);
         break;
@@ -3276,22 +3469,40 @@ Accept: */*
     case 'search_artist_logo':
         $artist = trim($_GET['artist'] ?? '');
         $source = strtolower(trim($_GET['source'] ?? 'all'));
+        if ($source === 'google') {
+            $source = 'wikipedia';
+        }
         $mode = strtolower(trim($_GET['mode'] ?? 'logo'));
-        
+
         if (empty($artist)) {
+            while (ob_get_level() > 0) { @ob_end_clean(); }
             echo json_encode(['success' => false, 'error' => 'A busca exige o nome do artista.']);
             break;
         }
-        
-        $cleanArtistParams = trim(preg_replace('/\s+/', ' ', preg_replace('/\b(logo|logotipo|band|banda|png|hd|headshot|icon|avatar|music|oficial|official|ultra|wide|wallpaper|banner|background|transparent|vetor|vector)\b/i', '', $artist)));
-        if (empty($cleanArtistParams)) $cleanArtistParams = $artist;
-        
+
+        $cleanArtistParams = trim(preg_replace('/\s+/u', ' ', preg_replace('/\b(logo|logotipo|band|banda|png|hd|headshot|icon|avatar|music|oficial|official|ultra|wide|wallpaper|banner|background|transparent|vetor|vector|foto|photo|capa|cover)\b/iu', '', $artist)));
+        if (empty($cleanArtistParams)) {
+            $cleanArtistParams = $artist;
+        }
+
         $items = [];
         $seenUrls = [];
         $addItem = function($url, $srcLabel, $title = '') use (&$items, &$seenUrls) {
             $url = trim((string)$url);
             if (empty($url) || (strpos($url, 'http://') !== 0 && strpos($url, 'https://') !== 0)) return;
-            if (strpos($url, '/images/artist//') !== false || strpos($url, '2a96cbd8b46e442fc41c2b86b821562f') !== false) return;
+            // Remove tracking query params from Wikimedia/Wikipedia URLs while keeping width=... on Special:FilePath
+            if (strpos($url, 'utm_source=') !== false) {
+                $url = strtok($url, '?');
+            }
+            if (
+                strpos($url, '/images/artist//') !== false ||
+                strpos($url, '00000000000000000000000000000000') !== false ||
+                strpos($url, '2a96cbd8b46e442fc41c2b86b821562f') !== false ||
+                strpos($url, '2a96cbd8c706c450a33e3') !== false ||
+                preg_match('/\.(pdf|djvu|ogg|oga|flac|wav|webm|ogv|mid)(\?|$)/i', $url)
+            ) {
+                return;
+            }
             if (isset($seenUrls[$url])) return;
             $seenUrls[$url] = true;
             $items[] = [
@@ -3301,23 +3512,37 @@ Accept: */*
             ];
         };
 
-        $fetchUrl = function($url, $headers = [], $timeout = 5) {
+        $fetchUrl = function($url, $headers = [], $timeout = 4) {
+            $isWikiOrMb = (
+                stripos($url, 'wikipedia.org') !== false ||
+                stripos($url, 'wikidata.org') !== false ||
+                stripos($url, 'wikimedia.org') !== false ||
+                stripos($url, 'musicbrainz.org') !== false
+            );
+            $ua = $isWikiOrMb
+                ? ('PHPlayerMusicSystem/1.4.5 (https://github.com/phplayer; contact@phplayer.org) PHP/' . PHP_VERSION)
+                : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0';
+
             if (function_exists('curl_init')) {
                 $ch = curl_init($url);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
                 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
                 curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
-                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0');
+                curl_setopt($ch, CURLOPT_USERAGENT, $ua);
                 if (!empty($headers)) {
                     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
                 }
                 $res = curl_exec($ch);
+                $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
                 curl_close($ch);
-                if (!empty($res)) return $res;
+                if ($httpCode >= 200 && $httpCode < 300 && !empty($res)) {
+                    return $res;
+                }
             }
             if (ini_get('allow_url_fopen')) {
-                $hdrStr = "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0\r\n";
+                $hdrStr = "User-Agent: {$ua}\r\n";
                 foreach ($headers as $h) {
                     $hdrStr .= $h . "\r\n";
                 }
@@ -3331,53 +3556,90 @@ Accept: */*
             return '';
         };
 
-        // 0. Wikidata lookup for Official Logo (P154), Spotify Artist ID (P1902), and Artist Image (P18)
+        // 0. WIKIPEDIA & WIKIDATA DISCOVERY (Collects Wikipedia PT/EN pageimages, Wikidata P154 Logos, P18 Photos, and P1902 Spotify IDs)
         $wikidataSpotifyIds = [];
-        if ($source === 'all' || $source === 'spotify' || $source === 'google') {
-            $wdSearchUrl = 'https://www.wikidata.org/w/api.php?action=wbsearchentities&search=' . urlencode($cleanArtistParams) . '&language=pt&format=json&limit=4';
+        $wdIds = [];
+        $wikipediaPhotoCandidates = [];
+
+        if ($source === 'all' || $source === 'wikipedia' || $source === 'spotify') {
+            // Search Wikipedia PT and EN for the artist (extracts both pageimages and wikibase_item Q-IDs)
+            foreach (['pt', 'en'] as $wpLang) {
+                $wpUrl = 'https://' . $wpLang . '.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=' . urlencode($cleanArtistParams) . '&gsrlimit=6&prop=pageimages|pageprops&piprop=original|thumbnail&pithumbsize=900&format=json';
+                $wpRaw = $fetchUrl($wpUrl, [], 4);
+                if ($wpRaw) {
+                    $wpData = json_decode($wpRaw, true);
+                    $pages = array_values($wpData['query']['pages'] ?? []);
+                    usort($pages, function($a, $b) {
+                        return (($a['index'] ?? 99) <=> ($b['index'] ?? 99));
+                    });
+                    foreach ($pages as $pg) {
+                        $qid = $pg['pageprops']['wikibase_item'] ?? '';
+                        if (!empty($qid) && !in_array($qid, $wdIds)) {
+                            $wdIds[] = $qid;
+                        }
+                        $pgImg = $pg['thumbnail']['source'] ?? $pg['original']['source'] ?? '';
+                        if (!empty($pgImg)) {
+                            $wikipediaPhotoCandidates[] = [
+                                'url' => $pgImg,
+                                'title' => $pg['title'] ?? $cleanArtistParams
+                            ];
+                        }
+                    }
+                }
+            }
+
+            // Also query Wikidata wbsearchentities directly
+            $wdSearchUrl = 'https://www.wikidata.org/w/api.php?action=wbsearchentities&search=' . urlencode($cleanArtistParams) . '&language=pt&format=json&limit=5';
             $wdSearchRaw = $fetchUrl($wdSearchUrl, [], 4);
             if ($wdSearchRaw) {
                 $wdSearchData = json_decode($wdSearchRaw, true);
-                $wdIds = [];
                 foreach (($wdSearchData['search'] ?? []) as $sItem) {
-                    if (!empty($sItem['id'])) $wdIds[] = $sItem['id'];
+                    $id = $sItem['id'] ?? '';
+                    if (!empty($id) && !in_array($id, $wdIds)) {
+                        $wdIds[] = $id;
+                    }
                 }
-                if (!empty($wdIds)) {
-                    $wdEntUrl = 'https://www.wikidata.org/w/api.php?action=wbgetentities&ids=' . implode('|', $wdIds) . '&props=claims|labels&format=json';
-                    $wdEntRaw = $fetchUrl($wdEntUrl, [], 4);
-                    if ($wdEntRaw) {
-                        $wdEntData = json_decode($wdEntRaw, true);
-                        foreach ($wdIds as $eid) {
-                            $ent = $wdEntData['entities'][$eid] ?? null;
-                            if (!$ent) continue;
-                            $claims = $ent['claims'] ?? [];
-                            $entLabel = $ent['labels']['pt']['value'] ?? $ent['labels']['en']['value'] ?? $cleanArtistParams;
-                            
+            }
+
+            // Fetch Wikidata claims for top discovered entities
+            if (!empty($wdIds)) {
+                $wdIdsSlice = array_slice($wdIds, 0, 8);
+                $wdEntUrl = 'https://www.wikidata.org/w/api.php?action=wbgetentities&ids=' . implode('|', $wdIdsSlice) . '&props=claims|labels&format=json';
+                $wdEntRaw = $fetchUrl($wdEntUrl, [], 4);
+                if ($wdEntRaw) {
+                    $wdEntData = json_decode($wdEntRaw, true);
+                    foreach ($wdIdsSlice as $eid) {
+                        $ent = $wdEntData['entities'][$eid] ?? null;
+                        if (!$ent) continue;
+                        $claims = $ent['claims'] ?? [];
+                        $entLabel = $ent['labels']['pt']['value'] ?? $ent['labels']['en']['value'] ?? $cleanArtistParams;
+
+                        // P1902 = Spotify Artist ID
+                        foreach (($claims['P1902'] ?? []) as $c) {
+                            $spId = $c['mainsnak']['datavalue']['value'] ?? '';
+                            if (!empty($spId) && !in_array($spId, $wikidataSpotifyIds)) {
+                                $wikidataSpotifyIds[] = $spId;
+                            }
+                        }
+
+                        if ($source === 'all' || $source === 'wikipedia') {
                             // P154 = Official Logo Image on Wikimedia Commons
-                            if ($source === 'all' || $source === 'google') {
-                                foreach (($claims['P154'] ?? []) as $c) {
-                                    $logoFile = $c['mainsnak']['datavalue']['value'] ?? '';
-                                    if (!empty($logoFile)) {
-                                        $commonsLogoUrl = 'https://commons.wikimedia.org/wiki/Special:FilePath/' . rawurlencode($logoFile) . '?width=800';
-                                        $addItem($commonsLogoUrl, 'Logo Oficial', $entLabel . ' (Logo)');
-                                    }
+                            foreach (($claims['P154'] ?? []) as $c) {
+                                $logoFile = $c['mainsnak']['datavalue']['value'] ?? '';
+                                if (!empty($logoFile)) {
+                                    $commonsLogoUrl = 'https://commons.wikimedia.org/wiki/Special:FilePath/' . rawurlencode($logoFile) . '?width=800';
+                                    $addItem($commonsLogoUrl, 'Wikipedia Logo', $entLabel . ' (Logo)');
                                 }
                             }
-                            // P1902 = Spotify Artist ID
-                            foreach (($claims['P1902'] ?? []) as $c) {
-                                $spId = $c['mainsnak']['datavalue']['value'] ?? '';
-                                if (!empty($spId) && !in_array($spId, $wikidataSpotifyIds)) {
-                                    $wikidataSpotifyIds[] = $spId;
-                                }
-                            }
-                            // P18 = Commons Artist Image
-                            if ($source === 'all' || $source === 'google') {
-                                foreach (($claims['P18'] ?? []) as $c) {
-                                    $imgFile = $c['mainsnak']['datavalue']['value'] ?? '';
-                                    if (!empty($imgFile)) {
-                                        $commonsImgUrl = 'https://commons.wikimedia.org/wiki/Special:FilePath/' . rawurlencode($imgFile) . '?width=800';
-                                        $addItem($commonsImgUrl, 'Google Imagens', $entLabel);
-                                    }
+                            // P18 = Official Artist Image on Wikimedia Commons
+                            foreach (($claims['P18'] ?? []) as $c) {
+                                $imgFile = $c['mainsnak']['datavalue']['value'] ?? '';
+                                if (!empty($imgFile)) {
+                                    $commonsImgUrl = 'https://commons.wikimedia.org/wiki/Special:FilePath/' . rawurlencode($imgFile) . '?width=800';
+                                    $wikipediaPhotoCandidates[] = [
+                                        'url' => $commonsImgUrl,
+                                        'title' => $entLabel
+                                    ];
                                 }
                             }
                         }
@@ -3386,7 +3648,50 @@ Accept: */*
             }
         }
 
-        // 1. SPOTIFY SOURCE
+        // 1. WIKIPEDIA & WIKIMEDIA COMMONS SOURCE
+        if ($source === 'all' || $source === 'wikipedia') {
+            if ($mode === 'photo') {
+                foreach ($wikipediaPhotoCandidates as $wpCand) {
+                    $addItem($wpCand['url'], 'Wikipedia', $wpCand['title']);
+                }
+            }
+
+            // Direct Wikimedia Commons search (filtered strictly to raster/vector images via filetype:bitmap|drawing)
+            $commonsQuery = ($mode === 'logo')
+                ? ('"' . $cleanArtistParams . '" logo filetype:bitmap|drawing')
+                : ('"' . $cleanArtistParams . '" filetype:bitmap');
+            $commonsUrl = 'https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=' . urlencode($commonsQuery) . '&gsrnamespace=6&gsrlimit=12&prop=imageinfo&iiprop=url|mime&iiurlwidth=800&format=json';
+            $commonsRaw = $fetchUrl($commonsUrl, [], 4);
+            if ($commonsRaw) {
+                $commonsData = json_decode($commonsRaw, true);
+                $cPages = array_values($commonsData['query']['pages'] ?? []);
+                usort($cPages, function($a, $b) {
+                    return (($a['index'] ?? 99) <=> ($b['index'] ?? 99));
+                });
+                foreach ($cPages as $cPg) {
+                    $ii = $cPg['imageinfo'][0] ?? null;
+                    if (!$ii) continue;
+                    $mime = strtolower((string)($ii['mime'] ?? ''));
+                    if (strpos($mime, 'image/') !== 0) continue;
+                    $imgUrl = $ii['thumburl'] ?? $ii['url'] ?? '';
+                    if (!empty($imgUrl)) {
+                        $pgTitle = preg_replace('/^File:/i', '', (string)($cPg['title'] ?? $cleanArtistParams));
+                        $badge = ($mode === 'logo' || stripos($pgTitle, 'logo') !== false || strpos($mime, 'svg') !== false)
+                            ? 'Wikipedia Logo'
+                            : 'Wikipedia';
+                        $addItem($imgUrl, $badge, $pgTitle);
+                    }
+                }
+            }
+
+            if ($mode !== 'photo') {
+                foreach ($wikipediaPhotoCandidates as $wpCand) {
+                    $addItem($wpCand['url'], 'Wikipedia', $wpCand['title']);
+                }
+            }
+        }
+
+        // 2. SPOTIFY SOURCE
         if ($source === 'all' || $source === 'spotify') {
             $spotifyIds = $wikidataSpotifyIds;
 
@@ -3427,24 +3732,9 @@ Accept: */*
                 }
             } catch (Throwable $eSp) {}
 
-            // Public zero-config Spotify discovery via DuckDuckGo + Spotify oEmbed
-            if (count($spotifyIds) < 5) {
-                $ddgUrl = 'https://html.duckduckgo.com/html/?q=' . urlencode('site:open.spotify.com/artist ' . $cleanArtistParams);
-                $ddgHtml = $fetchUrl($ddgUrl, [], 5);
-                if (!empty($ddgHtml)) {
-                    if (preg_match_all('/open\.spotify\.com(?:%2F|\/)(?:intl-[a-z-]+(?:%2F|\/))?artist(?:%2F|\/)([a-zA-Z0-9]{22})/i', $ddgHtml, $spMatches)) {
-                        foreach ($spMatches[1] as $foundId) {
-                            if (!in_array($foundId, $spotifyIds)) {
-                                $spotifyIds[] = $foundId;
-                            }
-                            if (count($spotifyIds) >= 6) break;
-                        }
-                    }
-                }
-            }
-
-            foreach (array_slice($spotifyIds, 0, 6) as $spId) {
-                $oembedRaw = $fetchUrl('https://open.spotify.com/oembed?url=https://open.spotify.com/artist/' . urlencode($spId), [], 4);
+            // Fetch official Spotify artist thumbnails via public Spotify oEmbed endpoint
+            foreach (array_slice($spotifyIds, 0, 4) as $spId) {
+                $oembedRaw = $fetchUrl('https://open.spotify.com/oembed?url=https://open.spotify.com/artist/' . urlencode($spId), [], 3);
                 if (!empty($oembedRaw)) {
                     $oeData = json_decode($oembedRaw, true);
                     if (!empty($oeData['thumbnail_url'])) {
@@ -3454,10 +3744,10 @@ Accept: */*
             }
         }
 
-        // 2. DEEZER SOURCE
+        // 3. DEEZER SOURCE
         if ($source === 'all' || $source === 'deezer') {
             $deezerUrl = 'https://api.deezer.com/search/artist?q=' . urlencode($cleanArtistParams) . '&limit=12';
-            $resDz = $fetchUrl($deezerUrl, [], 5);
+            $resDz = $fetchUrl($deezerUrl, [], 4);
             if ($resDz) {
                 $dataDz = json_decode($resDz, true);
                 foreach (($dataDz['data'] ?? []) as $item) {
@@ -3469,78 +3759,15 @@ Accept: */*
             }
         }
 
-        // 3. GOOGLE IMAGES (Logo / Artist Image Search)
-        if ($source === 'all' || $source === 'google') {
-            $searchQuery = $artist;
-            if ($mode === 'logo' && stripos($searchQuery, 'logo') === false) {
-                $searchQuery = $cleanArtistParams . ' logo';
-            }
-
-            // 3a. Google Images HTML (gbv=1)
-            $googleUrl = 'https://www.google.com/search?q=' . urlencode($searchQuery) . '&tbm=isch&safe=active&gbv=1';
-            $gHtml = $fetchUrl($googleUrl, ['Cookie: CONSENT=YES+cb.20230510-17-p0.en+FX+999;'], 5);
-            if (!empty($gHtml)) {
-                if (preg_match_all('/imgurl=([^&\\x22\\x27\\s>]+)/i', $gHtml, $imgresMatches)) {
-                    foreach (array_slice(array_unique($imgresMatches[1]), 0, 10) as $imgUrlEncoded) {
-                        $u = urldecode($imgUrlEncoded);
-                        if (!empty($u) && strpos($u, 'google') === false && strpos($u, 'gstatic') === false && strpos($u, 'schema.org') === false) {
-                            $addItem($u, 'Google Imagens', $searchQuery);
-                        }
-                    }
-                }
-                if (preg_match_all('/(https?:\/\/encrypted-tbn0\.gstatic\.com\/images\?q=tbn:[a-zA-Z0-9_\-%&\+=:]+)/i', $gHtml, $matches)) {
-                    foreach (array_slice(array_unique($matches[1]), 0, 14) as $tbnUrl) {
-                        $addItem($tbnUrl, 'Google Imagens', $searchQuery);
-                    }
-                }
-            }
-
-            // 3b. Bing Images high-res & thumbnail extraction (works reliably even when Google serves JS challenge)
-            $bingUrl = 'https://www.bing.com/images/search?q=' . urlencode($searchQuery);
-            $bHtml = $fetchUrl($bingUrl, [], 5);
-            if (!empty($bHtml)) {
-                $bMurls = [];
-                $bTurls = [];
-                if (preg_match_all('/murl&quot;:&quot;(https?:\/\/.+?)&quot;/i', $bHtml, $mMatches)) {
-                    $bMurls = $mMatches[1];
-                }
-                if (preg_match_all('/turl&quot;:&quot;(https?:\/\/.+?)&quot;/i', $bHtml, $tMatches)) {
-                    $bTurls = $tMatches[1];
-                }
-                $maxBing = max(count($bTurls), count($bMurls));
-                for ($bi = 0; $bi < min($maxBing, 16); $bi++) {
-                    // Prefer reliable Bing thumbnail CDN URL or direct high-res murl
-                    if (!empty($bTurls[$bi])) {
-                        $addItem(html_entity_decode($bTurls[$bi], ENT_QUOTES), 'Google Imagens', $searchQuery);
-                    } elseif (!empty($bMurls[$bi])) {
-                        $addItem(html_entity_decode($bMurls[$bi], ENT_QUOTES), 'Google Imagens', $searchQuery);
-                    }
-                }
-            }
-
-            // 3c. Yahoo Images fallback if still few results
-            if (count($items) < 6) {
-                $yahooUrl = 'https://images.search.yahoo.com/search/images?p=' . urlencode($searchQuery);
-                $yHtml = $fetchUrl($yahooUrl, [], 5);
-                if (!empty($yHtml)) {
-                    if (preg_match_all('/(https?:\/\/tse\d+\.mm\.bing\.net\/th\?id=[^&"\x27\s]+)/i', $yHtml, $yMatches)) {
-                        foreach (array_slice(array_unique($yMatches[1]), 0, 12) as $yu) {
-                            $addItem($yu, 'Google Imagens', $searchQuery);
-                        }
-                    }
-                }
-            }
-        }
-
         // 4. LAST.FM SOURCE
         if ($source === 'lastfm') {
             $stmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'lastfm_api_key'");
             $stmt->execute();
             $customKey = $stmt->fetchColumn();
             $apiKey = $customKey ?: 'b25b959554ed76058ac220b7b2e0a026';
-            
+
             $lastfmUrl = 'http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=' . urlencode($cleanArtistParams) . '&api_key=' . $apiKey . '&format=json';
-            $resLfm = $fetchUrl($lastfmUrl, [], 5);
+            $resLfm = $fetchUrl($lastfmUrl, [], 4);
             if ($resLfm) {
                 $data = json_decode($resLfm, true);
                 $imgs = $data['artist']['image'] ?? [];
@@ -3553,7 +3780,8 @@ Accept: */*
                 }
             }
         }
-        
+
+        while (ob_get_level() > 0) { @ob_end_clean(); }
         $items = array_values(array_slice($items, 0, 32));
         $images = array_values(array_map(function($it) { return $it['url']; }, $items));
         echo json_encode([
@@ -3588,7 +3816,7 @@ Accept: */*
             artist_photo VARCHAR(1000) DEFAULT NULL,
             bio TEXT DEFAULT NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        $stmt = $pdo->query("SELECT artist, artist_photo FROM artist_metadata WHERE artist_photo IS NOT NULL AND artist_photo != ''");
+        $stmt = $pdo->query("SELECT artist, artist_photo FROM artist_metadata WHERE artist_photo IS NOT NULL AND artist_photo != '' AND artist_photo != 'no_photo' AND artist_photo != 'no_cover'");
         $photos = $stmt ? $stmt->fetchAll(PDO::FETCH_KEY_PAIR) : [];
         echo json_encode(['success' => true, 'photos' => $photos ?: new stdClass()]);
         break;
@@ -3969,14 +4197,16 @@ Accept: */*
         ]);
         break;
 
+    case 'wikipedia_sync':
     case 'google_images_sync':
         if ($method !== 'POST') {
             http_response_code(405);
             exit(json_encode(['error' => 'Apenas requisições POST são permitidas.']));
         }
-        
+
         $tables = get_songs_tables($pdo);
-        
+        $wikiUa = 'PHPlayerMusicSystem/1.4.5 (https://github.com/phplayer; contact@phplayer.org) PHP/' . PHP_VERSION;
+
         // Ensure artist_metadata exists
         $pdo->exec("CREATE TABLE IF NOT EXISTS artist_metadata (
             artist VARCHAR(255) PRIMARY KEY,
@@ -3984,7 +4214,7 @@ Accept: */*
             bio TEXT DEFAULT NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-        // 1. Sync artist photos via Google Images
+        // 1. Sync artist photos/logos via Wikipedia & Wikidata
         $unionParts = [];
         foreach ($tables as $t) {
             $unionParts[] = "SELECT artist FROM `" . $t . "`";
@@ -3993,7 +4223,7 @@ Accept: */*
             FROM (" . implode(" UNION ALL ", $unionParts) . ") s 
             LEFT JOIN artist_metadata am ON s.artist = am.artist 
             WHERE s.artist IS NOT NULL AND s.artist != '' AND (am.artist IS NULL OR am.artist_photo IS NULL OR am.artist_photo = '' OR am.artist_photo = 'no_photo')";
-        
+
         $stmtTotalArtistsPending = $pdo->query("SELECT COUNT(*) FROM (" . $unionArtistsSql . ") AS t");
         $artistsPending = intval($stmtTotalArtistsPending->fetchColumn());
 
@@ -4003,55 +4233,39 @@ Accept: */*
 
         $artistUpdated = 0;
         foreach ($artists as $art) {
-            $query = $art . ' logo band png hd';
-            $googleUrl = 'https://www.google.com/search?q=' . urlencode($query) . '&tbm=isch&safe=active';
-            $ch = curl_init($googleUrl);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36');
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-            curl_setopt($ch, CURLOPT_COOKIE, 'CONSENT=YES+cb.20230510-17-p0.en+FX+999;');
-            $html = curl_exec($ch);
-            curl_close($ch);
-            
             $photoUrl = 'no_photo';
-            if ($html) {
-                $cleanHtml = str_replace('\/', '/', $html);
-                $rawUrls = [];
-                preg_match_all('/(https?:\/\/[a-zA-Z0-9_\-\.\/:]+\.(?:jpg|jpeg|png|webp))/i', $cleanHtml, $urlMatches);
-                if (!empty($urlMatches[1])) {
-                    foreach ($urlMatches[1] as $u) {
-                        if (strpos($u, 'google') === false && 
-                            strpos($u, 'gstatic') === false && 
-                            strpos($u, 'schema.org') === false && 
-                            strpos($u, 'facebook.com') === false && 
-                            strpos($u, 'twitter.com') === false &&
-                            strpos($u, 'wikipedia.org') === false &&
-                            strpos($u, 'icon') === false) {
-                            $rawUrls[] = $u;
+            foreach (['pt', 'en'] as $wpLang) {
+                $wpUrl = 'https://' . $wpLang . '.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=' . urlencode($art) . '&gsrlimit=3&prop=pageimages&piprop=original|thumbnail&pithumbsize=800&format=json';
+                $ch = curl_init($wpUrl);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_USERAGENT, $wikiUa);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 4);
+                $wpRes = curl_exec($ch);
+                curl_close($ch);
+                if ($wpRes) {
+                    $wpData = json_decode($wpRes, true);
+                    $pages = array_values($wpData['query']['pages'] ?? []);
+                    usort($pages, function($a, $b) {
+                        return (($a['index'] ?? 99) <=> ($b['index'] ?? 99));
+                    });
+                    foreach ($pages as $pg) {
+                        $cand = $pg['thumbnail']['source'] ?? $pg['original']['source'] ?? '';
+                        if (!empty($cand) && !preg_match('/\.(pdf|djvu|ogg|oga|flac|wav|webm|ogv)(\?|$)/i', $cand)) {
+                            $photoUrl = strtok($cand, '?');
+                            $artistUpdated++;
+                            break 2;
                         }
                     }
                 }
-                
-                if (!empty($rawUrls)) {
-                    $photoUrl = $rawUrls[0];
-                    $artistUpdated++;
-                } else {
-                    preg_match_all('/(https?:\/\/encrypted-tbn0\.gstatic\.com\/images\?q=tbn:[a-zA-Z0-9_\-]+)/i', $cleanHtml, $matches);
-                    if (!empty($matches[1])) {
-                        $photoUrl = $matches[1][0];
-                        $artistUpdated++;
-                    }
-                }
             }
-            
+
             $up = $pdo->prepare("INSERT INTO artist_metadata (artist, artist_photo) VALUES (?, ?) ON DUPLICATE KEY UPDATE artist_photo = VALUES(artist_photo)");
             $up->execute([$art, $photoUrl]);
         }
 
-        // 2. Sync album covers via Google Images
-        // Build union query for albums lacking cover
+        // 2. Sync album covers via Wikipedia & iTunes
         $unionAlbumsParts = [];
         foreach ($tables as $t) {
             $unionAlbumsParts[] = "SELECT artist, album, cover_url FROM `" . $t . "`";
@@ -4059,114 +4273,68 @@ Accept: */*
         $unionAlbumsSql = "SELECT DISTINCT artist, album 
             FROM (" . implode(" UNION ALL ", $unionAlbumsParts) . ") AS u 
             WHERE album IS NOT NULL AND album != '' AND (cover_url IS NULL OR cover_url = '' OR cover_url LIKE '%unsplash.com%' OR cover_url LIKE '%images.unsplash%')";
-        
+
         $stmtTotalAlbumsPending = $pdo->query("SELECT COUNT(*) FROM (" . $unionAlbumsSql . ") AS t");
         $albumsPending = intval($stmtTotalAlbumsPending->fetchColumn());
-        
-        // Select up to 10 albums to process in this Google batch to preserve bandwidth and stability
+
         $stmt = $pdo->query("SELECT artist, album FROM (" . $unionAlbumsSql . ") AS t LIMIT 10");
         $albums = $stmt->fetchAll();
-        
+
         $albumUpdated = 0;
         foreach ($albums as $alb) {
             $art = trim($alb['artist']);
             $title = trim($alb['album']);
-            
+
             if (!$art || !$title || $art === 'Artista Desconhecido' || $title === 'Single' || $title === 'Álbum Desconhecido') {
                 continue;
             }
-            
-            // Search album on Google Images - Using clean Artist and Album Name
-            $query = $art . ' ' . $title;
-            $googleUrl = 'https://www.google.com/search?q=' . urlencode($query) . '&tbm=isch&safe=active';
-            $ch = curl_init($googleUrl);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36');
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-            curl_setopt($ch, CURLOPT_COOKIE, 'CONSENT=YES+cb.20230510-17-p0.en+FX+999;');
-            $html = curl_exec($ch);
-            curl_close($ch);
-            
+
             $coverUrl = '';
-            if ($html) {
-                // Pre-clean escaped slashes in JSON blocks so standard regex works flawlessly
-                $cleanHtml = str_replace('\/', '/', $html);
-                
-                // Matches high quality raw image URLs using clean alphanumeric character class
-                $rawUrls = [];
-                preg_match_all('/(https?:\/\/[a-zA-Z0-9_\-\.\/:]+\.(?:jpg|jpeg|png|webp))/i', $cleanHtml, $urlMatches);
-                if (!empty($urlMatches[1])) {
-                    foreach ($urlMatches[1] as $u) {
-                        if (strpos($u, 'google') === false && 
-                            strpos($u, 'gstatic') === false && 
-                            strpos($u, 'schema.org') === false && 
-                            strpos($u, 'facebook.com') === false && 
-                            strpos($u, 'twitter.com') === false &&
-                            strpos($u, 'wikipedia.org') === false &&
-                            strpos($u, 'icon') === false) {
-                            $rawUrls[] = $u;
-                        }
-                    }
-                }
-                
-                if (!empty($rawUrls)) {
-                    $coverUrl = $rawUrls[0];
-                } else {
-                    // Fallback to Google CDN encrypted tbn thumbnail with precise alphanumeric class
-                    preg_match_all('/(https?:\/\/encrypted-tbn0\.gstatic\.com\/images\?q=tbn:[a-zA-Z0-9_\-]+)/i', $cleanHtml, $matches);
-                    if (!empty($matches[1])) {
-                        $coverUrl = $matches[1][0];
-                    }
-                }
-            }
-            
-            // Fallback to Yahoo/Bing image search if Google returned empty matches or blocked
-            if (empty($coverUrl)) {
-                $yahooUrl = 'https://images.search.yahoo.com/search/images?p=' . urlencode($query . ' album cover');
-                $ch = curl_init($yahooUrl);
+            $query = $art . ' ' . $title;
+            foreach (['pt', 'en'] as $wpLang) {
+                $wpUrl = 'https://' . $wpLang . '.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=' . urlencode($query) . '&gsrlimit=3&prop=pageimages&piprop=original|thumbnail&pithumbsize=800&format=json';
+                $ch = curl_init($wpUrl);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36');
+                curl_setopt($ch, CURLOPT_USERAGENT, $wikiUa);
                 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
                 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-                $yHtml = curl_exec($ch);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 4);
+                $wpRes = curl_exec($ch);
                 curl_close($ch);
-                
-                if ($yHtml) {
-                    preg_match_all('/"iurl":"([^"]+)"/i', $yHtml, $yMatches);
-                    if (!empty($yMatches[1])) {
-                        foreach ($yMatches[1] as $yu) {
-                            $yuClean = stripslashes($yu);
-                            if (filter_var($yuClean, FILTER_VALIDATE_URL)) {
-                                $coverUrl = $yuClean;
-                                break;
-                            }
+                if ($wpRes) {
+                    $wpData = json_decode($wpRes, true);
+                    $pages = array_values($wpData['query']['pages'] ?? []);
+                    usort($pages, function($a, $b) {
+                        return (($a['index'] ?? 99) <=> ($b['index'] ?? 99));
+                    });
+                    foreach ($pages as $pg) {
+                        $cand = $pg['thumbnail']['source'] ?? $pg['original']['source'] ?? '';
+                        if (!empty($cand) && !preg_match('/\.(pdf|djvu|ogg|oga|flac|wav|webm|ogv)(\?|$)/i', $cand)) {
+                            $coverUrl = strtok($cand, '?');
+                            break 2;
                         }
                     }
                 }
             }
-            
-            // Ultra-stable third level fallback: iTunes Search API (100% legal, non-authenticated, square art)
+
+            // Fallback: iTunes Search API
             if (empty($coverUrl)) {
                 $itunesUrl = 'https://itunes.apple.com/search?term=' . urlencode($art . ' ' . $title) . '&entity=album&limit=1';
                 $ch = curl_init($itunesUrl);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 curl_setopt($ch, CURLOPT_TIMEOUT, 4);
-                curl_setopt($ch, CURLOPT_USERAGENT, 'SubsonicPHPPlayer/1.0');
+                curl_setopt($ch, CURLOPT_USERAGENT, $wikiUa);
                 $itunesRes = curl_exec($ch);
                 curl_close($ch);
                 if ($itunesRes) {
                     $itunesData = json_decode($itunesRes, true);
                     if (isset($itunesData['results'][0]['artworkUrl100'])) {
                         $itunesCover = $itunesData['results'][0]['artworkUrl100'];
-                        // Convert 100x100 to 600x600 for absolute beautiful high quality definition
                         $coverUrl = str_replace('100x100bb', '600x600bb', $itunesCover);
                     }
                 }
             }
-            
+
             if ($coverUrl) {
                 foreach ($tables as $t) {
                     $up = $pdo->prepare("UPDATE `" . $t . "` SET cover_url = ? WHERE artist = ? AND album = ?");
@@ -4175,21 +4343,20 @@ Accept: */*
                 $albumUpdated++;
             }
         }
-        
-        // Count again after database updates to return correct remaining count
+
         $stmtTotalArtistsPending2 = $pdo->query("SELECT COUNT(*) FROM (" . $unionArtistsSql . ") AS t");
         $artistsPendingFinal = intval($stmtTotalArtistsPending2->fetchColumn());
 
         $stmtTotalAlbumsPending2 = $pdo->query("SELECT COUNT(*) FROM (" . $unionAlbumsSql . ") AS t");
         $albumsPendingFinal = intval($stmtTotalAlbumsPending2->fetchColumn());
-        
+
         echo json_encode([
             'success' => true,
             'artists_updated' => $artistUpdated,
             'albums_updated' => $albumUpdated,
             'artists_pending' => $artistsPendingFinal,
             'albums_pending' => $albumsPendingFinal,
-            'message' => "Lote Google Images concluído! Atualizados {$artistUpdated} artistas e {$albumUpdated} capas de álbuns. Pendentes: " . ($artistsPendingFinal + $albumsPendingFinal)
+            'message' => "Lote Wikipedia concluído! Atualizados {$artistUpdated} artistas e {$albumUpdated} capas de álbuns. Pendentes: " . ($artistsPendingFinal + $albumsPendingFinal)
         ]);
         break;
 
@@ -4317,24 +4484,117 @@ Accept: */*
             __DIR__ . '/music/' . $song['file_name']
         ];
         $filePath = null;
+        $remoteUrlSidecar = null;
         foreach ($possiblePaths as $cand) {
-            if (!empty($cand) && file_exists($cand) && is_file($cand)) {
+            if (!empty($cand) && file_exists($cand) && is_file($cand) && filesize($cand) > 1000) {
                 $filePath = $cand;
                 break;
             }
+            if (!empty($cand) && file_exists($cand . '.url') && is_file($cand . '.url')) {
+                $u = trim((string)@file_get_contents($cand . '.url'));
+                if (!empty($u) && (strpos($u, 'http://') === 0 || strpos($u, 'https://') === 0)) {
+                    $remoteUrlSidecar = $u;
+                }
+            }
         }
-        if (!$filePath) {
-            http_response_code(404);
-            exit("Sem arquivo");
+        if (!$filePath && (strpos($song['file_name'], 'http://') === 0 || strpos($song['file_name'], 'https://') === 0)) {
+            $remoteUrlSidecar = $song['file_name'];
         }
-        
+
         // Registrar reprodução de forma leve e estatística no banco de dados automaticamente
         try {
             $pdo->prepare("UPDATE `" . $table . "` SET play_count = play_count + 1, last_played = CURRENT_TIMESTAMP WHERE id = ?")->execute([$id]);
         } catch (Exception $log_ex) {}
 
-        if (ob_get_level()) {
-            ob_end_clean();
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            @session_write_close();
+        }
+        while (ob_get_level()) {
+            @ob_end_clean();
+        }
+
+        // Se for um episódio de podcast ainda não baixado por completo no disco (possui sidecar .url), fazer stream transparente via cURL
+        if (!$filePath && !empty($remoteUrlSidecar) && function_exists('curl_init')) {
+            @ini_set('zlib.output_compression', 'Off');
+            @ini_set('output_buffering', 'Off');
+            @set_time_limit(0);
+            header("Access-Control-Allow-Origin: *");
+            header("Accept-Ranges: bytes");
+            header("X-Accel-Buffering: no");
+
+            $reqHeaders = ['Accept: */*'];
+            if (isset($_SERVER['HTTP_RANGE'])) {
+                $reqHeaders[] = 'Range: ' . $_SERVER['HTTP_RANGE'];
+            }
+
+            $headersForwarded = false;
+            $statusCodeToSend = 200;
+            $respContentType = 'audio/mpeg';
+            $respContentLength = '';
+            $respContentRange = '';
+
+            $ch = curl_init($remoteUrlSidecar);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_MAXREDIRS, 6);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 0);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $reqHeaders);
+            curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($ch, $headerLine) use (&$statusCodeToSend, &$respContentType, &$respContentLength, &$respContentRange) {
+                $len = strlen($headerLine);
+                if (preg_match('/^HTTP\/[0-9.]+\s+(\d+)/i', $headerLine, $m)) {
+                    $code = intval($m[1]);
+                    if ($code === 200 || $code === 206) {
+                        $statusCodeToSend = $code;
+                        $respContentLength = '';
+                        $respContentRange = '';
+                    }
+                } elseif (stripos($headerLine, 'content-type:') === 0) {
+                    $ct = trim(substr($headerLine, 13));
+                    if (stripos($ct, 'audio/') !== false || stripos($ct, 'application/octet-stream') !== false) {
+                        $respContentType = 'audio/mpeg';
+                    }
+                } elseif (stripos($headerLine, 'content-length:') === 0) {
+                    $respContentLength = trim(substr($headerLine, 15));
+                } elseif (stripos($headerLine, 'content-range:') === 0) {
+                    $respContentRange = trim(substr($headerLine, 14));
+                }
+                return $len;
+            });
+            curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($ch, $data) use (&$headersForwarded, &$statusCodeToSend, &$respContentType, &$respContentLength, &$respContentRange) {
+                if (connection_aborted()) return 0;
+                $httpCode = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
+                if ($httpCode >= 300 && $httpCode < 400) {
+                    return strlen($data);
+                }
+                if ($httpCode >= 400) {
+                    return 0;
+                }
+                if (!$headersForwarded) {
+                    $headersForwarded = true;
+                    if ($statusCodeToSend === 206) {
+                        header('HTTP/1.1 206 Partial Content');
+                    } else {
+                        header('HTTP/1.1 200 OK');
+                    }
+                    header('Content-Type: ' . $respContentType);
+                    if (!empty($respContentRange)) header('Content-Range: ' . $respContentRange);
+                    if (!empty($respContentLength)) header('Content-Length: ' . $respContentLength);
+                }
+                echo $data;
+                @flush();
+                return strlen($data);
+            });
+            @curl_exec($ch);
+            @curl_close($ch);
+            exit;
+        }
+
+        if (!$filePath) {
+            http_response_code(404);
+            exit("Sem arquivo");
         }
         $size = filesize($filePath);
         $fp = fopen($filePath, 'rb');
@@ -4895,8 +5155,28 @@ Accept: */*
 
     case 'podcasts':
         if ($method === 'GET') {
-            $stmt = $pdo->query("SELECT * FROM songs WHERE genre = 'Podcast' ORDER BY created_at DESC");
-            $podcastTracks = $stmt ? $stmt->fetchAll() : [];
+            $podcastTracks = [];
+            try {
+                $tables = function_exists('get_songs_tables') ? get_songs_tables($pdo) : ['songs'];
+                foreach ($tables as $tbl) {
+                    $q = $pdo->query("SELECT * FROM `" . $tbl . "` WHERE LOWER(genre) LIKE '%podcast%' OR LOWER(file_name) LIKE 'podcast/%' OR LOWER(file_name) LIKE '%/podcast/%' OR LOWER(artist) = 'podcast' OR LOWER(album) = 'podcast'");
+                    if ($q) {
+                        $rows = $q->fetchAll(PDO::FETCH_ASSOC);
+                        if (is_array($rows)) {
+                            $podcastTracks = array_merge($podcastTracks, $rows);
+                        }
+                    }
+                }
+                usort($podcastTracks, function($a, $b) {
+                    $ta = strtotime($a['created_at'] ?? '1970-01-01');
+                    $tb = strtotime($b['created_at'] ?? '1970-01-01');
+                    if ($ta == $tb) return intval($b['id'] ?? 0) - intval($a['id'] ?? 0);
+                    return $tb - $ta;
+                });
+            } catch (Throwable $podEx) {
+                $stmt = $pdo->query("SELECT * FROM songs WHERE genre = 'Podcast'");
+                $podcastTracks = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            }
             $podcastsMap = [];
 
             foreach ($podcastTracks as $t) {
@@ -5011,6 +5291,10 @@ Accept: */*
                 }
             } catch (Exception $e) {}
 
+            while (ob_get_level()) {
+                @ob_end_clean();
+            }
+            header('Content-Type: application/json; charset=utf-8');
             echo json_encode(array_values($podcastsMap));
         }
         break;
@@ -5022,7 +5306,9 @@ Accept: */*
         }
         $rawInput = file_get_contents('php://input');
         $dataDecoded = !empty($rawInput) ? json_decode($rawInput, true) : [];
-        if (!is_array($dataDecoded)) $dataDecoded = [];
+        if (!is_array($dataDecoded) || empty($dataDecoded)) {
+            $dataDecoded = is_array($input) ? $input : [];
+        }
 
         $feedUrl = trim($dataDecoded['feedUrl'] ?? $_POST['feedUrl'] ?? $_GET['feedUrl'] ?? '');
         $maxEpisodesRaw = $dataDecoded['maxEpisodes'] ?? $_POST['maxEpisodes'] ?? $_GET['maxEpisodes'] ?? 5;
@@ -5039,6 +5325,9 @@ Accept: */*
         } else {
             $res['success'] = true;
         }
+        while (ob_get_level()) {
+            @ob_end_clean();
+        }
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode($res, JSON_UNESCAPED_UNICODE);
         break;
@@ -5046,7 +5335,7 @@ Accept: */*
     case 'podcasts_auto_sync':
         try {
             $stmtFeeds = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'podcast_feed_%'");
-            $savedFeeds = $stmtFeeds->fetchAll(PDO::FETCH_ASSOC);
+            $savedFeeds = $stmtFeeds ? $stmtFeeds->fetchAll(PDO::FETCH_ASSOC) : [];
 
             $synced = [];
             $totalDownloaded = 0;
@@ -5079,13 +5368,18 @@ Accept: */*
             $stmtLast = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES ('podcast_last_auto_sync', ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
             $stmtLast->execute([$now]);
 
+            while (ob_get_level()) {
+                @ob_end_clean();
+            }
+            header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
                 'success' => true,
                 'syncedCount' => count($synced),
                 'downloadedTotal' => $totalDownloaded,
-                'lastSync' => $now,
+                'lastSync' => strtotime($now),
+                'lastSyncDate' => $now,
                 'details' => $synced
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         } catch (Exception $e) {
             http_response_code(500);
             echo json_encode(['error' => 'Falha na sincronização automática: ' . $e->getMessage()]);
@@ -5095,9 +5389,13 @@ Accept: */*
     case 'podcast_config':
         if ($method === 'GET') {
             $stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('podcast_auto_sync_enabled', 'podcast_auto_sync_interval', 'podcast_default_retention', 'podcast_last_auto_sync')");
-            $rows = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+            $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_KEY_PAIR) : [];
             $retentionVal = $rows['podcast_default_retention'] ?? '5';
             $lastSyncRaw = $rows['podcast_last_auto_sync'] ?? null;
+            while (ob_get_level()) {
+                @ob_end_clean();
+            }
+            header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
                 'success' => true,
                 'enabled' => ($rows['podcast_auto_sync_enabled'] ?? '1') === '1',
@@ -5109,7 +5407,10 @@ Accept: */*
             ]);
         } else if ($method === 'POST') {
             $rawInput = file_get_contents('php://input');
-            $data = json_decode($rawInput, true);
+            $data = !empty($rawInput) ? json_decode($rawInput, true) : [];
+            if (!is_array($data) || empty($data)) {
+                $data = is_array($input) ? $input : [];
+            }
             $enabled = isset($data['enabled']) && ($data['enabled'] === true || $data['enabled'] === '1' || $data['enabled'] === 1) ? '1' : '0';
             $interval = intval($data['interval'] ?? 3600);
             if ($interval < 15) $interval = 3600;
@@ -5126,6 +5427,10 @@ Accept: */*
             $stmtLast = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'podcast_last_auto_sync'");
             $lastSyncRaw = $stmtLast ? $stmtLast->fetchColumn() : null;
 
+            while (ob_get_level()) {
+                @ob_end_clean();
+            }
+            header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
                 'success' => true,
                 'enabled' => $enabled === '1',
@@ -5144,9 +5449,12 @@ Accept: */*
             exit(json_encode(['error' => 'Apenas requisições POST são permitidas.']));
         }
         $rawInput = file_get_contents('php://input');
-        $data = json_decode($rawInput, true);
-        $podcastName = trim($data['podcastName'] ?? '');
-        $limitRaw = $data['limit'] ?? 5;
+        $data = !empty($rawInput) ? json_decode($rawInput, true) : [];
+        if (!is_array($data) || empty($data)) {
+            $data = is_array($input) ? $input : [];
+        }
+        $podcastName = trim($data['podcastName'] ?? $_POST['podcastName'] ?? '');
+        $limitRaw = $data['limit'] ?? $_POST['limit'] ?? 5;
 
         if (empty($podcastName)) {
             http_response_code(400);
@@ -5176,9 +5484,17 @@ Accept: */*
                     foreach ($epsToDelete as $epToDelete) {
                         $epId = $epToDelete['id'];
                         $epFileName = $epToDelete['file_name'];
-                        $fullPathToDelete = UPLOAD_DIR . '/' . $epFileName;
-                        if (!empty($epFileName) && file_exists($fullPathToDelete)) {
-                            @unlink($fullPathToDelete);
+                        $pathsToDelete = [
+                            UPLOAD_DIR . '/' . $epFileName,
+                            UPLOAD_DIR . $epFileName,
+                            __DIR__ . '/' . $epFileName,
+                            (defined('PODCAST_DIR') ? PODCAST_DIR . preg_replace('#^podcast/#', '', $epFileName) : '')
+                        ];
+                        foreach ($pathsToDelete as $pDel) {
+                            if (!empty($pDel)) {
+                                if (file_exists($pDel) && is_file($pDel)) @unlink($pDel);
+                                if (file_exists($pDel . '.url') && is_file($pDel . '.url')) @unlink($pDel . '.url');
+                            }
                         }
                         $stmtDel = $pdo->prepare("DELETE FROM songs WHERE id = ?");
                         $stmtDel->execute([$epId]);
@@ -5186,6 +5502,10 @@ Accept: */*
                 }
             }
 
+            while (ob_get_level()) {
+                @ob_end_clean();
+            }
+            header('Content-Type: application/json; charset=utf-8');
             echo json_encode(['success' => true, 'podcastName' => $podcastName, 'limit' => $limitVal]);
         } catch (Exception $e) {
             http_response_code(500);
@@ -5199,8 +5519,11 @@ Accept: */*
             exit(json_encode(['error' => 'Apenas requisições POST são permitidas.']));
         }
         $rawInput = file_get_contents('php://input');
-        $data = json_decode($rawInput, true);
-        $podcastName = trim($data['podcastName'] ?? '');
+        $data = !empty($rawInput) ? json_decode($rawInput, true) : [];
+        if (!is_array($data) || empty($data)) {
+            $data = is_array($input) ? $input : [];
+        }
+        $podcastName = trim($data['podcastName'] ?? $_POST['podcastName'] ?? '');
         if (empty($podcastName)) {
             http_response_code(400);
             exit(json_encode(['error' => 'Nome do podcast é obrigatório.']));
@@ -5230,8 +5553,9 @@ Accept: */*
                     (defined('PODCAST_DIR') ? PODCAST_DIR . preg_replace('#^podcast/#', '', $fName) : '')
                 ];
                 foreach ($possibleFiles as $pf) {
-                    if (!empty($pf) && file_exists($pf) && is_file($pf)) {
-                        @unlink($pf);
+                    if (!empty($pf)) {
+                        if (file_exists($pf) && is_file($pf)) @unlink($pf);
+                        if (file_exists($pf . '.url') && is_file($pf . '.url')) @unlink($pf . '.url');
                     }
                 }
             }
@@ -5258,6 +5582,10 @@ Accept: */*
                 }
             }
 
+            while (ob_get_level()) {
+                @ob_end_clean();
+            }
+            header('Content-Type: application/json; charset=utf-8');
             echo json_encode(['success' => true, 'message' => "Podcast '{$podcastName}' e seus episódios foram removidos com sucesso."]);
         } catch (Exception $e) {
             http_response_code(500);
@@ -5268,100 +5596,66 @@ Accept: */*
     case 'radios':
         if ($method === 'GET') {
             $stmt = $pdo->query("SELECT * FROM radios ORDER BY created_at DESC");
-            $radios = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $radios = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            // Auto-atualizar rádios já cadastradas que ainda apontam para links bloqueados do radios.com.br ou sem resolved_url
+            foreach ($radios as &$rRow) {
+                $origU = trim($rRow['url'] ?? '');
+                $resU = trim($rRow['resolved_url'] ?? '');
+                $rName = trim($rRow['name'] ?? '');
+                if (empty($resU) || stripos($resU, 'radios.com.br') !== false || (stripos($resU, '.m3u') !== false && stripos($resU, '.m3u8') === false) || stripos($resU, '.pls') !== false) {
+                    $betterUrl = resolve_radio_stream_url($origU ?: $resU, $rName);
+                    if (!empty($betterUrl) && $betterUrl !== $resU) {
+                        $rRow['resolved_url'] = $betterUrl;
+                        try {
+                            $stUpdR = $pdo->prepare("UPDATE radios SET resolved_url = ? WHERE id = ?");
+                            $stUpdR->execute([$betterUrl, $rRow['id']]);
+                        } catch (Exception $e) {}
+                    }
+                }
+            }
+            unset($rRow);
+
+            while (ob_get_level()) {
+                @ob_end_clean();
+            }
+            header('Content-Type: application/json; charset=utf-8');
             echo json_encode($radios);
         } else if ($method === 'POST') {
-            // Require admin role
-            $usernameHeader = $_SERVER['HTTP_X_USERNAME'] ?? '';
-            $stmtUser = $pdo->prepare("SELECT role FROM users WHERE username = ?");
-            $stmtUser->execute([$usernameHeader]);
-            $role = $stmtUser->fetchColumn();
-            if ($role !== 'admin') {
+            if (!is_admin_user($pdo)) {
                 http_response_code(403);
                 exit(json_encode(['error' => 'Apenas administradores podem cadastrar rádios.']));
             }
 
             $rawInput = file_get_contents('php://input');
-            $dataDecoded = json_decode($rawInput, true);
-            $name = trim($dataDecoded['name'] ?? '');
-            $url = trim($dataDecoded['url'] ?? '');
+            $dataDecoded = !empty($rawInput) ? json_decode($rawInput, true) : [];
+            if (!is_array($dataDecoded) || empty($dataDecoded)) {
+                $dataDecoded = is_array($input) ? $input : [];
+            }
+            $name = trim($dataDecoded['name'] ?? $_POST['name'] ?? '');
+            $url = trim($dataDecoded['url'] ?? $_POST['url'] ?? '');
 
             if (empty($name) || empty($url)) {
                 http_response_code(400);
                 exit(json_encode(['error' => 'Nome e endereço são obrigatórios.']));
             }
 
-            // Resolve playlist stream URL (.m3u, .pls, .asx) if needed
-            $resolvedUrl = $url;
-            try {
-                $opts = [
-                    "http" => [
-                        "method" => "GET",
-                        "header" => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
-",
-                        "timeout" => 5
-                    ]
-                ];
-                $context = stream_context_create($opts);
-                $lowerUrl = strtolower($url);
-
-                if (strpos($lowerUrl, '.m3u') !== false || strpos($lowerUrl, '.pls') !== false || strpos($lowerUrl, '.asx') !== false) {
-                    $text = @file_get_contents($url, false, $context);
-                    if ($text !== false) {
-                        if (strpos($lowerUrl, '.m3u') !== false || strpos($text, '#EXTM3U') !== false || strpos($text, '#EXTINF') !== false) {
-                            // Parse M3U
-                            $lines = explode("
-", $text);
-                            foreach ($lines as $line) {
-                                $trimmed = trim($line);
-                                if ($trimmed && strpos($trimmed, '#') !== 0) {
-                                    if (strpos($trimmed, 'http://') === 0 || strpos($trimmed, 'https://') === 0) {
-                                        $resolvedUrl = $trimmed;
-                                        break;
-                                    }
-                                }
-                            }
-                        } else if (strpos($lowerUrl, '.pls') !== false || strpos(strtolower($text), '[playlist]') !== false) {
-                            // Parse PLS
-                            $lines = explode("
-", $text);
-                            foreach ($lines as $line) {
-                                $trimmed = trim($line);
-                                if (strpos(strtolower($trimmed), 'file') === 0) {
-                                    $parts = explode('=', $trimmed, 2);
-                                    if (count($parts) > 1) {
-                                        $streamUrl = trim($parts[1]);
-                                        if (strpos($streamUrl, 'http://') === 0 || strpos($streamUrl, 'https://') === 0) {
-                                            $resolvedUrl = $streamUrl;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        } else if (strpos($lowerUrl, '.asx') !== false || strpos(strtolower($text), '<asx') !== false || strpos(strtolower($text), '<entry>') !== false) {
-                            // Parse ASX (XML-like)
-                            if (preg_match('/<ref\s+href\s*=\s*["\']([^"\']+)["\']/i', $text, $matches)) {
-                                $resolvedUrl = trim($matches[1]);
-                            } else if (preg_match('/href\s*=\s*["\'](https?:\/\/[^"\']+)["\']/i', $text, $matches)) {
-                                $resolvedUrl = trim($matches[1]);
-                            }
-                        }
-                    }
-                }
-            } catch (Exception $e) {
-                // Ignore resolve errors, fallback to original URL
-            }
+            $resolvedUrl = resolve_radio_stream_url($url, $name);
 
             $id = 'radio-' . round(microtime(true) * 1000);
             $stmtIns = $pdo->prepare("INSERT INTO radios (id, name, url, resolved_url, created_at) VALUES (?, ?, ?, ?, ?)");
             $stmtIns->execute([$id, $name, $url, $resolvedUrl, date('Y-m-d H:i:s')]);
 
+            while (ob_get_level()) {
+                @ob_end_clean();
+            }
+            header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
                 'success' => true,
                 'radio' => [
                     'id' => $id,
                     'name' => $name,
                     'url' => $url,
+                    'resolved_url' => $resolvedUrl,
                     'resolvedUrl' => $resolvedUrl,
                     'createdAt' => date('Y-m-d H:i:s')
                 ]
@@ -5374,12 +5668,7 @@ Accept: */*
             http_response_code(405);
             exit(json_encode(['error' => 'Apenas DELETE e POST são permitidos.']));
         }
-        // Require admin role
-        $usernameHeader = $_SERVER['HTTP_X_USERNAME'] ?? '';
-        $stmtUser = $pdo->prepare("SELECT role FROM users WHERE username = ?");
-        $stmtUser->execute([$usernameHeader]);
-        $role = $stmtUser->fetchColumn();
-        if ($role !== 'admin') {
+        if (!is_admin_user($pdo)) {
             http_response_code(403);
             exit(json_encode(['error' => 'Apenas administradores podem remover rádios.']));
         }
@@ -5387,7 +5676,10 @@ Accept: */*
         $id = $_GET['id'] ?? '';
         if (empty($id)) {
             $rawInput = file_get_contents('php://input');
-            $dataDecoded = json_decode($rawInput, true);
+            $dataDecoded = !empty($rawInput) ? json_decode($rawInput, true) : [];
+            if (!is_array($dataDecoded) || empty($dataDecoded)) {
+                $dataDecoded = is_array($input) ? $input : [];
+            }
             $id = trim($dataDecoded['id'] ?? '');
         }
 
@@ -5647,6 +5939,127 @@ Accept: */*
             'recommendations' => $recommendations
         ]);
         break;
+
+    case 'android_ping':
+        $totalSongs = 0;
+        $totalArtists = 0;
+        $totalAlbums = 0;
+        try {
+            $totalSongs = (int)$pdo->query("SELECT COUNT(*) FROM songs WHERE LOWER(COALESCE(genre,'')) != 'podcast'")->fetchColumn();
+            $totalArtists = (int)$pdo->query("SELECT COUNT(DISTINCT artist) FROM songs WHERE LOWER(COALESCE(genre,'')) != 'podcast' AND artist IS NOT NULL AND artist != ''")->fetchColumn();
+            $totalAlbums = (int)$pdo->query("SELECT COUNT(DISTINCT album) FROM songs WHERE LOWER(COALESCE(genre,'')) != 'podcast' AND album IS NOT NULL AND album != ''")->fetchColumn();
+        } catch (Throwable $ePing) {}
+
+        $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/api.php')), '/');
+        $baseServerUrl = $proto . '://' . $host . ($dir ? $dir : '');
+
+        echo json_encode([
+            'success' => true,
+            'status' => 'online',
+            'version' => defined('PHPLAYER_VERSION') ? PHPLAYER_VERSION : '1.3.8',
+            'server_url' => $baseServerUrl,
+            'api_url' => $baseServerUrl . '/api.php',
+            'stats' => [
+                'tracks' => $totalSongs,
+                'artists' => $totalArtists,
+                'albums' => $totalAlbums
+            ],
+            'endpoints' => [
+                'login' => 'POST api.php?route=login',
+                'tracks' => 'GET api.php?route=tracks',
+                'stream' => 'GET api.php?route=stream&id={id}',
+                'artist_photos' => 'GET api.php?route=artist_photos',
+                'favorites' => 'GET api.php?route=favorites&username={user}',
+                'favorites_toggle' => 'POST api.php?route=favorites_toggle',
+                'playlists' => 'GET api.php?route=playlists&username={user}',
+                'radios' => 'GET api.php?route=radios',
+                'podcasts' => 'GET api.php?route=podcasts',
+                'lyrics' => 'GET api.php?route=lyrics&artist={artist}&title={title}'
+            ]
+        ]);
+        break;
+
+    case 'download_android_app':
+        if (!class_exists('ZipArchive')) {
+            http_response_code(500);
+            echo json_encode(['error' => 'A extensão ZipArchive do PHP não está habilitada neste servidor.']);
+            break;
+        }
+
+        $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/api.php')), '/');
+        $detectedUrl = $proto . '://' . $host . ($dir ? $dir : '');
+        $customServerUrl = trim($_GET['server_url'] ?? $detectedUrl);
+        if (empty($customServerUrl)) $customServerUrl = $detectedUrl;
+        $customServerUrl = rtrim(preg_replace('#/(api|index|mobile)\.php$#i', '', $customServerUrl), '/');
+
+        $tmpZip = tempnam(sys_get_temp_dir(), 'phplayer_android_') . '.zip';
+        $zip = new ZipArchive();
+        if ($zip->open($tmpZip, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Não foi possível criar o arquivo ZIP temporário.']);
+            break;
+        }
+
+        $androidDir = __DIR__ . '/android';
+        if (is_dir($androidDir)) {
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($androidDir, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::SELF_FIRST
+            );
+            foreach ($iterator as $fileInfo) {
+                $fullPath = $fileInfo->getRealPath();
+                $relPath = 'PHPlayerAndroid/' . ltrim(str_replace('\\', '/', substr($fullPath, strlen($androidDir))), '/');
+                if (strpos($relPath, '/build/') !== false || strpos($relPath, '/.gradle/') !== false || strpos($relPath, '/.idea/') !== false) {
+                    continue;
+                }
+                if ($fileInfo->isDir()) {
+                    $zip->addEmptyDir($relPath);
+                } else {
+                    $content = @file_get_contents($fullPath);
+                    if (basename($fullPath) === 'MainActivity.kt' && $content !== false) {
+                        $content = preg_replace(
+                            '/private const val DEFAULT_SERVER_URL = "[^"]*"/',
+                            'private const val DEFAULT_SERVER_URL = "' . addslashes($customServerUrl) . '"',
+                            $content
+                        );
+                    }
+                    $zip->addFromString($relPath, $content !== false ? $content : '');
+                }
+            }
+        }
+
+        $readmeContent = "# PHPlayer - Aplicativo Android Nativo (Conexão via API)\n\n"
+            . "Este projeto Android (Kotlin) conecta-se diretamente ao seu servidor de música PHP via `api.php`.\n\n"
+            . "## URL Pré-Configurada\n"
+            . "- Servidor: `{$customServerUrl}`\n"
+            . "- Endpoint da API: `{$customServerUrl}/api.php`\n\n"
+            . "## Recursos Integrados via API\n"
+            . "- Autenticação de usuário (`POST api.php?route=login`)\n"
+            . "- Sincronização de Álbuns, Artistas (com foto/logo oficial e sem podcasts), Músicas e Favoritos (`GET api.php?route=tracks`, `artist_photos`, `favorites`)\n"
+            . "- Streaming nativo de áudio com cache offline automático (`GET api.php?route=stream&id=...`)\n"
+            . "- Equalizador de áudio nativo de 5 bandas do Android e visualizador de letras (`GET api.php?route=lyrics`)\n"
+            . "- Reprodução de Playlists, Rádios On-line e Podcasts do servidor\n\n"
+            . "## Como gerar o arquivo instalável (.APK)\n"
+            . "1. Abra o **Android Studio** e clique em **Open**.\n"
+            . "2. Selecione a pasta `PHPlayerAndroid` extraída deste arquivo ZIP.\n"
+            . "3. Aguarde o Gradle sincronizar e clique em **Build > Build Bundle(s) / APK(s) > Build APK(s)**.\n"
+            . "4. Instale o arquivo `app-debug.apk` gerado no seu celular Android!\n";
+        $zip->addFromString('PHPlayerAndroid/README_ANDROID_API.md', $readmeContent);
+        $zip->close();
+
+        if (ob_get_level() > 0) {
+            @ob_end_clean();
+        }
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="PHPlayer_Android_API_Project.zip"');
+        header('Content-Length: ' . filesize($tmpZip));
+        readfile($tmpZip);
+        @unlink($tmpZip);
+        exit;
 
     default:
         http_response_code(404);

@@ -1,5 +1,40 @@
 <?php
 $changelog = <<<EOT
+v1.4.5
+- Correção da **Busca por Capa / Logo do Artista** no PHP (`api.php` e `index.php`): remoção do **Google Imagens** e adição da **Wikipedia** (`pt.wikipedia.org`, `en.wikipedia.org`, `Wikidata` `P154`/`P18` e `Wikimedia Commons` com filtro `filetype:bitmap|drawing` e `User-Agent` compatível com a política da Wikimedia Foundation) como fonte oficial junto ao **Spotify** e **Deezer**.
+- Correção do carregamento e seleção de capas de artistas (`index.php` e `api.php`): liberação das rotas de busca `search_artist_logo` e `search_images` contra bloqueios `HTTP 403`, seleção segura por índice (evitando falhas com apóstrofos e parênteses em URLs da Wikipedia/Wikimedia) e filtragem de marcadores `'no_photo'`/`'no_cover'` em `artist_photos` e `artist_bio`.
+
+v1.4.4
+- Correção da **Sincronização de Podcasts** no PHP (`api.php`, `index.php` e `mobile.php`): substituição do parser regex de blocos `<item>` por extrator determinístico via `stripos`/`substr` (resolvendo falhas de `pcre.backtrack_limit` em feeds RSS grandes acima de 1 MB como *NerdCast*, *Inteligência Ltda* e *Flow*), decodificação de `CDATA` e entidades XML (`&amp;`) nas URLs de áudio e capas, gravação de arquivos sidecar `.url` com janela segura de download e streaming transparente sob demanda em `?route=stream` (evitando *504 Gateway Timeout* ao sincronizar múltiplos episódios longos), além de propagação automática de `admin_username` e `X-Username`.
+- Correção da **Reprodução de Rádios Online** no PHP (`api.php`, `index.php` e `mobile.php`): substituição das URLs `.m3u` bloqueadas por proteção Cloudflare (`HTTP 403`) por streams diretos HTTPS de alta disponibilidade (`Kiss FM`, `89 FM A Rádio Rock`, `Jovem Pan News`, `Antena 1`, `Mix FM`, `Alpha FM`), migração automática de rádios antigas cadastradas no banco MySQL e fallback via API *Radio Browser*.
+- Melhoria no proxy de streaming de rádios (`?route=proxy_radio` em `api.php`): descarte automático de corpos HTML de redirecionamento (`HTTP 301/302/307`) que corrompiam o início do buffer de áudio no navegador, repasse do `Content-Type` real (`audio/aacp`, `audio/mpeg`, `audio/ogg`), suporte a `ICY 200 OK` (Shoutcast) e fallback automático no player (`index.php` e `mobile.php`) para conexão direta caso o proxy falhe.
+
+v1.4.3
+- Correção da reprodução de **Rádios Online** no **Aplicativo Android (APK)** (`MainActivity.kt` e `api.php`): uso de `resolved_url`, resolução automática em segundo plano de listas `.m3u`, `.pls` e `.asx` para extrair o link real do stream Icecast/Shoutcast, reprodução direta com cabeçalhos HTTP personalizados e fallback automático para `proxy_radio` via cURL, além de rádios sugeridas e botão **➕ Nova Rádio**.
+- Correção do carregamento de **Podcasts** no **Aplicativo Android (APK)** (`MainActivity.kt` e `api.php`): busca multi-tabela case-insensitive na rota `?route=podcasts`, persistência local de `podcasts.json`, preservação de canais com RSS mesmo sem episódios baixados, desacoplamento entre a chave Sync e a visibilidade online de podcasts/rádios e adição dos controles **🔄 Sync Feeds**, **➕ RSS** e **🔄 Atualizar Episódios (RSS)**.
+- Eliminação de **travamentos ao clicar para reproduzir** no **Aplicativo Android (APK)** (`MainActivity.kt` e `api.php`): criação de thread pool dedicado e isolado (`playerExecutor`) para o `MediaPlayer` separado do carregamento de capas (`imageExecutor`), execução de `reset()`/`release()`/`prepareAsync()` fora da UI thread com timeout de segurança, índice em memória $O(1)$ (`offlineCachedSafeIds`) para checagem instantânea de arquivos offline sem bloqueio de disco na interface, atraso inteligente de 1,5s no cache em segundo plano e liberação de sessão PHP (`session_write_close()`) no streaming.
+
+v1.4.2
+- Adicionado modo **"🎧 Sincronizar somente o que for tocado"** (`syncOnlyPlayed`) no **Aplicativo Android (APK)** (`MainActivity.kt`), permitindo sincronizar o catálogo da API e salvar no armazenamento local do celular apenas as músicas, capas e episódios de podcast que forem efetivamente reproduzidos.
+- Adicionado seletor rápido de 3 modos de sincronização na aba **⚙ Config** e no botão do cabeçalho (**`🎧 Só o Tocado`**, **`📥 Baixar Tudo`** e **`⏸ Sync Off`**), com gerenciamento inteligente de espaço (LRU) que preserva as músicas mais tocadas dentro do limite de armazenamento escolhido.
+
+v1.4.1
+- Visual do **Aplicativo Android (APK)** (`MainActivity.kt`) alinhado com o design do `mobile.php`: cabeçalho `PHPlayer Mobile` com saudação `OLÁ, {USUÁRIO}`, painel superior de 3 cartões de estatísticas (`MÚSICAS`, `ÁLBUNS`, `ARTISTAS`), botão gradiente **🔀 50 Aleatórias**, barra de filtro alfabético (`🎲 10 Álbuns`, `TODOS`, `#`, `A-Z`), **Grade Bento de 2 Colunas** com capas quadradas e botão Play flutuante para **Álbuns**, **Artistas** e **Podcasts**, seletor com os 6 temas de cores do `mobile.php` (`Celeste`, `Esmeralda`, `Rosa`, `Âmbar`, `Violeta` e `Rubi`), mini-player com barra fina de progresso sob o nome do artista e player expandido em tela cheia com **Disco de Vinil Giratório** animado e fila de reprodução.
+- Adicionada opção para **Habilitar ou Desabilitar a Sincronização (Sync)** tanto no botão rápido do topo (`🔄 SYNC ON` / `⏸ SYNC OFF`) quanto na chave mestra da aba **⚙ Config** (incluindo controle independente para download automático offline), interrompendo downloads em segundo plano imediatamente quando desativado e operando 100% com o catálogo e arquivos MP3 locais.
+
+v1.4.0
+- Atualização do **Aplicativo Android (APK)** (`MainActivity.kt`): removidas as abas **Músicas** e **Web** e adicionadas as abas dedicadas **🎙 Podcast** e **⚙ Config**.
+- Na nova aba **⚙ Config** do aplicativo Android, centralizados os botões **🔑 API / Login**, **🔄 Sync Biblioteca**, chave de **Modo Offline**, **Equalizador** e o seletor de **Limite de Espaço do Celular para Músicas Offline** (`512 MB`, `1 GB`, `2 GB`, `5 GB`, `10 GB` ou `Ilimitado`), com barra de progresso de armazenamento e espaço livre do dispositivo.
+- Armazenamento local automático de todas as músicas e capas sincronizadas até o limite escolhido e exibição automática das músicas salvas no celular quando estiver offline, acompanhado de visual moderno em estilo vidro escuro com capas arredondadas e mini-player flutuante.
+
+v1.3.9
+- Adicionado botão direto no painel React (**"Baixar ZIP p/ Gerar APK"** no topo, **"App Android (APK)"** na barra lateral e aba dedicada em **Exportar PHP/MySQL**) para baixar o pacote `PHPlayer_Android_APK_Project.zip` com todos os arquivos Android organizados e pré-configurados com a URL do servidor PHP.
+- Incluído workflow automático do GitHub Actions (`.github/workflows/build-apk.yml`), script `GERAR_APK_WINDOWS.bat` e guia `COMO_GERAR_O_APK.md` dentro do pacote ZIP para compilar o `.apk` tanto no Android Studio quanto automaticamente na nuvem sem instalar nada no computador.
+
+v1.3.8
+- Criado **Aplicativo Android Nativo (Kotlin)** (`/android/app/src/main/java/com/musicplayer/php/MainActivity.kt`) que se conecta diretamente ao sistema de música via `api.php` (`tracks`, `stream`, `login`, `artist_photos`, `favorites`, `favorites_toggle`, `playlists`, `radios`, `lyrics`, `register_play`), com reprodutor de áudio nativo, equalizador de 5 bandas, cache offline de músicas, busca e abas de Álbuns, Artistas, Músicas, Playlists e Rádios/Podcasts.
+- Adicionadas rotas `android_ping` e `download_android_app` em `api.php` e painel **App Android (API)** na barra lateral do `index.php`, permitindo testar a API e baixar o projeto Android Studio (`.ZIP`) já pré-configurado com a URL do servidor PHP.
+
 v1.3.7
 - Na escolha de **Foto de Capa do Artista** (`index.php` e `api.php`), adicionada busca integrada por **Logo do Artista** e **Foto do Artista** na internet consultando **Spotify**, **Deezer**, **Google Imagens** e **Logo Oficial (Wikimedia/Wikidata)**, com filtros por fonte e seleção direta com um clique.
 

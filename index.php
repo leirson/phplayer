@@ -417,6 +417,9 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     <button id="tab-btn-config" onclick="setTab('config')" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition" data-i18n="sidebar-settings">
                         <i data-lucide="settings" class="w-3.5 h-3.5 text-sky-400"></i> Configurações
                     </button>
+                    <button type="button" onclick="openAndroidAppModal()" class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-400 hover:text-white hover:bg-emerald-500/10 transition cursor-pointer">
+                        <i data-lucide="smartphone" class="w-3.5 h-3.5 text-emerald-400"></i> App Android (API)
+                    </button>
                 </div>
             </div>
 
@@ -992,17 +995,17 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                             </button>
                         </div>
 
-                        <!-- Google Images Sync Card -->
+                        <!-- Wikipedia Sync Card -->
                         <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left font-sans">
                             <div class="space-y-1.5">
-                                <span class="bg-blue-500/10 text-blue-400 border border-blue-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Google Images</span>
-                                <h3 class="text-sm font-bold text-white">Sincronizar com Google</h3>
+                                <span class="bg-amber-500/10 text-amber-400 border border-amber-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Wikipedia API</span>
+                                <h3 class="text-sm font-bold text-white">Sincronizar com Wikipedia</h3>
                                 <p class="text-[11px] text-slate-400 leading-relaxed">
-                                    Busca e atualiza capas de álbuns pendentes de forma inteligente diretamente no Google Images por meio de técnicas avançadas de indexação. Ideal para álbuns raros ou nacionais.
+                                    Busca e atualiza capas de artistas, logos oficiais e capas de álbuns pendentes diretamente na Wikipedia e Wikimedia Commons. Ideal para artistas e álbuns nacionais e internacionais.
                                 </p>
                             </div>
-                            <button onclick="runGoogleSync(this)" class="w-full py-2.5 bg-blue-500 hover:bg-blue-600 font-extrabold text-white rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
-                                <i data-lucide="image" class="w-3.5 h-3.5"></i> Sincronizar pelo Google Images
+                            <button onclick="runGoogleSync(this)" class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 font-extrabold text-slate-950 rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                                <i data-lucide="globe" class="w-3.5 h-3.5"></i> Sincronizar pela Wikipedia
                             </button>
                         </div>
 
@@ -2187,8 +2190,8 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     <button id="src-tab-deezer" onclick="setImageSearchSource('deezer')" class="flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-white cursor-pointer">
                         Deezer
                     </button>
-                    <button id="src-tab-google" onclick="setImageSearchSource('google')" class="flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-white cursor-pointer">
-                        Google Imagens
+                    <button id="src-tab-wikipedia" onclick="setImageSearchSource('wikipedia')" class="flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-white cursor-pointer">
+                        Wikipedia
                     </button>
                     <button id="src-tab-lastfm" onclick="setImageSearchSource('lastfm')" class="flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-white cursor-pointer">
                         Last.fm
@@ -2697,7 +2700,7 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                         </button>
                     </div>
 
-                    <!-- Source tabs: Todos, Spotify, Deezer, Google Imagens -->
+                    <!-- Source tabs: Todos, Spotify, Deezer, Wikipedia -->
                     <div class="flex flex-wrap bg-[#070a12] p-1 rounded-xl border border-slate-900 gap-1">
                         <input type="hidden" id="artist-cover-online-source" value="all">
                         <button type="button" id="artist-cover-src-all" onclick="setArtistCoverOnlineSource('all')" class="flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition bg-sky-500/15 text-sky-400 border border-sky-500/30 cursor-pointer">
@@ -2709,8 +2712,8 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                         <button type="button" id="artist-cover-src-deezer" onclick="setArtistCoverOnlineSource('deezer')" class="flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-purple-400 cursor-pointer">
                             Deezer
                         </button>
-                        <button type="button" id="artist-cover-src-google" onclick="setArtistCoverOnlineSource('google')" class="flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-sky-400 cursor-pointer">
-                            Google Imagens
+                        <button type="button" id="artist-cover-src-wikipedia" onclick="setArtistCoverOnlineSource('wikipedia')" class="flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-400 hover:text-amber-400 cursor-pointer">
+                            Wikipedia
                         </button>
                     </div>
 
@@ -2766,6 +2769,101 @@ define('DONT_EXIT_ON_DB_ERROR', true);
         </div>
     </div>
 
+    <!-- ANDROID APP API MODAL -->
+    <div id="android-app-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-[70] p-4 backdrop-blur-sm hidden font-sans">
+        <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl max-w-2xl w-full flex flex-col overflow-hidden shadow-2xl animate-fade-in text-left max-h-[90vh]">
+            <div class="p-5 border-b border-slate-900 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                        <i data-lucide="smartphone" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-black uppercase text-white tracking-wider">Aplicativo Android Nativo (Conexão via API)</h3>
+                        <p class="text-[11px] text-slate-400">Conecte o app Android diretamente ao seu servidor PHP via <code class="text-sky-400 font-mono">api.php</code></p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeAndroidAppModal()" class="p-1.5 hover:bg-slate-900 text-slate-400 hover:text-white rounded-lg transition cursor-pointer">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-5 space-y-5 overflow-y-auto flex-1 custom-scroll">
+                <!-- Server URL & Connection Status -->
+                <div class="bg-slate-950/80 border border-slate-800/90 rounded-2xl p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Endereço do Servidor PHP para o App Android</span>
+                        <span id="android-api-ping-badge" class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                            Verificando API...
+                        </span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <input type="text" id="android-server-url-input" class="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-sky-400 font-mono focus:outline-none focus:border-sky-500" readonly>
+                        <button type="button" onclick="copyAndroidApiUrl()" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white border border-slate-700 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 shrink-0">
+                            <i data-lucide="copy" class="w-3.5 h-3.5 text-sky-400"></i> Copiar URL
+                        </button>
+                        <button type="button" onclick="testAndroidApiPing()" class="px-3.5 py-2 bg-sky-500/15 hover:bg-sky-500/25 text-sky-400 border border-sky-500/30 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 shrink-0">
+                            <i data-lucide="activity" class="w-3.5 h-3.5"></i> Testar API
+                        </button>
+                    </div>
+                    <p id="android-api-stats-text" class="text-[11px] text-slate-400 font-mono"></p>
+                </div>
+
+                <!-- Download Android Studio Project ZIP -->
+                <div class="bg-gradient-to-br from-emerald-950/40 via-slate-950 to-sky-950/30 border border-emerald-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div class="space-y-1">
+                        <div class="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                            <i data-lucide="download" class="w-4 h-4"></i> Projeto Android Nativo (Kotlin + API)
+                        </div>
+                        <p class="text-[11px] text-slate-300 leading-relaxed">
+                            Baixe o projeto completo do aplicativo Android já pré-configurado com a URL do seu servidor PHP (<code class="text-sky-400 font-mono">api.php</code>), player nativo, cache offline, equalizador de 5 bandas, artistas, álbuns, favoritos, playlists, rádios e podcasts.
+                        </p>
+                    </div>
+                    <button type="button" onclick="downloadAndroidStudioZip()" class="px-4 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition cursor-pointer shrink-0 shadow-lg shadow-emerald-500/20 flex items-center gap-2">
+                        <i data-lucide="smartphone" class="w-4 h-4"></i>
+                        Baixar App Android (.ZIP)
+                    </button>
+                </div>
+
+                <!-- API Endpoints Reference for Android -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Rotas da API consumidas pelo Aplicativo Android</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono">
+                        <div class="p-2.5 bg-slate-950/70 border border-slate-900 rounded-xl text-slate-300">
+                            <span class="text-emerald-400 font-bold">GET</span> api.php?route=android_ping
+                            <div class="text-[10px] text-slate-500 font-sans mt-0.5">Status do servidor, versão e contadores</div>
+                        </div>
+                        <div class="p-2.5 bg-slate-950/70 border border-slate-900 rounded-xl text-slate-300">
+                            <span class="text-sky-400 font-bold">POST</span> api.php?route=login
+                            <div class="text-[10px] text-slate-500 font-sans mt-0.5">Autenticação de usuário e permissões</div>
+                        </div>
+                        <div class="p-2.5 bg-slate-950/70 border border-slate-900 rounded-xl text-slate-300">
+                            <span class="text-emerald-400 font-bold">GET</span> api.php?route=tracks
+                            <div class="text-[10px] text-slate-500 font-sans mt-0.5">Catálogo de músicas, álbuns e artistas</div>
+                        </div>
+                        <div class="p-2.5 bg-slate-950/70 border border-slate-900 rounded-xl text-slate-300">
+                            <span class="text-emerald-400 font-bold">GET</span> api.php?route=stream&amp;id={id}
+                            <div class="text-[10px] text-slate-500 font-sans mt-0.5">Streaming de áudio + cache offline</div>
+                        </div>
+                        <div class="p-2.5 bg-slate-950/70 border border-slate-900 rounded-xl text-slate-300">
+                            <span class="text-emerald-400 font-bold">GET</span> api.php?route=artist_photos
+                            <div class="text-[10px] text-slate-500 font-sans mt-0.5">Logos e capas oficiais dos artistas</div>
+                        </div>
+                        <div class="p-2.5 bg-slate-950/70 border border-slate-900 rounded-xl text-slate-300">
+                            <span class="text-emerald-400 font-bold">GET/POST</span> favorites, playlists, radios
+                            <div class="text-[10px] text-slate-500 font-sans mt-0.5">Sincronização de favoritos, playlists e rádios</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-900 bg-slate-950/60 flex justify-end shrink-0">
+                <button type="button" onclick="closeAndroidAppModal()" class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 rounded-xl text-xs font-bold transition cursor-pointer">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
 
         // Garantir que chamadas ao lucide não quebrem a aplicação caso o CDN falhe ou atrase
@@ -2779,7 +2877,7 @@ define('DONT_EXIT_ON_DB_ERROR', true);
 
         const API = 'api.php';
 
-        // Interceptador global do fetch no index.php para propagar o cabeçalho X-Username
+        // Interceptador global do fetch no index.php para propagar o cabeçalho X-Username e admin_username na URL
         const origFetch = window.fetch;
         try {
             Object.defineProperty(window, 'fetch', {
@@ -2788,8 +2886,18 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                     if (typeof resource === 'string' && (resource.includes('api.php') || resource.startsWith('api.php'))) {
                         config = config || {};
                         config.headers = config.headers || {};
-                        if (currentUser && currentUser.username) {
-                            config.headers['X-Username'] = currentUser.username;
+                        let uName = (currentUser && currentUser.username) ? currentUser.username : '';
+                        if (!uName) {
+                            try {
+                                const savedU = JSON.parse(localStorage.getItem('phplayer_user') || 'null');
+                                if (savedU && savedU.username) uName = savedU.username;
+                            } catch (e) {}
+                        }
+                        if (uName) {
+                            config.headers['X-Username'] = uName;
+                            if (!resource.includes('admin_username=')) {
+                                resource += (resource.includes('?') ? '&' : '?') + 'admin_username=' + encodeURIComponent(uName);
+                            }
                         }
                     }
                     return origFetch(resource, config);
@@ -3168,10 +3276,10 @@ let currentUser = null;
 
         window.getRandomCoverForArtist = function(artistName, artistSongs) {
             if (!artistName) return null;
-            if (window.customArtistPhotos && window.customArtistPhotos[artistName]) {
+            if (window.customArtistPhotos && window.customArtistPhotos[artistName] && window.customArtistPhotos[artistName] !== 'no_photo' && window.customArtistPhotos[artistName] !== 'no_cover') {
                 return window.customArtistPhotos[artistName];
             }
-            if (window.artistRandomCovers && window.artistRandomCovers[artistName]) {
+            if (window.artistRandomCovers && window.artistRandomCovers[artistName] && window.artistRandomCovers[artistName] !== 'no_photo' && window.artistRandomCovers[artistName] !== 'no_cover') {
                 return window.artistRandomCovers[artistName];
             }
             if (!artistSongs) {
@@ -3325,7 +3433,14 @@ let currentUser = null;
                     if (rPhotos.ok) {
                         const dPhotos = await rPhotos.json();
                         if (dPhotos && dPhotos.photos && typeof dPhotos.photos === 'object') {
-                            window.customArtistPhotos = dPhotos.photos;
+                            const cleanedPhotos = {};
+                            Object.keys(dPhotos.photos).forEach(k => {
+                                const v = String(dPhotos.photos[k] || '').trim();
+                                if (v && v !== 'no_photo' && v !== 'no_cover') {
+                                    cleanedPhotos[k] = v;
+                                }
+                            });
+                            window.customArtistPhotos = cleanedPhotos;
                         }
                     }
                 } catch (ePhotos) {}
@@ -5747,11 +5862,11 @@ let currentUser = null;
             
             try {
                 while (true) {
-                    const res = await fetch('api.php?route=google_images_sync', { method: 'POST' });
+                    const res = await fetch('api.php?route=wikipedia_sync', { method: 'POST' });
                     const data = await res.json();
                     
                     if (!res.ok || data.error) {
-                        alert(data.error || 'Erro ao sincronizar lote com o Google Images.');
+                        alert(data.error || 'Erro ao sincronizar lote com a Wikipedia.');
                         break;
                     }
                     
@@ -5768,15 +5883,14 @@ let currentUser = null;
                     btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Sincronizando Lote ' + currentBatch + ' (Faltam ' + pendingCount + ')...';
                     lucide.createIcons();
                     
-                    // Delay de 500ms para respeitar os limites do Google Images
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    await new Promise(resolve => setTimeout(resolve, 400));
                 }
                 
-                alert('Sincronização com Google Images concluída com sucesso! Capas de álbuns e logos de artistas atualizados.');
+                alert('Sincronização com a Wikipedia concluída com sucesso! Capas de álbuns e logos de artistas atualizados.');
                 await loadData();
             } catch (err) {
                 console.error(err);
-                alert('Erro de rede ao conectar com a API de sincronização do Google Images.');
+                alert('Erro de rede ao conectar com a API de sincronização da Wikipedia.');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origText;
@@ -5784,6 +5898,7 @@ let currentUser = null;
             }
         }
         window.runGoogleSync = runGoogleSync;
+        window.runWikipediaSync = runGoogleSync;
 
         window.artistsPageQuery = '';
         window.artistsPageSort = 'alphabetical';
@@ -7387,9 +7502,18 @@ document.addEventListener('fullscreenchange', (event) => {
             const isRadio = track.artist === 'Rádio On-line' || track.album === 'Sintonizada' || String(track.file_name || track.fileName || "").includes('://');
             const isLocal = trackIdStr.startsWith('seed-') || trackIdStr.startsWith('radio-');
             
+            audio.onerror = null;
             if (isRadio) {
                 const streamUrl = track.fileName || track.file_name || track.url;
-                audio.src = API + '?route=proxy_radio&url=' + encodeURIComponent(streamUrl);
+                const proxyUrl = API + '?route=proxy_radio&url=' + encodeURIComponent(streamUrl) + '&name=' + encodeURIComponent(track.title || '') + '&_t=' + Date.now();
+                audio.src = proxyUrl;
+                audio.onerror = function() {
+                    audio.onerror = null;
+                    if (!phpAudioContext && streamUrl && (streamUrl.startsWith('http://') || streamUrl.startsWith('https://')) && !streamUrl.includes('.m3u') && !streamUrl.includes('.pls')) {
+                        audio.src = streamUrl;
+                        audio.play().catch(() => {});
+                    }
+                };
             } else {
                 audio.src = isLocal ? (track.fileName || track.file_name || track.url) : (API + '?route=stream&id=' + trackIdStr);
             }
@@ -7401,12 +7525,14 @@ document.addEventListener('fullscreenchange', (event) => {
             if (phpAudioContext && phpAudioContext.state === 'suspended') {
                 phpAudioContext.resume();
             }
-            audio.play();
+            audio.play().catch(err => {
+                console.warn('Falha ao iniciar reprodução:', err);
+            });
             isPlaying = true;
             document.getElementById('player-play-btn').innerHTML = `<i data-lucide="pause" class="w-4 h-4 fill-current"></i>`;
             lucide.createIcons();
 
-            if (track && track.id) {
+            if (track && track.id && !isRadio) {
                 logTrackPlay(track.id);
             }
             
@@ -9178,6 +9304,8 @@ document.addEventListener('fullscreenchange', (event) => {
         };
 
         window.artistCoverOnlineMode = 'logo';
+        window.artistCoverOnlineResultsCache = [];
+        window.imageSearchModalResultsCache = [];
 
         window.openArtistCoverPickerModal = function() {
             if (!selectedArtist) return;
@@ -9187,14 +9315,13 @@ document.addEventListener('fullscreenchange', (event) => {
             if (nameEl) nameEl.textContent = selectedArtist;
             const urlInput = document.getElementById('artist-custom-cover-url-input');
             if (urlInput) {
-                urlInput.value = (window.customArtistPhotos && window.customArtistPhotos[selectedArtist]) || artistPhotoUrl || '';
+                const savedUrl = (window.customArtistPhotos && window.customArtistPhotos[selectedArtist]) || artistPhotoUrl || '';
+                urlInput.value = (savedUrl === 'no_photo' || savedUrl === 'no_cover') ? '' : savedUrl;
             }
 
             const onlineQueryInput = document.getElementById('artist-cover-online-query');
             if (onlineQueryInput) {
-                onlineQueryInput.value = window.artistCoverOnlineMode === 'logo'
-                    ? (selectedArtist + ' logo')
-                    : selectedArtist;
+                onlineQueryInput.value = selectedArtist;
             }
 
             const grid = document.getElementById('artist-cover-picker-albums-grid');
@@ -9208,12 +9335,11 @@ document.addEventListener('fullscreenchange', (event) => {
                     grid.innerHTML = '<div class="col-span-full py-6 text-center text-xs text-slate-500">Nenhuma capa de álbum encontrada para este artista.</div>';
                 } else {
                     const currentActive = (window.customArtistPhotos && window.customArtistPhotos[selectedArtist]) || artistPhotoUrl || '';
-                    grid.innerHTML = coversList.map(item => {
-                        const safeUrlJs = String(item.url || '').split("'").join("\\'");
+                    grid.innerHTML = coversList.map((item, idx) => {
                         const safeAlb = String(item.album || 'Álbum').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                         const isSelected = currentActive && currentActive === item.url;
                         return `
-                            <div onclick="saveCustomArtistCoverPhoto('${safeUrlJs}')" class="group relative aspect-square rounded-xl overflow-hidden bg-slate-900 border-2 ${isSelected ? 'border-sky-400 ring-2 ring-sky-500/30' : 'border-slate-800 hover:border-sky-500/60'} cursor-pointer transition shadow-md">
+                            <div onclick="saveCustomArtistCoverFromAlbumIdx(${idx})" class="group relative aspect-square rounded-xl overflow-hidden bg-slate-900 border-2 ${isSelected ? 'border-sky-400 ring-2 ring-sky-500/30' : 'border-slate-800 hover:border-sky-500/60'} cursor-pointer transition shadow-md">
                                 <img src="${item.url}" referrerpolicy="no-referrer" alt="${safeAlb}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
                                 <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2">
                                     <div class="text-[10px] font-bold text-white truncate">${safeAlb}</div>
@@ -9234,6 +9360,20 @@ document.addEventListener('fullscreenchange', (event) => {
             window.searchArtistCoverOnline();
         };
 
+        window.saveCustomArtistCoverFromAlbumIdx = function(idx) {
+            const list = window.currentArtistAlbumCoversList || [];
+            if (list[idx] && list[idx].url) {
+                window.saveCustomArtistCoverPhoto(list[idx].url);
+            }
+        };
+
+        window.saveCustomArtistCoverFromOnlineIdx = function(idx) {
+            const list = window.artistCoverOnlineResultsCache || [];
+            if (list[idx] && list[idx].url) {
+                window.saveCustomArtistCoverPhoto(list[idx].url);
+            }
+        };
+
         window.setArtistCoverOnlineQueryMode = function(mode) {
             window.artistCoverOnlineMode = mode === 'photo' ? 'photo' : 'logo';
             const btnLogo = document.getElementById('artist-cover-mode-logo');
@@ -9247,19 +9387,13 @@ document.addEventListener('fullscreenchange', (event) => {
                     btnLogo.className = "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-900 text-slate-400 hover:text-white border border-slate-800 cursor-pointer transition";
                 }
             }
-            const onlineQueryInput = document.getElementById('artist-cover-online-query');
-            if (onlineQueryInput && selectedArtist) {
-                onlineQueryInput.value = window.artistCoverOnlineMode === 'logo'
-                    ? (selectedArtist + ' logo')
-                    : selectedArtist;
-            }
             window.searchArtistCoverOnline();
         };
 
         window.setArtistCoverOnlineSource = function(src) {
             const srcInput = document.getElementById('artist-cover-online-source');
             if (srcInput) srcInput.value = src;
-            ['all', 'spotify', 'deezer', 'google'].forEach(s => {
+            ['all', 'spotify', 'deezer', 'wikipedia'].forEach(s => {
                 const btn = document.getElementById('artist-cover-src-' + s);
                 if (!btn) return;
                 if (s === src) {
@@ -9267,6 +9401,8 @@ document.addEventListener('fullscreenchange', (event) => {
                         ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40'
                         : s === 'deezer'
                         ? 'bg-purple-500/15 text-purple-400 border-purple-500/40'
+                        : s === 'wikipedia'
+                        ? 'bg-amber-500/15 text-amber-400 border-amber-500/40'
                         : 'bg-sky-500/15 text-sky-400 border-sky-500/30';
                     btn.className = `flex-1 text-center py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition border cursor-pointer ${activeColor}`;
                 } else {
@@ -9280,7 +9416,7 @@ document.addEventListener('fullscreenchange', (event) => {
             const s = String(sourceName || '').toLowerCase();
             if (s.includes('spotify')) return 'bg-emerald-500/90 text-slate-950';
             if (s.includes('deezer')) return 'bg-purple-500/90 text-white';
-            if (s.includes('logo')) return 'bg-amber-400/95 text-slate-950';
+            if (s.includes('wiki') || s.includes('logo')) return 'bg-amber-400/95 text-slate-950';
             if (s.includes('last')) return 'bg-rose-500/90 text-white';
             return 'bg-sky-500/90 text-slate-950';
         };
@@ -9289,7 +9425,7 @@ document.addEventListener('fullscreenchange', (event) => {
             const grid = document.getElementById('artist-cover-online-results-grid');
             if (!grid) return;
             const queryInput = document.getElementById('artist-cover-online-query');
-            const query = (queryInput && queryInput.value.trim()) ? queryInput.value.trim() : (selectedArtist ? selectedArtist + ' logo' : '');
+            const query = (queryInput && queryInput.value.trim()) ? queryInput.value.trim() : (selectedArtist || '');
             if (!query) return;
             const src = document.getElementById('artist-cover-online-source')?.value || 'all';
             const mode = window.artistCoverOnlineMode || 'logo';
@@ -9297,7 +9433,7 @@ document.addEventListener('fullscreenchange', (event) => {
             grid.innerHTML = `
                 <div class="col-span-full py-10 flex flex-col items-center justify-center gap-2">
                     <i data-lucide="loader" class="w-6 h-6 animate-spin text-sky-400"></i>
-                    <span class="text-[10px] font-mono text-slate-400 uppercase tracking-widest animate-pulse">Buscando logos e imagens em Spotify, Deezer e Google Imagens...</span>
+                    <span class="text-[10px] font-mono text-slate-400 uppercase tracking-widest animate-pulse">Buscando logos e imagens em Spotify, Deezer e Wikipedia...</span>
                 </div>
             `;
             if (window.lucide) lucide.createIcons();
@@ -9308,16 +9444,17 @@ document.addEventListener('fullscreenchange', (event) => {
                 const data = await res.json();
                 const items = (data && Array.isArray(data.items) && data.items.length > 0)
                     ? data.items
-                    : ((data && Array.isArray(data.images)) ? data.images.map(u => ({ url: u, source: src === 'all' ? 'Web' : src, title: query })) : []);
+                    : ((data && Array.isArray(data.images)) ? data.images.map(u => ({ url: u, source: src === 'all' ? 'Wikipedia' : src, title: query })) : []);
+
+                window.artistCoverOnlineResultsCache = items;
 
                 if (items.length > 0) {
-                    grid.innerHTML = items.map(it => {
-                        const imgUrl = String(it.url || '');
-                        const safeUrlJs = imgUrl.split("'").join("\\'");
-                        const badgeText = String(it.source || 'Web');
+                    grid.innerHTML = items.map((it, idx) => {
+                        const imgUrl = String(it.url || '').replace(/"/g, '&quot;');
+                        const badgeText = String(it.source || 'Wikipedia').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                         const badgeCls = window.getSourceBadgeClassPhp(badgeText);
                         return `
-                            <div onclick="saveCustomArtistCoverPhoto('${safeUrlJs}')" class="group relative aspect-square rounded-xl overflow-hidden bg-slate-900 border border-slate-800 hover:border-sky-400 cursor-pointer transition shadow-md flex items-center justify-center p-1">
+                            <div onclick="saveCustomArtistCoverFromOnlineIdx(${idx})" class="group relative aspect-square rounded-xl overflow-hidden bg-slate-900 border border-slate-800 hover:border-sky-400 cursor-pointer transition shadow-md flex items-center justify-center p-1">
                                 <img src="${imgUrl}" referrerpolicy="no-referrer" alt="Logo / Foto" class="w-full h-full object-contain group-hover:scale-105 transition duration-300" onerror="this.closest('.group').style.display='none'">
                                 <span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider shadow ${badgeCls}">
                                     ${badgeText}
@@ -9434,7 +9571,7 @@ document.addEventListener('fullscreenchange', (event) => {
             imageSearchTargetType = 'artist';
             imageSearchAlbumTitle = '';
             
-            const query = selectedArtist ? (selectedArtist + ' logo') : '';
+            const query = selectedArtist || '';
             document.getElementById('image-search-query').value = query;
             document.getElementById('image-search-modal-sub').textContent = selectedArtist;
             
@@ -9472,7 +9609,7 @@ document.addEventListener('fullscreenchange', (event) => {
             if (sourceInput) {
                 sourceInput.value = src;
             }
-            ['all', 'spotify', 'deezer', 'google', 'lastfm'].forEach(s => {
+            ['all', 'spotify', 'deezer', 'wikipedia', 'lastfm'].forEach(s => {
                 const button = document.getElementById('src-tab-' + s);
                 if (button) {
                     if (s === src) {
@@ -9489,6 +9626,13 @@ document.addEventListener('fullscreenchange', (event) => {
             document.getElementById('image-search-modal').classList.add('hidden');
         };
 
+        window.selectScrapedImageByIndex = function(idx) {
+            const items = window.imageSearchModalResultsCache || [];
+            if (items[idx] && items[idx].url) {
+                window.selectScrapedImage(items[idx].url);
+            }
+        };
+
         window.executeImageSearch = async function(customQuery) {
             const query = customQuery || document.getElementById('image-search-query').value.trim();
             if (!query) return;
@@ -9498,7 +9642,7 @@ document.addEventListener('fullscreenchange', (event) => {
                 <div class="h-48 flex flex-col items-center justify-center gap-2.5">
                     <i data-lucide="loader" class="w-8 h-8 animate-spin text-sky-500"></i>
                     <p class="text-[11px] font-mono text-slate-500 uppercase tracking-widest animate-pulse">
-                        Buscando em Spotify, Deezer e Google Imagens...
+                        Buscando em Spotify, Deezer e Wikipedia...
                     </p>
                 </div>
             `;
@@ -9510,7 +9654,7 @@ document.addEventListener('fullscreenchange', (event) => {
                 if (imageSearchTargetType === 'artist') {
                     url = API + '?route=search_artist_logo&artist=' + encodeURIComponent(query) + '&source=' + encodeURIComponent(src);
                 } else {
-                    const albumSrc = (src === 'all' || src === 'spotify') ? 'google' : src;
+                    const albumSrc = (src === 'all' || src === 'spotify') ? 'wikipedia' : src;
                     url = API + '?route=search_images&q=' + encodeURIComponent(query) + '&source=' + encodeURIComponent(albumSrc) + '&artist=' + encodeURIComponent(selectedArtist || '') + '&album=' + encodeURIComponent(imageSearchAlbumTitle || '');
                 }
                 const res = await fetch(url);
@@ -9519,16 +9663,18 @@ document.addEventListener('fullscreenchange', (event) => {
                     ? data.items
                     : ((data && Array.isArray(data.images)) ? data.images.map(u => ({ url: u, source: '' })) : []);
                 
+                window.imageSearchModalResultsCache = items;
+
                 if (data.success && items.length > 0) {
                     let html = '<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">';
-                    items.forEach(it => {
-                        const imgUrl = String(it.url || '');
-                        const badgeText = String(it.source || '');
+                    items.forEach((it, idx) => {
+                        const imgUrl = String(it.url || '').replace(/"/g, '&quot;');
+                        const badgeText = String(it.source || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                         const badgeHtml = badgeText
                             ? `<span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider shadow ${window.getSourceBadgeClassPhp(badgeText)}">${badgeText}</span>`
                             : '';
                         html += `
-                            <div onclick="selectScrapedImage('${imgUrl.split(String.fromCharCode(39)).join(String.fromCharCode(92, 39))}')" class="group aspect-square bg-slate-900 border border-slate-850 rounded-xl overflow-hidden cursor-pointer relative hover:border-sky-500/70 transition duration-150 shadow-sm flex items-center justify-center">
+                            <div onclick="selectScrapedImageByIndex(${idx})" class="group aspect-square bg-slate-900 border border-slate-850 rounded-xl overflow-hidden cursor-pointer relative hover:border-sky-500/70 transition duration-150 shadow-sm flex items-center justify-center">
                                 <img src="${imgUrl}" alt="Scraped Result" class="w-full h-full object-contain group-hover:scale-103 duration-300 transition" referrerpolicy="no-referrer" onerror="this.closest('.group').style.display='none'">
                                 ${badgeHtml}
                                 <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition duration-150 flex flex-col items-center justify-center p-2 text-center">
@@ -10454,10 +10600,10 @@ async function deleteUser(username) {
         ];
 
         const RADIO_PRESETS_POOL = [
-            { name: 'Kiss FM', url: 'https://www.radios.com.br/play/playlist/26885/listen-radio.m3u' },
-            { name: 'Elite Rock', url: 'https://www.radios.com.br/play/playlist/93525/listen-radio.m3u' },
-            { name: 'Jovem Pan News', url: 'https://www.radios.com.br/play/playlist/8800/listen-radio.m3u' },
-            { name: 'Antena 1', url: 'https://www.radios.com.br/play/playlist/11927/listen-radio.m3u' }
+            { name: 'Kiss FM', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO_KISSFM_ADP.aac' },
+            { name: '89 FM A Rádio Rock', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO_89FM_ADP.aac' },
+            { name: 'Jovem Pan News', url: 'https://stream.zeno.fm/vlcraijc6yiuv' },
+            { name: 'Antena 1', url: 'https://antenaone.crossradio.com.br/stream/1' }
         ];
 
         function renderPodcastSuggestions() {
@@ -11057,7 +11203,7 @@ async function deleteUser(username) {
                     card.className = "group relative bg-slate-950/45 hover:bg-slate-900/50 border rounded-2xl p-4 transition-all duration-300 transform hover:-translate-y-0.5 cursor-pointer flex flex-col justify-between h-36 " +
                         (isCurrentRadio ? "border-emerald-500 shadow-lg shadow-emerald-500/5" : "border-slate-900/90 hover:border-slate-800");
 
-                    card.onclick = () => playRadioPhp(radio.id, radio.name, radio.resolved_url || radio.url);
+                    card.onclick = () => playRadioPhp(radio.id, radio.name, radio.resolved_url || radio.resolvedUrl || radio.url);
 
                     const deleteBtnHtml = (currentUser.role === 'admin') ? `<button onclick="handleDeleteRadioPhp('${radio.id}', event)" class="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition" title="Remover Rádio"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>` : '';
 
@@ -11204,14 +11350,7 @@ async function deleteUser(username) {
             activeQueueIdx = 0;
             
             loadTrack(radioTrack);
-            if (audio.paused) {
-                audio.play();
-                isPlaying = true;
-                const playBtn = document.getElementById('player-play-btn');
-                if (playBtn) playBtn.innerHTML = '<i data-lucide="pause" class="w-4 h-4 fill-current"></i>';
-            }
             renderPlayerMiniQueue();
-            
             loadRadiosPhp();
         };
 
@@ -11551,6 +11690,72 @@ async function deleteUser(username) {
                 if (btn) btn.innerHTML = '<i data-lucide="pause" class="w-4 h-4 fill-current"></i>';
                 renderPlayerMiniQueue();
             }
+        };
+
+        window.openAndroidAppModal = function() {
+            const modal = document.getElementById('android-app-modal');
+            if (!modal) return;
+            const baseUrl = window.location.href.split('?')[0].replace(/\/(index|mobile|api)\.php$/i, '').replace(/\/$/, '');
+            const urlInput = document.getElementById('android-server-url-input');
+            if (urlInput) urlInput.value = baseUrl;
+            modal.classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+            window.testAndroidApiPing();
+        };
+
+        window.closeAndroidAppModal = function() {
+            const modal = document.getElementById('android-app-modal');
+            if (modal) modal.classList.add('hidden');
+        };
+
+        window.copyAndroidApiUrl = function() {
+            const urlInput = document.getElementById('android-server-url-input');
+            if (!urlInput) return;
+            navigator.clipboard.writeText(urlInput.value).then(() => {
+                alert('URL do servidor copiada: ' + urlInput.value);
+            }).catch(() => {
+                urlInput.select();
+                document.execCommand('copy');
+                alert('URL do servidor copiada: ' + urlInput.value);
+            });
+        };
+
+        window.testAndroidApiPing = async function() {
+            const badge = document.getElementById('android-api-ping-badge');
+            const statsEl = document.getElementById('android-api-stats-text');
+            if (badge) {
+                badge.textContent = 'Testando API...';
+                badge.className = 'px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/30';
+            }
+            try {
+                const res = await fetch(API + '?route=android_ping');
+                const data = await res.json();
+                if (data && data.success) {
+                    if (badge) {
+                        badge.textContent = 'API Online • v' + (data.version || '');
+                        badge.className = 'px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+                    }
+                    if (statsEl && data.stats) {
+                        statsEl.textContent = `Endpoint ativo: ${data.api_url} • ${data.stats.tracks} músicas • ${data.stats.artists} artistas • ${data.stats.albums} álbuns`;
+                    }
+                } else {
+                    if (badge) {
+                        badge.textContent = 'Resposta Inválida';
+                        badge.className = 'px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-rose-500/15 text-rose-400 border border-rose-500/30';
+                    }
+                }
+            } catch (e) {
+                if (badge) {
+                    badge.textContent = 'Erro de Conexão';
+                    badge.className = 'px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-rose-500/15 text-rose-400 border border-rose-500/30';
+                }
+            }
+        };
+
+        window.downloadAndroidStudioZip = function() {
+            const urlInput = document.getElementById('android-server-url-input');
+            const serverUrl = urlInput ? urlInput.value.trim() : '';
+            window.location.href = API + '?route=download_android_app&server_url=' + encodeURIComponent(serverUrl);
         };
 
     </script>
