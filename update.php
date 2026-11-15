@@ -91,36 +91,86 @@ if (isset($_GET['action']) && $_GET['action'] === 'check_version') {
         exit;
     }
 
-    $remote_version = $local_version;
-    $changelog = 'Não foi possível obter o changelog remoto.';
-    
-    $ctx = stream_context_create([
-        'http' => [
-            'timeout' => 8,
-            'user_agent' => 'PHPlayer-Updater/' . $local_version
-        ],
-        'ssl' => [
-            'verify_peer' => false,
-            'verify_peer_name' => false
-        ]
-    ]);
-
-    $remote_ver_raw = @file_get_contents('https://raw.githubusercontent.com/leirson/phplayer/main/version.php', false, $ctx);
-    if ($remote_ver_raw && preg_match("/define\\('PHPLAYER_VERSION',\\s*'([^']+)'\\)/", $remote_ver_raw, $m)) {
-        $remote_version = $m[1];
+    if (!function_exists('updater_github_get')) {
+        function updater_github_get($url, $timeout = 10) {
+            $t0 = microtime(true);
+            $ua = 'PHPlayer-Updater/1.0 (PHP/' . PHP_VERSION . ')';
+            if (function_exists('curl_init')) {
+                $ch = @curl_init($url);
+                if ($ch) {
+                    @curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    @curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                    @curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+                    @curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+                    @curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                    @curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+                    @curl_setopt($ch, CURLOPT_USERAGENT, $ua);
+                    @curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/vnd.github+json, text/plain, */*', 'Cache-Control: no-cache']);
+                    $body = @curl_exec($ch);
+                    $code = (int)@curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    $err = @curl_error($ch);
+                    @curl_close($ch);
+                    $ms = (int)round((microtime(true) - $t0) * 1000);
+                    if ($body !== false && $code >= 200 && $code < 400) {
+                        return ['ok' => true, 'body' => (string)$body, 'http_code' => $code, 'latency_ms' => $ms, 'method' => 'cURL', 'error' => ''];
+                    }
+                    if ($code >= 400) {
+                        return ['ok' => false, 'body' => (string)$body, 'http_code' => $code, 'latency_ms' => $ms, 'method' => 'cURL', 'error' => $err ?: "HTTP $code"];
+                    }
+                }
+            }
+            if (ini_get('allow_url_fopen')) {
+                $ctx = stream_context_create([
+                    'http' => ['timeout' => $timeout, 'user_agent' => $ua, 'follow_location' => 1, 'ignore_errors' => true],
+                    'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
+                ]);
+                $body = @file_get_contents($url, false, $ctx);
+                $ms = (int)round((microtime(true) - $t0) * 1000);
+                if ($body !== false) {
+                    return ['ok' => true, 'body' => (string)$body, 'http_code' => 200, 'latency_ms' => $ms, 'method' => 'Stream', 'error' => ''];
+                }
+            }
+            return ['ok' => false, 'body' => '', 'http_code' => 0, 'latency_ms' => 0, 'method' => 'none', 'error' => 'Falha ao conectar ao GitHub'];
+        }
     }
 
-    $remote_chg_raw = @file_get_contents('https://raw.githubusercontent.com/leirson/phplayer/main/changelog.php', false, $ctx);
-    if ($remote_chg_raw && preg_match('/\$changelog = <<<EOT\\n(.*?)\\nEOT;/s', $remote_chg_raw, $m)) {
+    $remote_version = $local_version;
+    $changelog = 'Não foi possível obter o changelog remoto.';
+    $ver_req = updater_github_get('https://raw.githubusercontent.com/leirson/phplayer/main/version.php?t=' . time(), 10);
+    if ($ver_req['ok'] && preg_match("/define\\(\\s*'PHPLAYER_VERSION'\\s*,\\s*'([^']+)'\\s*\\)/", $ver_req['body'], $m)) {
+        $remote_version = trim($m[1]);
+    }
+
+    $chg_req = updater_github_get('https://raw.githubusercontent.com/leirson/phplayer/main/changelog.php?t=' . time(), 10);
+    if ($chg_req['ok'] && preg_match('/\$changelog\s*=\s*<<<[\'"]?EOT[\'"]?\r?\n(.*?)\r?\nEOT;/s', $chg_req['body'], $m)) {
         $changelog = trim($m[1]);
     }
 
+    $commit_req = updater_github_get('https://api.github.com/repos/leirson/phplayer/commits/main', 10);
+    $latest_commit = null;
+    if ($commit_req['ok']) {
+        $cdata = @json_decode($commit_req['body'], true);
+        if (!empty($cdata['sha'])) {
+            $latest_commit = [
+                'sha' => substr($cdata['sha'], 0, 7),
+                'message' => trim(strtok($cdata['commit']['message'] ?? '', "\n")),
+                'author' => $cdata['commit']['author']['name'] ?? 'GitHub',
+                'date' => $cdata['commit']['author']['date'] ?? ''
+            ];
+        }
+    }
+
     echo json_encode([
-        'success' => true,
+        'success' => $ver_req['ok'],
         'local_version' => $local_version,
         'remote_version' => $remote_version,
         'has_update' => version_compare($remote_version, $local_version, '>'),
-        'changelog' => $changelog
+        'changelog' => $changelog,
+        'http_code' => $ver_req['http_code'],
+        'latency_ms' => $ver_req['latency_ms'],
+        'method' => $ver_req['method'],
+        'latest_commit' => $latest_commit,
+        'error' => $ver_req['ok'] ? null : $ver_req['error']
     ]);
     exit;
 }
@@ -530,7 +580,12 @@ $pdo_ok = extension_loaded('pdo_mysql');
                             <p class="text-xs text-slate-400 mt-1">Baixa a versão estável mais recente do GitHub oficial, atualiza os scripts e preserva automaticamente seu arquivo <code class="text-cyan-300 bg-slate-950 px-1 py-0.5 rounded">config.php</code> e suas pastas de mídia.</p>
                         </div>
 
-                        <div class="flex items-center gap-2 shrink-0">
+                        <div class="flex flex-wrap items-center gap-2 shrink-0">
+                            <button id="btn-test-github" onclick="testGithubConnection()" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300 rounded-xl text-xs font-semibold transition border border-cyan-800/60 flex items-center gap-1.5 cursor-pointer">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                                <span>Testar Conexão GitHub</span>
+                            </button>
+
                             <button id="btn-check-update" onclick="checkUpdate()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-semibold transition border border-slate-700 flex items-center gap-1.5 cursor-pointer">
                                 <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                                 <span>Verificar Agora</span>
@@ -675,6 +730,29 @@ Carregando histórico de alterações do GitHub...
             if (term) term.innerHTML = '';
         }
 
+        async function testGithubConnection() {
+            const btn = document.getElementById('btn-test-github');
+            if (btn) btn.disabled = true;
+            log('Iniciando diagnóstico completo de conexão com GitHub (api.php?route=github_status)...');
+            try {
+                const res = await fetch('api.php?route=github_status');
+                const data = await res.json();
+                log(`Repositório alvo: ${data.repo || 'leirson/phplayer'} (branch: ${data.branch || 'main'}) • Método HTTP: ${(data.method_used || 'curl').toUpperCase()} • Latência Média: ${data.avg_latency_ms || 0}ms`, data.success ? 'success' : 'warn');
+                if (data.checks) {
+                    Object.values(data.checks).forEach(chk => {
+                        log(`• ${chk.name}: ${chk.ok ? 'OK' : 'FALHA'} (HTTP ${chk.http_code || 0} em ${chk.latency_ms || 0}ms) — ${chk.details || ''}`, chk.ok ? 'success' : 'error');
+                    });
+                }
+                if (data.latest_commit && data.latest_commit.sha) {
+                    log(`Último commit na branch: #${data.latest_commit.sha} por ${data.latest_commit.author} ("${data.latest_commit.message}")`, 'info');
+                }
+            } catch (err) {
+                log('Erro ao executar diagnóstico do GitHub: ' + err.message, 'error');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
         async function checkUpdate() {
             const btn = document.getElementById('btn-check-update');
             const badge = document.getElementById('badge-update-status');
@@ -695,6 +773,10 @@ Carregando histórico de alterações do GitHub...
                 if (data.success) {
                     if (remoteLabel) remoteLabel.textContent = 'v' + data.remote_version;
                     if (changelogBox) changelogBox.textContent = data.changelog || 'Nenhum changelog disponível.';
+                    log(`Conexão GitHub estabelecida via ${data.method || 'cURL'} (HTTP ${data.http_code || 200} em ${data.latency_ms || 0}ms).`, 'info');
+                    if (data.latest_commit && data.latest_commit.sha) {
+                        log(`Último commit remoto: #${data.latest_commit.sha} - ${data.latest_commit.message}`, 'info');
+                    }
 
                     if (data.has_update) {
                         log(`Nova versão disponível: v${data.remote_version} (Instalada: v${data.local_version})`, 'warn');
@@ -711,6 +793,10 @@ Carregando histórico de alterações do GitHub...
                     }
                 } else {
                     log('Não foi possível verificar a versão remota: ' + (data.error || 'Erro desconhecido'), 'error');
+                    if (badge) {
+                        badge.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-rose-950 text-rose-400 border border-rose-800';
+                        badge.textContent = 'Falha na Conexão GitHub';
+                    }
                 }
             } catch (err) {
                 log('Falha na requisição de checagem: ' + err.message, 'error');

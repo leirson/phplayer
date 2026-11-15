@@ -1190,28 +1190,72 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                 </div>
 
                 
-                <!-- SUBTAB 6: ATUALIZAÇÕES -->
+                <!-- SUBTAB 6: ATUALIZAÇÕES & CONEXÃO GITHUB -->
                 <div id="subtab-pane-updates" class="space-y-6 hidden admin-only font-sans">
-                    <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl max-w-2xl text-left">
-                        <h3 class="text-xs font-black uppercase text-white flex items-center gap-1.5 mb-1">
-                            <i data-lucide="refresh-cw" class="w-4 h-4 text-sky-400"></i> Atualização do Sistema
-                        </h3>
-                        <p class="text-xs text-slate-400 leading-normal mb-5">Verifique se existe uma nova versão do PHPlayer disponível no GitHub.</p>
+                    <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl max-w-3xl text-left">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                            <div>
+                                <h3 class="text-xs font-black uppercase text-white flex items-center gap-1.5 mb-1">
+                                    <i data-lucide="refresh-cw" class="w-4 h-4 text-sky-400"></i> Atualização do Sistema & Conexão GitHub
+                                </h3>
+                                <p class="text-xs text-slate-400 leading-normal">Verifique novas versões, teste a conectividade do servidor PHP com o GitHub e aplique atualizações automáticas.</p>
+                            </div>
+                            <button onclick="toggleGithubConfigBox()" class="self-start sm:self-auto px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer">
+                                <i data-lucide="settings-2" class="w-3.5 h-3.5 text-sky-400"></i> Configurar Repositório
+                            </button>
+                        </div>
+
+                        <!-- Configuração opcional de Repositório / Branch / Token GitHub -->
+                        <div id="github-config-box" class="hidden mb-4 bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] uppercase font-black text-sky-400 tracking-wider flex items-center gap-1.5">
+                                    <i data-lucide="git-branch" class="w-3.5 h-3.5"></i> Configuração do Repositório GitHub
+                                </span>
+                                <span class="text-[10px] text-slate-500">Padrão: leirson/phplayer (main)</span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div class="sm:col-span-2">
+                                    <label class="text-[9px] uppercase font-bold text-slate-400 block mb-1">Repositório (usuario/repositorio)</label>
+                                    <input id="gh-cfg-repo" type="text" value="leirson/phplayer" placeholder="leirson/phplayer" class="w-full bg-slate-950 border border-slate-800 text-white px-3 py-2 rounded-lg text-xs font-mono outline-none focus:border-sky-500">
+                                </div>
+                                <div>
+                                    <label class="text-[9px] uppercase font-bold text-slate-400 block mb-1">Branch</label>
+                                    <input id="gh-cfg-branch" type="text" value="main" placeholder="main" class="w-full bg-slate-950 border border-slate-800 text-white px-3 py-2 rounded-lg text-xs font-mono outline-none focus:border-sky-500">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-[9px] uppercase font-bold text-slate-400 block mb-1">Token GitHub Opcional (evita limite de requisições em hospedagens compartilhadas)</label>
+                                <div class="flex gap-2">
+                                    <input id="gh-cfg-token" type="password" placeholder="ghp_... (deixe em branco para acesso público)" class="flex-1 bg-slate-950 border border-slate-800 text-white px-3 py-2 rounded-lg text-xs font-mono outline-none focus:border-sky-500">
+                                    <button onclick="saveGithubConfig()" id="btn-save-gh-cfg" class="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-lg text-xs transition cursor-pointer whitespace-nowrap">
+                                        Salvar e Testar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                         
                         <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-5 space-y-4">
-                            <div class="flex items-center justify-between">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                 <div>
                                     <span class="text-[10px] uppercase font-bold text-slate-500 tracking-wider block mb-1">Status Atual</span>
-                                    <div id="update-status-badge" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 border border-slate-800 text-slate-300 rounded-lg text-[11px] font-bold">
-                                        <i data-lucide="help-circle" class="w-3.5 h-3.5"></i> Desconhecido
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <div id="update-status-badge" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 border border-slate-800 text-slate-300 rounded-lg text-[11px] font-bold">
+                                            <i data-lucide="help-circle" class="w-3.5 h-3.5"></i> Desconhecido
+                                        </div>
+                                        <span id="github-conn-meta" class="text-[10px] font-mono text-slate-400 hidden"></span>
                                     </div>
                                 </div>
-                                <button onclick="checkPhpUpdates()" id="btn-check-updates" class="bg-gradient-to-r from-sky-500 to-indigo-600 text-white hover:opacity-90 font-bold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer shadow-lg shadow-sky-500/10 flex items-center gap-1.5">
-                                    <i data-lucide="search" class="w-3.5 h-3.5"></i> Verificar Atualização
-                                </button>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <button onclick="verifyGithubConnection()" id="btn-verify-github" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-400 hover:text-cyan-300 font-bold text-xs px-3.5 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5">
+                                        <i data-lucide="activity" class="w-3.5 h-3.5"></i> Verificar Conexão com GitHub
+                                    </button>
+                                    <button onclick="checkPhpUpdates()" id="btn-check-updates" class="bg-gradient-to-r from-sky-500 to-indigo-600 text-white hover:opacity-90 font-bold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer shadow-lg shadow-sky-500/10 flex items-center gap-1.5">
+                                        <i data-lucide="search" class="w-3.5 h-3.5"></i> Verificar Atualização
+                                    </button>
+                                </div>
                             </div>
                             
-                            <div class="grid grid-cols-2 gap-4 border-t border-slate-900/60 pt-4">
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 border-t border-slate-900/60 pt-4">
                                 <div>
                                     <span class="text-[9px] uppercase font-bold text-slate-500 tracking-wider block mb-1">Sua Versão</span>
                                     <div id="current-version-label" class="text-xl font-black text-white font-mono">--</div>
@@ -1220,6 +1264,42 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                                     <span class="text-[9px] uppercase font-bold text-slate-500 tracking-wider block mb-1">Versão Disponível</span>
                                     <div id="remote-version-label" class="text-xl font-black text-sky-400 font-mono">--</div>
                                 </div>
+                                <div class="col-span-2 sm:col-span-1">
+                                    <span class="text-[9px] uppercase font-bold text-slate-500 tracking-wider block mb-1">Repositório Ativo</span>
+                                    <div id="github-repo-label" class="text-xs font-bold text-slate-300 font-mono truncate mt-1">leirson/phplayer (main)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PAINEL DE DIAGNÓSTICO DE CONEXÃO COM GITHUB -->
+                        <div id="github-diag-panel" class="mt-5 hidden bg-slate-900/50 border border-slate-800 rounded-xl p-4 space-y-4">
+                            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="shield-check" class="w-4 h-4 text-cyan-400"></i>
+                                    <h4 class="text-[11px] uppercase font-black text-white tracking-wider">Diagnóstico de Conexão com GitHub</h4>
+                                </div>
+                                <span id="github-diag-summary" class="text-[10px] font-mono px-2.5 py-1 rounded-md bg-slate-950 border border-slate-800 text-slate-400">--</span>
+                            </div>
+
+                            <!-- Último Commit Detectado -->
+                            <div id="github-latest-commit-box" class="hidden bg-slate-950/80 border border-slate-800/80 rounded-xl p-3.5 text-xs">
+                                <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+                                    <span class="text-[10px] font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                                        <i data-lucide="git-commit" class="w-3.5 h-3.5"></i> Último Commit no GitHub
+                                    </span>
+                                    <span id="github-commit-meta" class="text-[10px] font-mono text-slate-400"></span>
+                                </div>
+                                <div id="github-commit-msg" class="text-slate-200 font-medium text-xs truncate"></div>
+                            </div>
+
+                            <!-- Checklist dos 5 Endpoints do GitHub -->
+                            <div id="github-checks-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                            </div>
+
+                            <!-- Requisitos do Ambiente PHP Local -->
+                            <div class="pt-2 border-t border-slate-800/60">
+                                <span class="text-[9px] uppercase font-bold text-slate-500 tracking-wider block mb-2">Ambiente do Servidor PHP para Atualização</span>
+                                <div id="github-env-grid" class="flex flex-wrap gap-2 text-[11px]"></div>
                             </div>
                         </div>
 
@@ -1234,15 +1314,20 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                                 <button onclick="doPhpUpdate()" id="btn-do-update" class="w-full flex items-center justify-center gap-2 px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-xl text-xs uppercase tracking-wider transition shadow-lg shadow-emerald-500/20 cursor-pointer">
                                     <i data-lucide="download-cloud" class="w-4 h-4"></i> Baixar e Atualizar Automaticamente
                                 </button>
-                                <p class="text-[10px] text-center text-slate-500 mt-2 font-bold uppercase tracking-wider">O sistema fará o download e recarregará a página. O arquivo config.php será mantido.</p>
+                                <p class="text-[10px] text-center text-slate-500 mt-2 font-bold uppercase tracking-wider">O sistema fará o download e recarregará a página. O arquivo config.php e suas pastas de mídia serão mantidos.</p>
                             </div>
                         </div>
 
                         <div class="mt-5 pt-4 border-t border-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                             <span class="text-slate-400">Em caso de erros ou arquivos danificados:</span>
-                            <a href="update.php" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-850 text-cyan-400 hover:text-cyan-300 border border-slate-800 rounded-xl font-semibold transition">
-                                <i data-lucide="wrench" class="w-3.5 h-3.5 text-cyan-400"></i> Abrir Painel de Reparo (update.php)
-                            </a>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <a href="debug.php" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 rounded-xl font-semibold transition">
+                                    <i data-lucide="terminal" class="w-3.5 h-3.5 text-sky-400"></i> Diagnóstico (debug.php)
+                                </a>
+                                <a href="update.php" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-850 text-cyan-400 hover:text-cyan-300 border border-slate-800 rounded-xl font-semibold transition">
+                                    <i data-lucide="wrench" class="w-3.5 h-3.5 text-cyan-400"></i> Abrir Painel de Reparo (update.php)
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3767,6 +3852,7 @@ let currentUser = null;
                 loadFileManager(fileManagerCurrentPath || '');
             }
             if (subTabName === 'id3') { renderId3SongsList(); } if (subTabName === 'dashboard_cfg') { loadDashSettings(); }
+            if (subTabName === 'updates' && typeof checkPhpUpdates === 'function') { checkPhpUpdates(); }
             lucide.createIcons();
         }
 
@@ -11471,10 +11557,225 @@ async function deleteUser(username) {
 
         
         let isCheckingUpdate = false;
+        let isVerifyingGithub = false;
+
+        function toggleGithubConfigBox() {
+            const box = document.getElementById('github-config-box');
+            if (!box) return;
+            box.classList.toggle('hidden');
+        }
+
+        async function saveGithubConfig() {
+            const repoEl = document.getElementById('gh-cfg-repo');
+            const branchEl = document.getElementById('gh-cfg-branch');
+            const tokenEl = document.getElementById('gh-cfg-token');
+            const btn = document.getElementById('btn-save-gh-cfg');
+            if (!repoEl || !branchEl) return;
+
+            const origText = btn ? btn.textContent : 'Salvar e Testar';
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Salvando...';
+            }
+
+            try {
+                const payload = {
+                    github_repo: repoEl.value.trim() || 'leirson/phplayer',
+                    github_branch: branchEl.value.trim() || 'main',
+                    github_token: tokenEl && tokenEl.value.trim() !== '' ? tokenEl.value.trim() : '__KEEP__'
+                };
+                const res = await fetch(API + '?route=save_github_config&admin_username=' + encodeURIComponent(currentUser?.username || 'admin'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (window.showToast) showToast('Configuração do GitHub salva! Verificando conexão...', 'success');
+                    await verifyGithubConnection();
+                } else {
+                    if (window.showToast) showToast('Erro ao salvar: ' + (data.error || 'Falha desconhecida'), 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                if (window.showToast) showToast('Erro de comunicação ao salvar configuração do GitHub.', 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = origText;
+                }
+            }
+        }
+
+        async function verifyGithubConnection() {
+            if (isVerifyingGithub) return;
+            const btn = document.getElementById('btn-verify-github');
+            const panel = document.getElementById('github-diag-panel');
+            const summaryEl = document.getElementById('github-diag-summary');
+            const checksGrid = document.getElementById('github-checks-grid');
+            const envGrid = document.getElementById('github-env-grid');
+            const commitBox = document.getElementById('github-latest-commit-box');
+            const commitMeta = document.getElementById('github-commit-meta');
+            const commitMsg = document.getElementById('github-commit-msg');
+            const badge = document.getElementById('update-status-badge');
+            const cvLabel = document.getElementById('current-version-label');
+            const rvLabel = document.getElementById('remote-version-label');
+            const repoLabel = document.getElementById('github-repo-label');
+            const connMeta = document.getElementById('github-conn-meta');
+            const clCont = document.getElementById('changelog-container');
+            const clText = document.getElementById('changelog-content');
+            const dlWrap = document.getElementById('download-update-wrapper');
+
+            isVerifyingGithub = true;
+            const origHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Testando GitHub...';
+            }
+            if (panel) panel.classList.remove('hidden');
+            if (summaryEl) summaryEl.textContent = 'Testando endpoints do GitHub...';
+            if (checksGrid) {
+                checksGrid.innerHTML = '<div class="col-span-2 text-slate-400 py-3 text-center font-mono text-[11px]">Verificando conectividade com api.github.com e raw.githubusercontent.com...</div>';
+            }
+            if (window.lucide) lucide.createIcons();
+
+            try {
+                const repoInput = document.getElementById('gh-cfg-repo')?.value?.trim() || '';
+                const branchInput = document.getElementById('gh-cfg-branch')?.value?.trim() || '';
+                let url = API + '?route=github_status';
+                if (repoInput) url += '&repo=' + encodeURIComponent(repoInput);
+                if (branchInput) url += '&branch=' + encodeURIComponent(branchInput);
+
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (cvLabel && data.current_version) cvLabel.textContent = 'v' + String(data.current_version).replace(/^v/i, '');
+                if (rvLabel && data.remote_version) rvLabel.textContent = 'v' + String(data.remote_version).replace(/^v/i, '');
+                if (repoLabel && data.repo) repoLabel.textContent = `${data.repo} (${data.branch || 'main'})`;
+
+                const repoEl = document.getElementById('gh-cfg-repo');
+                const branchEl = document.getElementById('gh-cfg-branch');
+                if (repoEl && data.repo) repoEl.value = data.repo;
+                if (branchEl && data.branch) branchEl.value = data.branch;
+
+                if (connMeta) {
+                    connMeta.classList.remove('hidden');
+                    const methodLabel = (data.method_used || 'curl').toUpperCase();
+                    const latLabel = (data.avg_latency_ms || 0) + 'ms';
+                    const rlText = (data.rate_limit && data.rate_limit.remaining !== null && data.rate_limit.remaining !== undefined)
+                        ? ` • API Rate: ${data.rate_limit.remaining}/${data.rate_limit.limit || 60}`
+                        : '';
+                    connMeta.textContent = `[${methodLabel} • ${latLabel}${rlText}]`;
+                }
+
+                if (summaryEl) {
+                    if (data.overall_status === 'connected') {
+                        summaryEl.className = 'text-[10px] font-mono px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold';
+                        summaryEl.textContent = `CONECTADO • ${(data.method_used || 'curl').toUpperCase()} • ${data.avg_latency_ms || 0}ms`;
+                    } else if (data.overall_status === 'partial') {
+                        summaryEl.className = 'text-[10px] font-mono px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold';
+                        summaryEl.textContent = `CONEXÃO PARCIAL • ${(data.method_used || 'curl').toUpperCase()}`;
+                    } else {
+                        summaryEl.className = 'text-[10px] font-mono px-2.5 py-1 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-400 font-bold';
+                        summaryEl.textContent = 'FALHA DE CONEXÃO COM GITHUB';
+                    }
+                }
+
+                // Latest commit info
+                if (commitBox && data.latest_commit && data.latest_commit.sha) {
+                    commitBox.classList.remove('hidden');
+                    const dateFmt = data.latest_commit.date ? new Date(data.latest_commit.date).toLocaleString('pt-BR') : '';
+                    if (commitMeta) commitMeta.textContent = `#${data.latest_commit.sha} • ${data.latest_commit.author || ''} ${dateFmt ? '• ' + dateFmt : ''}`;
+                    if (commitMsg) commitMsg.textContent = data.latest_commit.message || '';
+                } else if (commitBox) {
+                    commitBox.classList.add('hidden');
+                }
+
+                // Render 5-point checks
+                if (checksGrid && data.checks) {
+                    checksGrid.innerHTML = Object.values(data.checks).map(chk => {
+                        const ok = !!chk.ok;
+                        const statusColor = ok
+                            ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400'
+                            : 'border-rose-500/30 bg-rose-500/10 text-rose-400';
+                        const badgeText = ok
+                            ? `HTTP ${chk.http_code || 200} • ${chk.latency_ms || 0}ms`
+                            : (chk.error || `HTTP ${chk.http_code || 'ERRO'}`);
+                        return `
+                            <div class="p-3 rounded-xl border ${statusColor} flex flex-col justify-between gap-1">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="font-bold text-white text-[11px] flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full ${ok ? 'bg-emerald-400' : 'bg-rose-400'}"></span>
+                                        ${chk.name}
+                                    </span>
+                                    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-950/80 ${ok ? 'text-emerald-400' : 'text-rose-400'}">${badgeText}</span>
+                                </div>
+                                <div class="text-[10px] text-slate-400 font-mono truncate">${chk.details || ''}</div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                // Render PHP environment badges
+                if (envGrid && data.environment) {
+                    const env = data.environment;
+                    const items = [
+                        { label: `PHP ${env.php_version}`, ok: env.php_ok },
+                        { label: `cURL: ${env.curl_enabled ? 'Ativo' : 'Inativo'}`, ok: env.curl_enabled },
+                        { label: `allow_url_fopen: ${env.allow_url_fopen ? 'Ativo' : 'Inativo'}`, ok: env.allow_url_fopen },
+                        { label: `OpenSSL: ${env.openssl_enabled ? 'Ativo' : 'Inativo'}`, ok: env.openssl_enabled },
+                        { label: `ZipArchive: ${env.zip_enabled ? 'Ativo' : 'Inativo'}`, ok: env.zip_enabled },
+                        { label: `Escrita no Diretório: ${env.dir_writable ? 'OK' : 'Bloqueada'}`, ok: env.dir_writable }
+                    ];
+                    envGrid.innerHTML = items.map(it => `
+                        <span class="px-2.5 py-1 rounded-lg border font-mono text-[10px] ${it.ok ? 'bg-slate-950 border-emerald-500/30 text-emerald-400' : 'bg-rose-950/40 border-rose-500/40 text-rose-400'}">
+                            ${it.ok ? '✓' : '✕'} ${it.label}
+                        </span>
+                    `).join('');
+                }
+
+                // Also update changelog and update status badge
+                if (data.changelog && clCont && clText) {
+                    clCont.classList.remove('hidden');
+                    clText.textContent = data.changelog;
+                }
+                if (badge) {
+                    if (!data.success) {
+                        badge.className = "inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-[11px] font-bold";
+                        badge.innerHTML = '<i data-lucide="wifi-off" class="w-3.5 h-3.5"></i> Sem Conexão com GitHub';
+                    } else if (data.has_update) {
+                        badge.className = "inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-[11px] font-bold";
+                        badge.innerHTML = '<i data-lucide="alert-circle" class="w-3.5 h-3.5"></i> Atualização Disponível!';
+                        if (dlWrap) dlWrap.classList.remove('hidden');
+                    } else {
+                        badge.className = "inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded-lg text-[11px] font-bold";
+                        badge.innerHTML = '<i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Conectado & Atualizado';
+                        if (dlWrap) dlWrap.classList.add('hidden');
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                if (summaryEl) {
+                    summaryEl.className = 'text-[10px] font-mono px-2.5 py-1 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-400 font-bold';
+                    summaryEl.textContent = 'ERRO NA REQUISIÇÃO';
+                }
+                if (checksGrid) {
+                    checksGrid.innerHTML = `<div class="col-span-2 p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs font-mono">Falha ao comunicar com api.php?route=github_status: ${err.message || err}</div>`;
+                }
+            } finally {
+                isVerifyingGithub = false;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = origHtml;
+                }
+                if (window.lucide) lucide.createIcons();
+            }
+        }
+
         async function doPhpUpdate() {
             const btn = document.getElementById('btn-do-update');
             if (btn.disabled) return;
-            if (!confirm('Deseja realmente baixar a atualização e aplicá-la? O sistema será recarregado em seguida.')) return;
+            if (!confirm('Deseja realmente baixar a atualização do GitHub e aplicá-la? O sistema será recarregado em seguida.')) return;
             
             const origHtml = btn.innerHTML;
             btn.disabled = true;
@@ -11512,41 +11813,54 @@ async function deleteUser(username) {
             const clCont = document.getElementById('changelog-container');
             const cvLabel = document.getElementById('current-version-label');
             const rvLabel = document.getElementById('remote-version-label');
+            const repoLabel = document.getElementById('github-repo-label');
+            const connMeta = document.getElementById('github-conn-meta');
             const clText = document.getElementById('changelog-content');
             const dlWrap = document.getElementById('download-update-wrapper');
             
             isCheckingUpdate = true;
-            const origHtml = btn.innerHTML;
-            btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Verificando...';
+            const origHtml = btn ? btn.innerHTML : '';
+            if (btn) btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Verificando...';
             if(window.lucide) lucide.createIcons();
 
             try {
                 const res = await fetch(API + '?route=check_update');
                 const data = await res.json();
                 
-                cvLabel.textContent = data.current_version;
-                rvLabel.textContent = data.remote_version;
+                if (cvLabel) cvLabel.textContent = 'v' + String(data.current_version || '--').replace(/^v/i, '');
+                if (rvLabel) rvLabel.textContent = 'v' + String(data.remote_version || '--').replace(/^v/i, '');
+                if (repoLabel && data.repo) repoLabel.textContent = `${data.repo} (${data.branch || 'main'})`;
+                if (connMeta && data.method_used) {
+                    connMeta.classList.remove('hidden');
+                    connMeta.textContent = `[${String(data.method_used).toUpperCase()} • ${data.latency_ms || 0}ms • HTTP ${data.http_code || 200}]`;
+                }
                 
-                clCont.classList.remove('hidden');
-                clText.textContent = data.changelog;
+                if (clCont) clCont.classList.remove('hidden');
+                if (clText) clText.textContent = data.changelog || '';
                 
-                if (data.has_update) {
+                if (data.github_connected === false) {
+                    badge.className = "inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-[11px] font-bold";
+                    badge.innerHTML = '<i data-lucide="wifi-off" class="w-3.5 h-3.5"></i> Falha ao conectar ao GitHub';
+                    if (dlWrap) dlWrap.classList.add('hidden');
+                } else if (data.has_update) {
                     badge.className = "inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-[11px] font-bold";
                     badge.innerHTML = '<i data-lucide="alert-circle" class="w-3.5 h-3.5"></i> Atualização Disponível!';
-                    dlWrap.classList.remove('hidden');
+                    if (dlWrap) dlWrap.classList.remove('hidden');
                 } else {
                     badge.className = "inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded-lg text-[11px] font-bold";
                     badge.innerHTML = '<i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Sistema Atualizado';
-                    dlWrap.classList.add('hidden');
+                    if (dlWrap) dlWrap.classList.add('hidden');
                 }
             } catch (err) {
                 console.error(err);
-                badge.className = "inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-[11px] font-bold";
-                badge.innerHTML = '<i data-lucide="x-circle" class="w-3.5 h-3.5"></i> Erro ao verificar';
-                clCont.classList.add('hidden');
+                if (badge) {
+                    badge.className = "inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-[11px] font-bold";
+                    badge.innerHTML = '<i data-lucide="x-circle" class="w-3.5 h-3.5"></i> Erro ao verificar';
+                }
+                if (clCont) clCont.classList.add('hidden');
             } finally {
                 isCheckingUpdate = false;
-                btn.innerHTML = origHtml;
+                if (btn) btn.innerHTML = origHtml;
                 if(window.lucide) lucide.createIcons();
             }
         }

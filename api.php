@@ -1459,40 +1459,444 @@ try {
     
 
     
+    case 'save_github_config':
+        if (!is_admin_user($pdo)) {
+            http_response_code(403);
+            exit(json_encode(['error' => 'Acesso negado: Recursos de administrador são restritos.', 'success' => false]));
+        }
+        $input = json_decode(file_get_contents('php://input'), true) ?: $_POST;
+        $repo = trim($input['github_repo'] ?? 'leirson/phplayer');
+        $branch = trim($input['github_branch'] ?? 'main');
+        $token = trim($input['github_token'] ?? '');
+        if ($repo === '') $repo = 'leirson/phplayer';
+        if ($branch === '') $branch = 'main';
+        // Remove full URL prefix if user pasted https://github.com/owner/repo
+        $repo = preg_replace('#^https?://(www\.)?github\.com/#i', '', $repo);
+        $repo = trim(preg_replace('#\.git$#i', '', $repo), '/');
+
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS settings (setting_key VARCHAR(100) PRIMARY KEY, setting_value TEXT DEFAULT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+            $stmt->execute(['github_repo', $repo]);
+            $stmt->execute(['github_branch', $branch]);
+            if ($token !== '__KEEP__') {
+                $stmt->execute(['github_token', $token]);
+            }
+            echo json_encode(['success' => true, 'github_repo' => $repo, 'github_branch' => $branch, 'has_token' => ($token !== '' && $token !== '__KEEP__')]);
+        } catch (Throwable $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+
     case 'check_update':
-        $current_version = '1.0.0';
-        if (file_exists('version.php')) {
-            $content = file_get_contents('version.php');
-            if (preg_match("/define\\('PHPLAYER_VERSION',\\s*'([^']+)'\\)/", $content, $m)) {
-                $current_version = $m[1];
+    case 'github_status':
+    case 'check_github':
+        if (!function_exists('phplayer_get_local_version')) {
+            function phplayer_get_local_version() {
+                $verFile = __DIR__ . '/version.php';
+                if (file_exists($verFile)) {
+                    $content = @file_get_contents($verFile);
+                    if ($content && preg_match("/define\\(\\s*'PHPLAYER_VERSION'\\s*,\\s*'([^']+)'\\s*\\)/", $content, $m)) {
+                        return trim($m[1]);
+                    }
+                }
+                return defined('PHPLAYER_VERSION') ? PHPLAYER_VERSION : '1.0.0';
             }
         }
-        
+
+        if (!function_exists('phplayer_get_github_cfg')) {
+            function phplayer_get_github_cfg($pdo) {
+                $cfg = [
+                    'repo' => 'leirson/phplayer',
+                    'branch' => 'main',
+                    'token' => ''
+                ];
+                try {
+                    if ($pdo) {
+                        $stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('github_repo', 'github_branch', 'github_token')");
+                        if ($stmt) {
+                            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                                if ($row['setting_key'] === 'github_repo' && !empty(trim($row['setting_value']))) {
+                                    $cfg['repo'] = trim($row['setting_value']);
+                                } elseif ($row['setting_key'] === 'github_branch' && !empty(trim($row['setting_value']))) {
+                                    $cfg['branch'] = trim($row['setting_value']);
+                                } elseif ($row['setting_key'] === 'github_token' && !empty(trim($row['setting_value']))) {
+                                    $cfg['token'] = trim($row['setting_value']);
+                                }
+                            }
+                        }
+                    }
+                } catch (Throwable $e) {}
+
+                if (!empty($_GET['repo'])) {
+                    $r = preg_replace('#^https?://(www\.)?github\.com/#i', '', trim($_GET['repo']));
+                    $cfg['repo'] = trim(preg_replace('#\.git$#i', '', $r), '/');
+                }
+                if (!empty($_GET['branch'])) {
+                    $cfg['branch'] = trim($_GET['branch']);
+                }
+                return $cfg;
+            }
+        }
+
+        if (!function_exists('phplayer_github_http')) {
+            function phplayer_github_http($url, $timeout = 10, $token = '', $headOrRange = false) {
+                $t0 = microtime(true);
+                $ua = 'PHPlayer-Updater/' . phplayer_get_local_version() . ' (PHP/' . PHP_VERSION . ')';
+                $headers = [
+                    'User-Agent: ' . $ua,
+                    'Accept: application/vnd.github+json, text/plain, */*',
+                    'Cache-Control: no-cache'
+                ];
+                if (!empty($token)) {
+                    $headers[] = 'Authorization: Bearer ' . $token;
+                }
+                if ($headOrRange) {
+                    $headers[] = 'Range: bytes=0-1023';
+                }
+
+                $result = [
+                    'ok' => false,
+                    'http_code' => 0,
+                    'body' => '',
+                    'latency_ms' => 0,
+                    'method_used' => 'none',
+                    'error' => '',
+                    'rate_limit_remaining' => null,
+                    'rate_limit_limit' => null
+                ];
+
+                // 1) Tentar via cURL (recomendado na maioria das hospedagens PHP)
+                if (function_exists('curl_init')) {
+                    $respHeaders = [];
+                    $ch = @curl_init($url);
+                    if ($ch) {
+                        @curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        @curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                        @curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+                        @curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+                        @curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, min(8, $timeout));
+                        @curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                        @curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+                        @curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+                        @curl_setopt($ch, CURLOPT_USERAGENT, $ua);
+                        @curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($curl, $headerLine) use (&$respHeaders) {
+                            $len = strlen($headerLine);
+                            $parts = explode(':', $headerLine, 2);
+                            if (count($parts) === 2) {
+                                $respHeaders[strtolower(trim($parts[0]))] = trim($parts[1]);
+                            }
+                            return $len;
+                        });
+
+                        $body = @curl_exec($ch);
+                        $httpCode = (int)@curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                        $curlErr = @curl_error($ch);
+                        @curl_close($ch);
+
+                        $result['latency_ms'] = (int)round((microtime(true) - $t0) * 1000);
+                        $result['method_used'] = 'curl';
+                        $result['http_code'] = $httpCode;
+                        if (isset($respHeaders['x-ratelimit-remaining'])) {
+                            $result['rate_limit_remaining'] = (int)$respHeaders['x-ratelimit-remaining'];
+                        }
+                        if (isset($respHeaders['x-ratelimit-limit'])) {
+                            $result['rate_limit_limit'] = (int)$respHeaders['x-ratelimit-limit'];
+                        }
+
+                        if ($body !== false && $httpCode >= 200 && $httpCode < 400) {
+                            $result['ok'] = true;
+                            $result['body'] = (string)$body;
+                            return $result;
+                        } else {
+                            $result['body'] = is_string($body) ? $body : '';
+                            $result['error'] = $curlErr ?: ('HTTP ' . $httpCode);
+                            // Se recebeu resposta HTTP do GitHub (ex: 404, 403), não precisa repetir via stream
+                            if ($httpCode >= 400) {
+                                return $result;
+                            }
+                        }
+                    }
+                }
+
+                // 2) Fallback para PHP Stream (file_get_contents) se allow_url_fopen estiver ativo
+                if (ini_get('allow_url_fopen')) {
+                    $t1 = microtime(true);
+                    $ctx = stream_context_create([
+                        'http' => [
+                            'method' => 'GET',
+                            'header' => implode("\r\n", $headers) . "\r\n",
+                            'timeout' => $timeout,
+                            'follow_location' => 1,
+                            'max_redirects' => 5,
+                            'ignore_errors' => true
+                        ],
+                        'ssl' => [
+                            'verify_peer' => false,
+                            'verify_peer_name' => false
+                        ]
+                    ]);
+
+                    $body = @file_get_contents($url, false, $ctx);
+                    $httpCode = 0;
+                    if (isset($http_response_header) && is_array($http_response_header)) {
+                        foreach ($http_response_header as $hdr) {
+                            if (preg_match('#^HTTP/\S+\s+(\d{3})#i', $hdr, $m)) {
+                                $httpCode = (int)$m[1];
+                            } elseif (stripos($hdr, 'x-ratelimit-remaining:') === 0) {
+                                $result['rate_limit_remaining'] = (int)trim(substr($hdr, strlen('x-ratelimit-remaining:')));
+                            } elseif (stripos($hdr, 'x-ratelimit-limit:') === 0) {
+                                $result['rate_limit_limit'] = (int)trim(substr($hdr, strlen('x-ratelimit-limit:')));
+                            }
+                        }
+                    }
+
+                    $result['latency_ms'] = (int)round((microtime(true) - $t1) * 1000);
+                    $result['method_used'] = 'stream';
+                    $result['http_code'] = $httpCode;
+
+                    if ($body !== false && ($httpCode === 0 || ($httpCode >= 200 && $httpCode < 400))) {
+                        $result['ok'] = true;
+                        $result['body'] = (string)$body;
+                        $result['error'] = '';
+                        return $result;
+                    } else {
+                        $result['body'] = is_string($body) ? $body : '';
+                        if (empty($result['error'])) {
+                            $result['error'] = $httpCode > 0 ? ('HTTP ' . $httpCode) : 'Falha na conexão via stream (verifique DNS/Firewall/SSL)';
+                        }
+                    }
+                } elseif ($result['method_used'] === 'none') {
+                    $result['error'] = 'Nem cURL nem allow_url_fopen estão habilitados neste servidor PHP.';
+                }
+
+                return $result;
+            }
+        }
+
+        if (!function_exists('phplayer_parse_changelog')) {
+            function phplayer_parse_changelog($rawContent) {
+                if (!is_string($rawContent) || trim($rawContent) === '') {
+                    return '';
+                }
+                // Suporta LF (\n) e CRLF (\r\n)
+                if (preg_match('/\$changelog\s*=\s*<<<[\'"]?EOT[\'"]?\r?\n(.*?)\r?\nEOT;/s', $rawContent, $m)) {
+                    return trim($m[1]);
+                }
+                // Fallback caso o arquivo seja texto puro
+                $cleaned = preg_replace('/^<\?php\s*/i', '', $rawContent);
+                return trim($cleaned);
+            }
+        }
+
+        $current_version = phplayer_get_local_version();
+        $ghCfg = phplayer_get_github_cfg($pdo);
+        $repo = $ghCfg['repo'];
+        $branch = $ghCfg['branch'];
+        $token = $ghCfg['token'];
+        $cacheBust = time();
+
+        // 1. Buscar version.php remoto (Raw -> Fallback GitHub API Contents)
+        $verUrl = "https://raw.githubusercontent.com/{$repo}/{$branch}/version.php?t={$cacheBust}";
+        $verReq = phplayer_github_http($verUrl, 10, $token);
         $remote_version = $current_version;
-        $changelog = '';
-        
-        $ctx = stream_context_create(['http' => ['timeout' => 5]]);
-        $remote_version_file = @file_get_contents('https://raw.githubusercontent.com/leirson/phplayer/main/version.php', false, $ctx);
-        if ($remote_version_file && preg_match("/define\\('PHPLAYER_VERSION',\\s*'([^']+)'\\)/", $remote_version_file, $m)) {
-            $remote_version = $m[1];
-        }
-        
-        $remote_changelog_file = @file_get_contents('https://raw.githubusercontent.com/leirson/phplayer/main/changelog.php', false, $ctx);
-        if ($remote_changelog_file && preg_match('/\$changelog = <<<EOT\\n(.*?)\\nEOT;/s', $remote_changelog_file, $m)) {
-            $changelog = $m[1];
+        $version_found = false;
+
+        if ($verReq['ok'] && preg_match("/define\\(\\s*'PHPLAYER_VERSION'\\s*,\\s*'([^']+)'\\s*\\)/", $verReq['body'], $m)) {
+            $remote_version = trim($m[1]);
+            $version_found = true;
         } else {
-            $changelog = "Não foi possível carregar o changelog do GitHub.";
+            // Fallback via GitHub API Contents caso raw.githubusercontent.com seja bloqueado
+            $apiVerUrl = "https://api.github.com/repos/{$repo}/contents/version.php?ref=" . rawurlencode($branch);
+            $apiVerReq = phplayer_github_http($apiVerUrl, 10, $token);
+            if ($apiVerReq['ok']) {
+                $jsonVer = @json_decode($apiVerReq['body'], true);
+                if (!empty($jsonVer['content'])) {
+                    $decodedVer = base64_decode($jsonVer['content']);
+                    if ($decodedVer && preg_match("/define\\(\\s*'PHPLAYER_VERSION'\\s*,\\s*'([^']+)'\\s*\\)/", $decodedVer, $m)) {
+                        $remote_version = trim($m[1]);
+                        $version_found = true;
+                        $verReq = $apiVerReq;
+                    }
+                }
+            }
         }
-        
+
+        // 2. Buscar changelog.php remoto (Raw -> Fallback GitHub API Contents)
+        $chgUrl = "https://raw.githubusercontent.com/{$repo}/{$branch}/changelog.php?t={$cacheBust}";
+        $chgReq = phplayer_github_http($chgUrl, 10, $token);
+        $changelog = '';
+        $changelog_found = false;
+
+        if ($chgReq['ok']) {
+            $parsedChg = phplayer_parse_changelog($chgReq['body']);
+            if ($parsedChg !== '') {
+                $changelog = $parsedChg;
+                $changelog_found = true;
+            }
+        }
+        if (!$changelog_found) {
+            $apiChgUrl = "https://api.github.com/repos/{$repo}/contents/changelog.php?ref=" . rawurlencode($branch);
+            $apiChgReq = phplayer_github_http($apiChgUrl, 10, $token);
+            if ($apiChgReq['ok']) {
+                $jsonChg = @json_decode($apiChgReq['body'], true);
+                if (!empty($jsonChg['content'])) {
+                    $decodedChg = base64_decode($jsonChg['content']);
+                    $parsedChg = phplayer_parse_changelog($decodedChg);
+                    if ($parsedChg !== '') {
+                        $changelog = $parsedChg;
+                        $changelog_found = true;
+                        $chgReq = $apiChgReq;
+                    }
+                }
+            }
+        }
+
+        if (!$changelog_found) {
+            // Fallback para changelog local se existir, avisando motivo
+            if (file_exists(__DIR__ . '/changelog.php')) {
+                $localChgRaw = @file_get_contents(__DIR__ . '/changelog.php');
+                $localChg = phplayer_parse_changelog($localChgRaw);
+                $changelog = "[Aviso: Exibindo changelog local — GitHub retornou " . ($chgReq['error'] ?: 'erro') . "]\n\n" . $localChg;
+            } else {
+                $changelog = "Não foi possível carregar o changelog do GitHub (" . ($chgReq['error'] ?: 'Sem resposta') . ").";
+            }
+        }
+
+        // Se a rota for check_update simples, já retorna os dados com telemetria de conexão
+        if ($route === 'check_update') {
+            echo json_encode([
+                'success' => $version_found,
+                'github_connected' => $version_found,
+                'current_version' => $current_version,
+                'remote_version' => $remote_version,
+                'has_update' => version_compare($remote_version, $current_version, '>'),
+                'changelog' => $changelog,
+                'repo' => $repo,
+                'branch' => $branch,
+                'http_code' => $verReq['http_code'],
+                'latency_ms' => $verReq['latency_ms'],
+                'method_used' => $verReq['method_used'],
+                'error' => $version_found ? null : ($verReq['error'] ?: 'Não foi possível ler version.php no repositório GitHub.')
+            ]);
+            exit;
+        }
+
+        // Rota completa de diagnóstico: github_status / check_github
+        $apiRepoUrl = "https://api.github.com/repos/{$repo}";
+        $repoReq = phplayer_github_http($apiRepoUrl, 10, $token);
+        $repoInfo = $repoReq['ok'] ? (@json_decode($repoReq['body'], true) ?: []) : [];
+
+        $apiCommitUrl = "https://api.github.com/repos/{$repo}/commits/" . rawurlencode($branch);
+        $commitReq = phplayer_github_http($apiCommitUrl, 10, $token);
+        $commitData = $commitReq['ok'] ? (@json_decode($commitReq['body'], true) ?: []) : [];
+        $latestCommit = null;
+        if (!empty($commitData['sha'])) {
+            $latestCommit = [
+                'sha' => substr($commitData['sha'], 0, 7),
+                'full_sha' => $commitData['sha'],
+                'message' => trim( strtok($commitData['commit']['message'] ?? 'Sem mensagem', "\n") ),
+                'author' => $commitData['commit']['author']['name'] ?? ($commitData['author']['login'] ?? 'Desconhecido'),
+                'date' => $commitData['commit']['author']['date'] ?? null,
+                'html_url' => $commitData['html_url'] ?? "https://github.com/{$repo}/commit/{$commitData['sha']}"
+            ];
+        }
+
+        $zipUrl = "https://github.com/{$repo}/archive/refs/heads/{$branch}.zip";
+        $zipReq = phplayer_github_http($zipUrl, 12, $token, true);
+
+        $envInfo = [
+            'php_version' => PHP_VERSION,
+            'php_ok' => version_compare(PHP_VERSION, '7.4.0', '>='),
+            'curl_enabled' => function_exists('curl_init'),
+            'allow_url_fopen' => (bool)ini_get('allow_url_fopen'),
+            'openssl_enabled' => extension_loaded('openssl'),
+            'zip_enabled' => class_exists('ZipArchive'),
+            'dir_writable' => is_writable(__DIR__),
+            'temp_writable' => is_writable(sys_get_temp_dir())
+        ];
+
+        $checks = [
+            'github_api' => [
+                'name' => 'GitHub REST API (api.github.com)',
+                'url' => $apiRepoUrl,
+                'ok' => $repoReq['ok'],
+                'http_code' => $repoReq['http_code'],
+                'latency_ms' => $repoReq['latency_ms'],
+                'method' => $repoReq['method_used'],
+                'error' => $repoReq['error'],
+                'details' => $repoReq['ok']
+                    ? ('Repositório ' . (($repoInfo['private'] ?? false) ? 'Privado' : 'Público') . ' • Branch padrão: ' . ($repoInfo['default_branch'] ?? $branch))
+                    : ('Falha: ' . ($repoReq['error'] ?: 'Inacessível'))
+            ],
+            'github_raw_version' => [
+                'name' => 'Versão Remota (raw.githubusercontent.com)',
+                'url' => "https://raw.githubusercontent.com/{$repo}/{$branch}/version.php",
+                'ok' => $version_found,
+                'http_code' => $verReq['http_code'],
+                'latency_ms' => $verReq['latency_ms'],
+                'method' => $verReq['method_used'],
+                'error' => $verReq['error'],
+                'details' => $version_found ? ("Versão detectada: v{$remote_version}") : ('Erro: ' . ($verReq['error'] ?: 'version.php inválido'))
+            ],
+            'github_raw_changelog' => [
+                'name' => 'Changelog Remoto (changelog.php)',
+                'url' => "https://raw.githubusercontent.com/{$repo}/{$branch}/changelog.php",
+                'ok' => $changelog_found,
+                'http_code' => $chgReq['http_code'],
+                'latency_ms' => $chgReq['latency_ms'],
+                'method' => $chgReq['method_used'],
+                'error' => $chgReq['error'],
+                'details' => $changelog_found ? ('Carregado (' . strlen($changelog) . ' bytes)') : ('Erro: ' . ($chgReq['error'] ?: 'changelog.php inacessível'))
+            ],
+            'github_commits' => [
+                'name' => 'Histórico de Commits (' . $branch . ')',
+                'url' => $apiCommitUrl,
+                'ok' => ($latestCommit !== null),
+                'http_code' => $commitReq['http_code'],
+                'latency_ms' => $commitReq['latency_ms'],
+                'method' => $commitReq['method_used'],
+                'error' => $commitReq['error'],
+                'details' => $latestCommit ? ('Commit #' . $latestCommit['sha'] . ' por ' . $latestCommit['author']) : ('Erro: ' . ($commitReq['error'] ?: 'Sem dados de commit'))
+            ],
+            'github_zip_archive' => [
+                'name' => 'Pacote de Atualização (.zip)',
+                'url' => $zipUrl,
+                'ok' => $zipReq['ok'],
+                'http_code' => $zipReq['http_code'],
+                'latency_ms' => $zipReq['latency_ms'],
+                'method' => $zipReq['method_used'],
+                'error' => $zipReq['error'],
+                'details' => $zipReq['ok'] ? 'Download ZIP acessível (Codeload GitHub OK)' : ('Erro: ' . ($zipReq['error'] ?: 'Falha ao testar pacote ZIP'))
+            ]
+        ];
+
+        $allGithubOk = $version_found && ($repoReq['ok'] || $changelog_found);
+        $avgLatency = (int)round(($verReq['latency_ms'] + $chgReq['latency_ms'] + $repoReq['latency_ms']) / 3);
+
         echo json_encode([
+            'success' => $allGithubOk,
+            'overall_status' => $allGithubOk ? 'connected' : ($version_found || $repoReq['ok'] ? 'partial' : 'offline'),
+            'repo' => $repo,
+            'branch' => $branch,
+            'has_token' => !empty($token),
             'current_version' => $current_version,
             'remote_version' => $remote_version,
             'has_update' => version_compare($remote_version, $current_version, '>'),
-            'changelog' => $changelog
+            'changelog' => $changelog,
+            'latest_commit' => $latestCommit,
+            'rate_limit' => [
+                'remaining' => $repoReq['rate_limit_remaining'] ?? $commitReq['rate_limit_remaining'],
+                'limit' => $repoReq['rate_limit_limit'] ?? $commitReq['rate_limit_limit']
+            ],
+            'avg_latency_ms' => $avgLatency,
+            'method_used' => $verReq['method_used'],
+            'checks' => $checks,
+            'environment' => $envInfo,
+            'checked_at' => date('Y-m-d H:i:s')
         ]);
         exit;
 
-    
     case 'do_update':
         if (!is_admin_user($pdo)) {
             http_response_code(403);
@@ -1502,75 +1906,129 @@ try {
             exit(json_encode(['success' => false, 'error' => 'A extensão ZipArchive não está habilitada no PHP.']));
         }
 
-        $zip_url = 'https://github.com/leirson/phplayer/archive/refs/heads/main.zip';
+        $repo = 'leirson/phplayer';
+        $branch = 'main';
+        $token = '';
+        try {
+            if ($pdo) {
+                $stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('github_repo', 'github_branch', 'github_token')");
+                if ($stmt) {
+                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                        if ($row['setting_key'] === 'github_repo' && !empty(trim($row['setting_value']))) $repo = trim($row['setting_value']);
+                        if ($row['setting_key'] === 'github_branch' && !empty(trim($row['setting_value']))) $branch = trim($row['setting_value']);
+                        if ($row['setting_key'] === 'github_token' && !empty(trim($row['setting_value']))) $token = trim($row['setting_value']);
+                    }
+                }
+            }
+        } catch (Throwable $e) {}
+
+        $zip_url = "https://github.com/{$repo}/archive/refs/heads/{$branch}.zip";
         $temp_zip = sys_get_temp_dir() . '/phplayer_update_' . time() . '.zip';
-        
-        $ctx = stream_context_create(['http' => ['timeout' => 15]]);
-        $zip_content = @file_get_contents($zip_url, false, $ctx);
-        
-        if (!$zip_content) {
-            exit(json_encode(['success' => false, 'error' => 'Não foi possível baixar a atualização do GitHub.']));
+
+        $zip_content = false;
+        $download_err = '';
+        if (function_exists('curl_init')) {
+            $ch = @curl_init($zip_url);
+            @curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            @curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            @curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+            @curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+            @curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            @curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+            $hdrs = ['User-Agent: PHPlayer-Updater/1.0'];
+            if (!empty($token)) $hdrs[] = 'Authorization: Bearer ' . $token;
+            @curl_setopt($ch, CURLOPT_HTTPHEADER, $hdrs);
+            $zip_content = @curl_exec($ch);
+            $http_code = (int)@curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $download_err = @curl_error($ch);
+            @curl_close($ch);
+            if ($http_code < 200 || $http_code >= 400) {
+                $zip_content = false;
+                if (!$download_err) $download_err = "HTTP {$http_code}";
+            }
         }
-        
-        file_put_contents($temp_zip, $zip_content);
-        
+
+        if (!$zip_content && ini_get('allow_url_fopen')) {
+            $hdrStr = "User-Agent: PHPlayer-Updater/1.0\r\n";
+            if (!empty($token)) $hdrStr .= "Authorization: Bearer {$token}\r\n";
+            $ctx = stream_context_create([
+                'http' => ['timeout' => 60, 'header' => $hdrStr, 'follow_location' => 1],
+                'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
+            ]);
+            $zip_content = @file_get_contents($zip_url, false, $ctx);
+        }
+
+        if (!$zip_content || strlen($zip_content) < 1000) {
+            exit(json_encode([
+                'success' => false,
+                'error' => 'Não foi possível baixar o pacote de atualização do GitHub (' . ($download_err ?: 'pacote vazio ou inacessível') . ').'
+            ]));
+        }
+
+        @file_put_contents($temp_zip, $zip_content);
+
         $zip = new ZipArchive;
         if ($zip->open($temp_zip) === TRUE) {
             $temp_extract_dir = sys_get_temp_dir() . '/phplayer_extract_' . time();
-            mkdir($temp_extract_dir);
+            @mkdir($temp_extract_dir, 0755, true);
             $zip->extractTo($temp_extract_dir);
             $zip->close();
-            
+
             $extracted_folders = glob($temp_extract_dir . '/*', GLOB_ONLYDIR);
             $source_dir = $temp_extract_dir;
-            if (count($extracted_folders) == 1) {
+            if (is_array($extracted_folders) && count($extracted_folders) === 1) {
                 $source_dir = $extracted_folders[0];
             }
-            
+
             if (!function_exists('copy_dir_update')) {
-                function copy_dir_update($src, $dst) {
-                    $dir = opendir($src);
-                    @mkdir($dst);
+                function copy_dir_update($src, $dst, $baseSrc = null) {
+                    if ($baseSrc === null) $baseSrc = $src;
+                    $protected_dirs = ['music', 'podcast', 'covers', 'uploads', '.git'];
+                    $dir = @opendir($src);
+                    if (!$dir) return;
+                    if (!is_dir($dst)) @mkdir($dst, 0755, true);
                     while (false !== ($file = readdir($dir))) {
-                        if (($file != '.') && ($file != '..')) {
-                            if (is_dir($src . '/' . $file)) {
-                                copy_dir_update($src . '/' . $file, $dst . '/' . $file);
-                            } else {
-                                if ($file === 'config.php' && file_exists($dst . '/config.php')) {
-                                    continue;
+                        if ($file === '.' || $file === '..') continue;
+                        $srcFile = $src . '/' . $file;
+                        $dstFile = $dst . '/' . $file;
+                        $relPath = ltrim(str_replace($baseSrc, '', $srcFile), '/\\');
+
+                        if ($relPath === 'config.php' && file_exists($dstFile)) {
+                            continue;
+                        }
+                        $skip = false;
+                        foreach ($protected_dirs as $pdir) {
+                            if ($relPath === $pdir || strpos($relPath, $pdir . '/') === 0 || strpos($relPath, $pdir . '\\') === 0) {
+                                if (file_exists($dstFile)) {
+                                    $skip = true;
+                                    break;
                                 }
-                                copy($src . '/' . $file, $dst . '/' . $file);
                             }
+                        }
+                        if ($skip) continue;
+
+                        if (is_dir($srcFile)) {
+                            copy_dir_update($srcFile, $dstFile, $baseSrc);
+                        } else {
+                            @copy($srcFile, $dstFile);
                         }
                     }
                     closedir($dir);
                 }
             }
-            
+
             copy_dir_update($source_dir, __DIR__);
-            
+
             @unlink($temp_zip);
             if (!function_exists('delete_dir_update')) {
                 function delete_dir_update($dir) {
-                    if (empty($dir) || !file_exists($dir)) {
-                        return;
-                    }
-                    if (!is_dir($dir)) {
-                        @unlink($dir);
-                        return;
-                    }
+                    if (empty($dir) || !file_exists($dir)) return;
+                    if (!is_dir($dir)) { @unlink($dir); return; }
                     $files = @scandir($dir);
-                    if ($files === false) {
-                        return;
-                    }
-                    $files = array_diff($files, array('.', '..'));
-                    foreach ($files as $file) {
+                    if ($files === false) return;
+                    foreach (array_diff($files, ['.', '..']) as $file) {
                         $path = $dir . '/' . $file;
-                        if (is_dir($path)) {
-                            delete_dir_update($path);
-                        } else {
-                            @unlink($path);
-                        }
+                        is_dir($path) ? delete_dir_update($path) : @unlink($path);
                     }
                     if (file_exists($dir) && is_dir($dir)) {
                         @rmdir($dir);
@@ -1578,11 +2036,19 @@ try {
                 }
             }
             delete_dir_update($temp_extract_dir);
-            
-            echo json_encode(['success' => true]);
+
+            $new_ver = '1.0.0';
+            if (file_exists(__DIR__ . '/version.php')) {
+                $vc = @file_get_contents(__DIR__ . '/version.php');
+                if ($vc && preg_match("/define\\(\\s*'PHPLAYER_VERSION'\\s*,\\s*'([^']+)'\\s*\\)/", $vc, $vm)) {
+                    $new_ver = trim($vm[1]);
+                }
+            }
+
+            echo json_encode(['success' => true, 'new_version' => $new_ver]);
         } else {
             @unlink($temp_zip);
-            echo json_encode(['success' => false, 'error' => 'Falha ao extrair o arquivo de atualização.']);
+            echo json_encode(['success' => false, 'error' => 'Falha ao extrair o arquivo de atualização (.zip).']);
         }
         exit;
 

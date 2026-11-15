@@ -224,7 +224,63 @@ if (!file_exists('config.php')) {
 echo "</div>";
 
 echo "<div class='card'>";
-echo "<h3>5. Registro de Erros do Servidor (api_errors.log)</h3>";
+echo "<h3>5. Verificação de Conexão com GitHub (Atualizador & Repositório)</h3>";
+echo "<ul>";
+echo "<li>Módulo cURL: " . (function_exists('curl_init') ? "<span class='success'>[Ativo]</span>" : "<span class='warning'>[Inativo — usando fallback Stream]</span>") . "</li>";
+echo "<li>Diretiva allow_url_fopen: " . (ini_get('allow_url_fopen') ? "<span class='success'>[Ativa]</span>" : "<span class='warning'>[Desativada]</span>") . "</li>";
+echo "<li>Extensão OpenSSL: " . (extension_loaded('openssl') ? "<span class='success'>[Ativa]</span>" : "<span class='error'>[Inativa — necessária para HTTPS]</span>") . "</li>";
+echo "<li>Extensão ZipArchive: " . (class_exists('ZipArchive') ? "<span class='success'>[Ativa]</span>" : "<span class='error'>[Inativa — necessária para atualização automática]</span>") . "</li>";
+
+$gh_test_url = 'https://raw.githubusercontent.com/leirson/phplayer/main/version.php';
+$gh_t0 = microtime(true);
+$gh_ok = false;
+$gh_ver = 'Desconhecida';
+$gh_method = 'Nenhum';
+$gh_code = 0;
+
+if (function_exists('curl_init')) {
+    $ch = @curl_init($gh_test_url);
+    if ($ch) {
+        @curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        @curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        @curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+        @curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        @curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        @curl_setopt($ch, CURLOPT_USERAGENT, 'PHPlayer-Diagnostic/1.0');
+        $gh_body = @curl_exec($ch);
+        $gh_code = (int)@curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        @curl_close($ch);
+        $gh_method = 'cURL';
+        if ($gh_body && $gh_code >= 200 && $gh_code < 400) {
+            $gh_ok = true;
+            if (preg_match("/define\\(\\s*'PHPLAYER_VERSION'\\s*,\\s*'([^']+)'\\s*\\)/", $gh_body, $gm)) {
+                $gh_ver = $gm[1];
+            }
+        }
+    }
+}
+if (!$gh_ok && ini_get('allow_url_fopen')) {
+    $ctx = stream_context_create([
+        'http' => ['timeout' => 8, 'user_agent' => 'PHPlayer-Diagnostic/1.0', 'follow_location' => 1],
+        'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
+    ]);
+    $gh_body = @file_get_contents($gh_test_url, false, $ctx);
+    $gh_method = 'Stream';
+    if ($gh_body) {
+        $gh_ok = true;
+        $gh_code = 200;
+        if (preg_match("/define\\(\\s*'PHPLAYER_VERSION'\\s*,\\s*'([^']+)'\\s*\\)/", $gh_body, $gm)) {
+            $gh_ver = $gm[1];
+        }
+    }
+}
+$gh_ms = (int)round((microtime(true) - $gh_t0) * 1000);
+echo "<li>Teste de Conexão ao GitHub (<code>leirson/phplayer</code>): " . ($gh_ok ? "<span class='success'>[CONECTADO via {$gh_method} • HTTP {$gh_code} • {$gh_ms}ms • Versão Remota: v{$gh_ver}]</span>" : "<span class='error'>[FALHA AO CONECTAR AO GITHUB (HTTP {$gh_code})]</span>") . "</li>";
+echo "</ul>";
+echo "</div>";
+
+echo "<div class='card'>";
+echo "<h3>6. Registro de Erros do Servidor (api_errors.log)</h3>";
 if (file_exists('api_errors.log')) {
     echo "<p class='warning'>Histórico de erros detectados recentemente:</p>";
     echo "<pre style='background: #020617; border: 1px solid #1e293b; padding: 15px; border-radius: 8px; color: #ef4444; max-height: 250px; overflow-y: auto; font-size: 11px;'>" . htmlspecialchars(file_get_contents('api_errors.log')) . "</pre>";
@@ -241,13 +297,15 @@ echo "</div>";
 
 ?>
 <div class='card'>
-<h3>6. Teste Interativo de Endpoints da API</h3>
+<h3>7. Teste Interativo de Endpoints da API</h3>
 <p>Verifique o comportamento em tempo real das rotas da API em <code>api.php</code>:</p>
 
 <div style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
     <div style="flex: 1; min-width: 200px;">
         <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 5px;">Selecione o Endpoint:</label>
         <select id="api-endpoint" onchange="onEndpointChange()" style="width: 100%; background: #020617; border: 1px solid #1e293b; color: white; padding: 8px; border-radius: 6px;">
+            <option value="api.php?route=github_status">GET api.php?route=github_status (Diagnóstico Completo GitHub)</option>
+            <option value="api.php?route=check_update">GET api.php?route=check_update (Verificar Atualização GitHub)</option>
             <option value="api.php?route=tracks">GET api.php?route=tracks (Músicas)</option>
             <option value="api.php?route=playlists">GET api.php?route=playlists (Playlists)</option>
             <option value="api.php?route=favorites">GET api.php?route=favorites (Favoritos)</option>
