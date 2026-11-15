@@ -1009,6 +1009,23 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                             </button>
                         </div>
 
+                        <!-- Artist Covers Auto Sync Card (Deezer -> Spotify -> Local Download) -->
+                        <div class="bg-slate-950/50 border border-indigo-500/30 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left font-sans relative overflow-hidden">
+                            <div class="space-y-1.5">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Deezer ➔ Spotify</span>
+                                    <span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Download Local</span>
+                                </div>
+                                <h3 class="text-sm font-bold text-white">Sincronizar Capas de Artistas</h3>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">
+                                    Verifica todos os artistas sem imagem (ou com link externo), aplica a <strong>1ª capa localizada no Deezer</strong> ou, se não encontrar, busca automaticamente a <strong>1ª do Spotify</strong> e baixa todas as imagens para o servidor (<code class="text-indigo-300">images/</code>).
+                                </p>
+                            </div>
+                            <button onclick="runArtistCoversAutoSync(this)" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 font-extrabold text-white rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-lg shadow-indigo-600/20">
+                                <i data-lucide="user-check" class="w-3.5 h-3.5"></i> Sincronizar Capas de Artistas
+                            </button>
+                        </div>
+
                         <!-- Repair DB Card -->
                         <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left">
                             <div class="space-y-1.5">
@@ -1020,6 +1037,40 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                                 <i data-lucide="wrench" class="w-3.5 h-3.5"></i> Reparar Banco
                             </button>
                         </div>
+                    </div>
+
+                    <!-- Painel de Progresso da Sincronização de Capas de Artistas -->
+                    <div id="artist-covers-sync-panel" class="hidden bg-slate-950/80 border border-indigo-500/30 rounded-2xl p-5 space-y-4 text-left mt-4 animate-fade-in">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="image-down" class="w-4 h-4 text-indigo-400"></i>
+                                <h4 class="text-xs font-extrabold text-white uppercase tracking-wider">Relatório de Sincronização de Capas de Artistas (Servidor Local)</h4>
+                            </div>
+                            <span id="artist-covers-sync-badge" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Em andamento...</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                            <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-3">
+                                <div class="text-[10px] text-slate-400 uppercase font-bold">Salvas no Servidor</div>
+                                <div id="acs-stat-updated" class="text-lg font-black text-white mt-0.5">0</div>
+                            </div>
+                            <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-3">
+                                <div class="text-[10px] text-sky-400 uppercase font-bold">1ª do Deezer</div>
+                                <div id="acs-stat-deezer" class="text-lg font-black text-sky-400 mt-0.5">0</div>
+                            </div>
+                            <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-3">
+                                <div class="text-[10px] text-emerald-400 uppercase font-bold">1ª do Spotify</div>
+                                <div id="acs-stat-spotify" class="text-lg font-black text-emerald-400 mt-0.5">0</div>
+                            </div>
+                            <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-3">
+                                <div class="text-[10px] text-indigo-400 uppercase font-bold">Arquivos Baixados</div>
+                                <div id="acs-stat-downloaded" class="text-lg font-black text-indigo-400 mt-0.5">0</div>
+                            </div>
+                            <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-3">
+                                <div class="text-[10px] text-amber-400 uppercase font-bold">Restantes</div>
+                                <div id="acs-stat-pending" class="text-lg font-black text-amber-400 mt-0.5">0</div>
+                            </div>
+                        </div>
+                        <div id="artist-covers-sync-log" class="max-h-48 overflow-y-auto space-y-1.5 pr-1 text-[11px] font-mono text-slate-300"></div>
                     </div>
 
                     <!-- Last.fm API Key Integration Card inside PHP config -->
@@ -5986,6 +6037,133 @@ let currentUser = null;
         window.runGoogleSync = runGoogleSync;
         window.runWikipediaSync = runGoogleSync;
 
+        async function runArtistCoversAutoSync(btn) {
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Verificando artistas (Lote 1)...';
+            lucide.createIcons();
+
+            const panel = document.getElementById('artist-covers-sync-panel');
+            const badge = document.getElementById('artist-covers-sync-badge');
+            const statUpdated = document.getElementById('acs-stat-updated');
+            const statDeezer = document.getElementById('acs-stat-deezer');
+            const statSpotify = document.getElementById('acs-stat-spotify');
+            const statDownloaded = document.getElementById('acs-stat-downloaded');
+            const statPending = document.getElementById('acs-stat-pending');
+            const logEl = document.getElementById('artist-covers-sync-log');
+
+            if (panel) panel.classList.remove('hidden');
+            if (logEl) logEl.innerHTML = '';
+            if (badge) {
+                badge.className = 'text-[10px] font-bold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
+                badge.textContent = 'Sincronizando...';
+            }
+
+            let totalUpdated = 0;
+            let totalDeezer = 0;
+            let totalSpotify = 0;
+            let totalDownloaded = 0;
+            let totalNotFound = 0;
+            let currentBatch = 1;
+
+            try {
+                while (true) {
+                    const res = await fetch('api.php?route=artist_covers_sync', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ reset: currentBatch === 1 })
+                    });
+                    const data = await res.json();
+
+                    if (!res.ok || data.error) {
+                        alert(data.error || 'Erro ao sincronizar capas de artistas.');
+                        if (badge) {
+                            badge.className = 'text-[10px] font-bold px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30';
+                            badge.textContent = 'Erro na sincronização';
+                        }
+                        break;
+                    }
+
+                    const batchUpdated = data.artists_updated || 0;
+                    const batchDeezer = data.deezer_count || 0;
+                    const batchSpotify = data.spotify_count || 0;
+                    const batchDownloaded = data.downloaded_count || 0;
+                    const batchNotFound = data.not_found_count || 0;
+                    const pendingCount = data.artists_pending || 0;
+                    const batchChecked = data.batch_checked || 0;
+
+                    totalUpdated += batchUpdated;
+                    totalDeezer += batchDeezer;
+                    totalSpotify += batchSpotify;
+                    totalDownloaded += batchDownloaded;
+                    totalNotFound += batchNotFound;
+
+                    if (statUpdated) statUpdated.textContent = String(totalUpdated);
+                    if (statDeezer) statDeezer.textContent = String(totalDeezer);
+                    if (statSpotify) statSpotify.textContent = String(totalSpotify);
+                    if (statDownloaded) statDownloaded.textContent = String(totalDownloaded);
+                    if (statPending) statPending.textContent = String(pendingCount);
+
+                    if (Array.isArray(data.processed_items) && logEl) {
+                        data.processed_items.forEach(item => {
+                            const row = document.createElement('div');
+                            row.className = 'flex items-center justify-between gap-2 bg-slate-900/60 border border-slate-800/80 px-2.5 py-1.5 rounded-lg';
+                            if (item.status === 'saved') {
+                                const srcBadge = item.source === 'deezer'
+                                    ? '<span class="px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[9px] font-black uppercase">1ª Deezer</span>'
+                                    : (item.source === 'spotify'
+                                        ? '<span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[9px] font-black uppercase">1ª Spotify</span>'
+                                        : '<span class="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-[9px] font-black uppercase"> Convertido Local</span>');
+                                row.innerHTML = `<div class="truncate text-white font-semibold">${item.artist}</div><div class="flex items-center gap-2 shrink-0">${srcBadge}<span class="text-[10px] text-emerald-400">${item.local_path || ''}</span></div>`;
+                                if (item.local_path) {
+                                    if (!window.customArtistPhotos) window.customArtistPhotos = {};
+                                    window.customArtistPhotos[item.artist] = item.local_path;
+                                    if (!window.artistRandomCovers) window.artistRandomCovers = {};
+                                    window.artistRandomCovers[item.artist] = item.local_path;
+                                }
+                            } else {
+                                row.innerHTML = `<div class="truncate text-slate-400">${item.artist}</div><span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[9px] font-bold uppercase shrink-0">Sem capa no Deezer/Spotify</span>`;
+                            }
+                            logEl.prepend(row);
+                        });
+                    }
+
+                    if (pendingCount === 0 || batchChecked === 0) {
+                        break;
+                    }
+
+                    currentBatch++;
+                    btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Lote ' + currentBatch + ' • Salvos: ' + totalUpdated + ' (Faltam ' + pendingCount + ')...';
+                    lucide.createIcons();
+
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                }
+
+                if (badge) {
+                    badge.className = 'text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                    badge.textContent = 'Concluído (' + totalUpdated + ' capas salvas no servidor)';
+                }
+
+                alert(
+                    'Sincronização de Capas de Artistas concluída!\n\n' +
+                    '• Total de capas salvas no servidor: ' + totalUpdated + '\n' +
+                    '• Localizadas no Deezer (1ª opção): ' + totalDeezer + '\n' +
+                    '• Localizadas no Spotify (fallback automático): ' + totalSpotify + '\n' +
+                    '• Arquivos baixados na pasta /images/: ' + totalDownloaded
+                );
+                await loadData();
+                if (window.renderArtistsPage) window.renderArtistsPage();
+            } catch (err) {
+                console.error(err);
+                alert('Erro de rede ao sincronizar capas de artistas.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+                lucide.createIcons();
+            }
+        }
+        window.runArtistCoversAutoSync = runArtistCoversAutoSync;
+
         window.artistsPageQuery = '';
         window.artistsPageSort = 'alphabetical';
         window.artistsPageLetter = 'all';
@@ -9805,11 +9983,13 @@ document.addEventListener('fullscreenchange', (event) => {
                         })
                     });
                     if (res.ok) {
-                        artistPhotoUrl = url;
+                        const data = await res.json().catch(() => ({}));
+                        const savedPhotoUrl = data.artist_photo || url;
+                        artistPhotoUrl = savedPhotoUrl;
                         if (!window.customArtistPhotos) window.customArtistPhotos = {};
-                        window.customArtistPhotos[selectedArtist] = url;
+                        window.customArtistPhotos[selectedArtist] = savedPhotoUrl;
                         if (!window.artistRandomCovers) window.artistRandomCovers = {};
-                        window.artistRandomCovers[selectedArtist] = url;
+                        window.artistRandomCovers[selectedArtist] = savedPhotoUrl;
                         closeImageSearchModal();
                         renderLeftSidebar();
                         renderTracksTable();
@@ -9828,7 +10008,9 @@ document.addEventListener('fullscreenchange', (event) => {
                         })
                     });
                     if (res.ok) {
-                        loadedCoversCache[imageSearchAlbumTitle] = url;
+                        const data = await res.json().catch(() => ({}));
+                        const savedCoverUrl = data.cover_url || url;
+                        loadedCoversCache[imageSearchAlbumTitle] = savedCoverUrl;
                         closeImageSearchModal();
                         renderTracksTable();
                     } else {
