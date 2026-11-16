@@ -1,5 +1,19 @@
 <?php
 $changelog = <<<EOT
+v1.5.2
+- Correção do erro **"Falha na varredura recursiva de músicas."** durante o escaneamento de `/music` (`api.php?route=scan` e `index.php`):
+  - Adicionados polyfills de compatibilidade para `mb_strtolower`, `mb_check_encoding` e `mb_convert_encoding` (`phplayer_lower`) além de sanitização UTF-8/comprimento de campos (`phplayer_safe_db_str`), evitando erros fatais em servidores PHP sem `ext-mbstring` ou exceções SQL no MySQL Strict Mode.
+  - Otimizada a varredura recursiva para passagem única com cache de tags ID3 em memória e índice em memória dos registros existentes (eliminando milhares de consultas `SELECT` repetidas e leitura dupla do disco que causavam timeout *HTTP 504*), usando `FilesystemIterator::SKIP_DOTS` + `CATCH_GET_CHILD` e ignorando pastas de sistema de NAS (`@eaDir`, `#recycle`, `.Trash`, `._*`).
+  - Atualizado `runMusicDirectoryScan` e `triggerScan` em `index.php` para enviar `username`/`admin_username`/`X-Username` explicitamente e exibir o motivo detalhado caso ocorra qualquer erro no servidor.
+
+v1.5.1
+- Adicionado botão **"Apagar Capas de Álbuns"** em **Configurações → Sincronização e Mídia** (`index.php` e nova rota `clear_album_covers` em `api.php`), permitindo limpar do banco de dados todas as imagens de capas de álbuns (`songs.cover_url = NULL`) sem afetar capas de artistas ou podcasts.
+- Atualizada a varredura/sincronização de capas de álbuns (`lastfm_sync`, `deezer_sync`, `wikipedia_sync`, `album_cover` em `api.php` e `fetchAlbumCoversForArtist` em `index.php`) para ignorar automaticamente a pasta e o artista **Vários Artistas** (`Vários Artistas`, `Varios Artistas`, `Various Artists`, etc.).
+
+v1.5.0
+- Fallback automático para o nome da pasta do artista também em pastas/tags com **vários artistas** (`api.php` e `mobile.php`): quando uma pasta `/music/ARTISTA/ALBUM` possuir múltiplos artistas nas tags ID3 (ou marcadores como `Varios Artistas`, `Vários Artistas`, `Various Artists`, `VA`, `Coletânea`), o sistema passa a utilizar o nome da pasta do artista (`ARTISTA` em `/music/ARTISTA/ALBUM`) em vez de gravar ou exibir `Varios Artistas`.
+- Atualização automática em re-escaneamentos (`?route=scan`), reparação (`?route=repair_db`) e listagem (`?route=tracks`) de faixas já cadastradas no banco com `Varios Artistas` ou artista não identificado.
+
 v1.4.9
 - Fallback automático para o nome da pasta do artista no PHP (`api.php`): quando a tag ID3 do arquivo estiver ausente, vazia ou com marcador genérico (`Artista Desconhecido`, `Unknown Artist`, `Unknown`, `Desconhecido`, etc.), o escaneamento (`?route=scan`), a reparação do banco (`?route=repair_db`) e a listagem (`?route=tracks`) extraem automaticamente o artista (e o álbum, quando aplicável) a partir da estrutura de pastas `/music/ARTISTA/ALBUM`.
 - Correção do parser ID3v2 (`$getMp3Meta` em `api.php`) para ignorar frames vazios (`size <= 0`) em vez de ler bytes de frames subsequentes e atualização automática de faixas já cadastradas no banco que estavam sem artista identificado ao re-escanear a pasta `/music`.

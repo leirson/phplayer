@@ -1869,11 +1869,22 @@ if (!file_exists('config.php')) {
                 albumsMap[albumTitle].tracks.push(track);
             });
 
-            // Update compilation albums to say "Vários Artistas"
+            // Update compilation albums to use artist folder (/music/ARTISTA/ALBUM) or fallback to "Vários Artistas"
             Object.values(albumsMap).forEach(alb => {
                 const uniqueArtList = new Set(alb.tracks.map(t => t.artist).filter(Boolean));
                 if (uniqueArtList.size > 1) {
-                    alb.artist = "Vários Artistas";
+                    let folderArtist = "";
+                    for (const t of alb.tracks) {
+                        const fn = String(t.file_name || t.fileName || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/^music\//i, "");
+                        if (fn && !fn.startsWith("http") && !fn.startsWith("music_") && !fn.toLowerCase().startsWith("podcast/")) {
+                            const parts = fn.split("/").filter(Boolean);
+                            if (parts.length >= 2) {
+                                folderArtist = parts[0];
+                                break;
+                            }
+                        }
+                    }
+                    alb.artist = folderArtist || "Vários Artistas";
                 }
             });
 

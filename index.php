@@ -1026,6 +1026,18 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                             </button>
                         </div>
 
+                        <!-- Clear Album Covers Card -->
+                        <div class="bg-slate-950/50 border border-rose-500/20 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left">
+                            <div class="space-y-1.5">
+                                <span class="bg-rose-500/10 text-rose-400 border border-rose-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Limpeza de Capas</span>
+                                <h3 class="text-sm font-bold text-white">Apagar Capas de Álbuns</h3>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">Remove do banco de dados todas as imagens de capas dos álbuns (mantendo as capas dos artistas e os arquivos de áudio), permitindo refazer a varredura.</p>
+                            </div>
+                            <button onclick="runClearAlbumCovers(this)" class="w-full py-2.5 bg-rose-600 hover:bg-rose-700 font-extrabold text-white rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Apagar Imagens dos Álbuns
+                            </button>
+                        </div>
+
                         <!-- Repair DB Card -->
                         <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left">
                             <div class="space-y-1.5">
@@ -3704,18 +3716,34 @@ let currentUser = null;
                 });
         }
 
+        function isVariousArtistsPathOrName(str) {
+            const norm = String(str || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            if (!norm) return false;
+            const list = ['varios artistas', 'various artists', 'various artist', 'various', 'va', 'v.a.', 'v.a', 'v/a', 'diversos artistas', 'multiplos artistas'];
+            if (list.includes(norm)) return true;
+            const parts = norm.replace(/\\/g, '/').split('/').filter(Boolean);
+            return parts.some(p => list.includes(p));
+        }
+
         function fetchAlbumCoversForArtist(art) {
+            if (isVariousArtistsPathOrName(art)) return;
             const artistTracks = allTracks.filter(t => t.artist === art);
             const albums = {};
             artistTracks.forEach(t => {
                 const alb = t.album || 'Single';
                 if (!albums[alb]) {
-                    albums[alb] = t.coverUrl || t.cover_url || '';
+                    albums[alb] = {
+                        cover: t.coverUrl || t.cover_url || '',
+                        isVariousFolder: isVariousArtistsPathOrName(t.file_name || t.fileName || '')
+                    };
+                } else if (isVariousArtistsPathOrName(t.file_name || t.fileName || '')) {
+                    albums[alb].isVariousFolder = true;
                 }
             });
             
             Object.keys(albums).forEach(albStr => {
-                const currentCover = albums[albStr];
+                if (albums[albStr].isVariousFolder) return;
+                const currentCover = albums[albStr].cover;
                 if (!currentCover || currentCover.includes('unsplash.com')) {
                     fetch(API + '?route=album_cover&artist=' + encodeURIComponent(art) + '&album=' + encodeURIComponent(albStr))
                         .then(res => res.json())
@@ -5358,6 +5386,40 @@ let currentUser = null;
                 lucide.createIcons();
             }
         };
+
+        window.runClearAlbumCovers = async function(btn) {
+            if (!confirm('Tem certeza que deseja apagar do banco de dados todas as imagens dos álbuns?\n\nAs capas dos artistas e os arquivos de áudio não serão afetados.')) {
+                return;
+            }
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Apagando imagens...';
+            if (window.lucide && typeof window.lucide.createIcons === 'function') lucide.createIcons();
+            try {
+                const res = await fetch(API + '?route=clear_album_covers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    if (typeof loadedCoversCache === 'object' && loadedCoversCache !== null) {
+                        Object.keys(loadedCoversCache).forEach(k => delete loadedCoversCache[k]);
+                    }
+                    alert(data.message || 'Todas as imagens dos álbuns foram apagadas do banco de dados.');
+                    await loadData();
+                    if (typeof renderAlbumGrid === 'function') renderAlbumGrid();
+                } else {
+                    alert(data.error || data.message || 'Falha ao apagar imagens dos álbuns.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de rede ao apagar imagens dos álbuns.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+                if (window.lucide && typeof window.lucide.createIcons === 'function') lucide.createIcons();
+            }
+        };
  
         window.translations = {
             pt: {
@@ -5811,19 +5873,49 @@ let currentUser = null;
             btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Escaneando...';
             lucide.createIcons();
             try {
-                const res = await fetch('api.php?route=scan', { method: 'POST' });
-                if (res.ok) {
-                    alert('Sincronização de músicas concluída com sucesso!');
+                let u = (currentUser && currentUser.username) ? currentUser.username : '';
+                if (!u) {
+                    try {
+                        const savedU = JSON.parse(localStorage.getItem('phplayer_user') || 'null');
+                        if (savedU && savedU.username) u = savedU.username;
+                    } catch (e) {}
+                }
+                if (!u) u = 'admin';
+
+                const formData = new FormData();
+                formData.append('username', u);
+                formData.append('admin_username', u);
+
+                const res = await fetch(`api.php?route=scan&username=${encodeURIComponent(u)}&admin_username=${encodeURIComponent(u)}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Username': u,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData
+                });
+
+                const rawText = await res.text();
+                let data = null;
+                try {
+                    data = JSON.parse(rawText);
+                } catch (e) {}
+
+                if (res.ok && data && data.success !== false && !data.error) {
+                    alert(`Sincronização de músicas concluída com sucesso!\nNovas faixas adicionadas: ${data.count || 0}\nRemovidas: ${data.removed || 0}\nTotal no banco: ${data.total || 0}`);
                     await loadData();
                     if (typeof loadMusicFolders === 'function') {
                         await loadMusicFolders();
                     }
                 } else {
-                    alert('Falha na varredura recursiva de músicas.');
+                    const errDetail = (data && (data.error || data.message))
+                        ? (data.error || data.message)
+                        : (`HTTP ${res.status}` + (rawText ? ': ' + rawText.replace(/<[^>]+>/g, ' ').trim().slice(0, 220) : ''));
+                    alert('Falha na varredura recursiva de músicas.\n' + errDetail);
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de rede ao escanear pasta /music.');
+                alert('Erro de rede ao escanear pasta /music: ' + (err && err.message ? err.message : 'Conexão interrompida'));
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origText;
@@ -10363,11 +10455,36 @@ document.addEventListener('fullscreenchange', (event) => {
             btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Sincronizando...';
             lucide.createIcons();
             try {
-                const res = await fetch(API + '?route=scan');
-                const d = await res.json();
-                alert("Scan terminado! " + d.count + " novas faixas agregadas e " + (d.removed || 0) + " faixas de música órfãs removidas sob /music.");
-                await loadData();
-                renderDashboard();
+                let u = (currentUser && currentUser.username) ? currentUser.username : '';
+                if (!u) {
+                    try {
+                        const savedU = JSON.parse(localStorage.getItem('phplayer_user') || 'null');
+                        if (savedU && savedU.username) u = savedU.username;
+                    } catch (e) {}
+                }
+                if (!u) u = 'admin';
+                const formData = new FormData();
+                formData.append('username', u);
+                formData.append('admin_username', u);
+
+                const res = await fetch(API + `?route=scan&username=${encodeURIComponent(u)}&admin_username=${encodeURIComponent(u)}`, {
+                    method: 'POST',
+                    headers: { 'X-Username': u },
+                    body: formData
+                });
+                const rawText = await res.text();
+                let d = null;
+                try { d = JSON.parse(rawText); } catch (e) {}
+                if (res.ok && d && d.success !== false && !d.error) {
+                    alert("Scan terminado! " + (d.count || 0) + " novas faixas agregadas e " + (d.removed || 0) + " faixas de música órfãs removidas sob /music.");
+                    await loadData();
+                    renderDashboard();
+                } else {
+                    const errDetail = (d && (d.error || d.message))
+                        ? (d.error || d.message)
+                        : (`HTTP ${res.status}` + (rawText ? ': ' + rawText.replace(/<[^>]+>/g, ' ').trim().slice(0, 220) : ''));
+                    alert("Falha na varredura recursiva de músicas.\n" + errDetail);
+                }
             } catch (error) {
                 alert("Falha operacional ao ler disco.");
             } finally {
