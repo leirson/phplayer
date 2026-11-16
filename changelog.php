@@ -1,5 +1,13 @@
 <?php
 $changelog = <<<EOT
+v1.5.3
+- Armazenamento local das capas com nome **`cover`** diretamente nas pastas de artistas e álbuns (`api.php`):
+  - Todas as capas de **artistas** baixadas, sincronizadas ou enviadas (`artist_covers_sync`, `artist_bio`, `upload_artist_banner`, `update_artist_banner_url`) passam a ser salvas como `cover.{ext}` dentro da pasta raiz do artista (`/music/ARTISTA/cover.jpg`, etc., substituindo eventuais arquivos `cover.*` anteriores).
+  - Todas as capas de **álbuns** baixadas, sincronizadas ou enviadas (`lastfm_sync`, `deezer_sync`, `wikipedia_sync`, `album_cover`, `upload_album_cover`, `update_album_cover_url`) passam a ser salvas como `cover.{ext}` dentro da respectiva pasta do álbum (`/music/ARTISTA/ALBUM/cover.jpg`, com suporte a subpastas de disco como `CD1`/`Disc 1`), mantendo `images/` apenas como fallback caso a pasta não exista ou não tenha permissão de escrita.
+- Descoberta local automática de `cover.*` durante a varredura (`?route=scan` em `api.php` e `index.php`) e sincronização de capas:
+  - Ao escanear `/music`, o sistema busca automaticamente arquivos locais `cover.{jpg,jpeg,png,webp,gif}` na pasta raiz de cada artista e na pasta de cada álbum, aplicando-os diretamente no banco de dados sem depender de buscas externas.
+  - As rotas de sincronização e busca de capas (`artist_covers_sync`, `artist_bio`, `lastfm_sync`, `deezer_sync`, `wikipedia_sync`, `album_cover`) também priorizam `cover.*` local antes de consultar serviços externos.
+
 v1.5.2
 - Correção do erro **"Falha na varredura recursiva de músicas."** durante o escaneamento de `/music` (`api.php?route=scan` e `index.php`):
   - Adicionados polyfills de compatibilidade para `mb_strtolower`, `mb_check_encoding` e `mb_convert_encoding` (`phplayer_lower`) além de sanitização UTF-8/comprimento de campos (`phplayer_safe_db_str`), evitando erros fatais em servidores PHP sem `ext-mbstring` ou exceções SQL no MySQL Strict Mode.

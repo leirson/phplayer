@@ -94,7 +94,7 @@ try {
         <div class="p-8 pb-6 border-b border-slate-800 flex flex-col items-center text-center bg-gradient-to-b from-sky-900/40 to-transparent">
             <div class="w-32 h-32 rounded-xl shadow-lg bg-slate-800 border border-slate-700/50 flex items-center justify-center overflow-hidden mb-5">
                 <?php if (count($tracks) > 0 && !empty($tracks[0]['cover_url'])): ?>
-                    <img src="<?php echo htmlspecialchars(preg_match('/^http/', $tracks[0]['cover_url']) ? $tracks[0]['cover_url'] : 'music/' . $tracks[0]['cover_url']); ?>" class="w-full h-full object-cover">
+                    <img src="<?php echo htmlspecialchars(preg_match('/^(https?:\/\/|images\/|music\/|uploads\/)/i', $tracks[0]['cover_url']) ? $tracks[0]['cover_url'] : 'music/' . $tracks[0]['cover_url']); ?>" class="w-full h-full object-cover">
                 <?php else: ?>
                     <i data-lucide="<?php echo $share['target_type'] === 'playlist' ? 'list-music' : 'disc-3' ?>" class="w-12 h-12 text-slate-600"></i>
                 <?php endif; ?>

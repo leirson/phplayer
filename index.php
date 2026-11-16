@@ -5902,7 +5902,10 @@ let currentUser = null;
                 } catch (e) {}
 
                 if (res.ok && data && data.success !== false && !data.error) {
-                    alert(`Sincronização de músicas concluída com sucesso!\nNovas faixas adicionadas: ${data.count || 0}\nRemovidas: ${data.removed || 0}\nTotal no banco: ${data.total || 0}`);
+                    const extraCovers = ((data.artist_covers_found || 0) > 0 || (data.album_covers_found || 0) > 0)
+                        ? `\nCapas locais encontradas: ${data.artist_covers_found || 0} de artistas, ${data.album_covers_found || 0} de álbuns`
+                        : '';
+                    alert(`Sincronização de músicas concluída com sucesso!\nNovas faixas adicionadas: ${data.count || 0}\nRemovidas: ${data.removed || 0}\nTotal no banco: ${data.total || 0}${extraCovers}`);
                     await loadData();
                     if (typeof loadMusicFolders === 'function') {
                         await loadMusicFolders();
