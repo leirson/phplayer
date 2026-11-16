@@ -913,7 +913,7 @@ try {
         'update_track_title', 'update_album_tracks_metadata', 'update_tracks_bulk',
         'upload_album_cover', 'upload_artist_banner',
         'dlna_status', 'toggle_dlna',
-        'update_album_cover_url', 'update_artist_banner_url', 'clear_album_covers',
+        'update_album_cover_url', 'update_artist_banner_url', 'clear_album_covers', 'remove_missing_images',
         'get_settings', 'save_settings', 'lastfm_sync', 'deezer_sync',
         'wikipedia_sync', 'google_images_sync', 'artist_covers_sync',
         'files_list', 'files_create_dir', 'files_delete', 'files_rename', 'files_upload',
@@ -5769,6 +5769,186 @@ try {
         } catch (Throwable $e) {
             http_response_code(500);
             echo json_encode(['success' => false, 'error' => 'Erro ao apagar imagens dos álbuns: ' . $e->getMessage()]);
+        }
+        break;
+
+    case 'remove_missing_images':
+        if ($method !== 'POST') {
+            http_response_code(405);
+            exit(json_encode(['error' => 'Apenas requisições POST são permitidas.']));
+        }
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            @session_write_close();
+        }
+        @set_time_limit(0);
+
+        try {
+            $baseRoot = rtrim(str_replace('\\', '/', __DIR__), '/');
+            $pathExistsCache = [];
+            $checkLocalImageExists = function($rawVal) use ($baseRoot, &$pathExistsCache) {
+                $raw = trim((string)$rawVal);
+                if ($raw === '') return true;
+                $lowerRaw = strtolower($raw);
+                if ($lowerRaw === 'no_photo' || $lowerRaw === 'no_cover') {
+                    return false;
+                }
+                if (preg_match('/^https?:\/\//i', $raw) || strpos($lowerRaw, 'data:') === 0) {
+                    return true;
+                }
+                if (isset($pathExistsCache[$raw])) {
+                    return $pathExistsCache[$raw];
+                }
+
+                $norm = ltrim(str_replace('\\', '/', $raw), '/');
+                if (strpos($norm, './') === 0) {
+                    $norm = substr($norm, 2);
+                }
+                $decoded = rawurldecode($norm);
+                $candidates = [$decoded];
+                if (strpos($decoded, '?') !== false) {
+                    $withoutQuery = strstr($decoded, '?', true);
+                    if ($withoutQuery !== false && $withoutQuery !== '') {
+                        $candidates[] = $withoutQuery;
+                    }
+                }
+                $hasKnownPrefix = (
+                    stripos($decoded, 'music/') === 0 ||
+                    stripos($decoded, 'images/') === 0 ||
+                    stripos($decoded, 'uploads/') === 0
+                );
+
+                $exists = false;
+                foreach ($candidates as $cand) {
+                    $cand = ltrim(str_replace('\\', '/', (string)$cand), '/');
+                    if ($cand === '' || strpos($cand, '..') !== false) continue;
+
+                    $full = $baseRoot . '/' . $cand;
+                    if (@is_file($full) && (@filesize($full) ?: 0) > 200) {
+                        $exists = true;
+                        break;
+                    }
+                    if (!$hasKnownPrefix) {
+                        foreach (['music/', 'images/'] as $pref) {
+                            $fullPref = $baseRoot . '/' . $pref . $cand;
+                            if (@is_file($fullPref) && (@filesize($fullPref) ?: 0) > 200) {
+                                $exists = true;
+                                break 2;
+                            }
+                        }
+                    }
+                }
+
+                $pathExistsCache[$raw] = $exists;
+                return $exists;
+            };
+
+            // 1. Verificar imagens de artistas em artist_metadata
+            $pdo->exec("CREATE TABLE IF NOT EXISTS artist_metadata (
+                artist VARCHAR(255) PRIMARY KEY,
+                artist_photo VARCHAR(1000) DEFAULT NULL,
+                bio TEXT DEFAULT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+            $artistsChecked = 0;
+            $artistsCleared = 0;
+            $artistPlaceholdersCleared = 0;
+            $missingSamples = [];
+
+            $stmtMeta = $pdo->query("SELECT artist, artist_photo FROM artist_metadata WHERE artist_photo IS NOT NULL AND artist_photo != ''");
+            if ($stmtMeta) {
+                $updArtist = $pdo->prepare("UPDATE artist_metadata SET artist_photo = NULL WHERE artist = ?");
+                while ($rowMeta = $stmtMeta->fetch(PDO::FETCH_ASSOC)) {
+                    $artistName = (string)($rowMeta['artist'] ?? '');
+                    $photoVal = trim((string)($rowMeta['artist_photo'] ?? ''));
+                    if ($photoVal === '' || preg_match('/^https?:\/\//i', $photoVal) || stripos($photoVal, 'data:') === 0) {
+                        continue;
+                    }
+                    $artistsChecked++;
+                    if (!$checkLocalImageExists($photoVal)) {
+                        $updArtist->execute([$artistName]);
+                        $artistsCleared++;
+                        if (in_array(strtolower($photoVal), ['no_photo', 'no_cover'], true)) {
+                            $artistPlaceholdersCleared++;
+                        }
+                        if (count($missingSamples) < 30) {
+                            $missingSamples[] = [
+                                'type' => 'artist',
+                                'name' => $artistName,
+                                'path' => $photoVal
+                            ];
+                        }
+                    }
+                }
+            }
+
+            // 2. Verificar imagens de álbuns/faixas nas tabelas songs*
+            $tables = get_songs_tables($pdo);
+            $albumImagesChecked = 0;
+            $albumRowsCleared = 0;
+            $uniqueMissingAlbumUrls = [];
+            $checkedDistinctUrls = [];
+
+            foreach ($tables as $t) {
+                $stmtCov = $pdo->query("SELECT DISTINCT cover_url FROM `" . $t . "` WHERE cover_url IS NOT NULL AND cover_url != ''");
+                if (!$stmtCov) continue;
+                $missingInTable = [];
+                while ($covVal = $stmtCov->fetchColumn()) {
+                    $rawCov = trim((string)$covVal);
+                    if ($rawCov === '' || preg_match('/^https?:\/\//i', $rawCov) || stripos($rawCov, 'data:') === 0) {
+                        continue;
+                    }
+                    if (!isset($checkedDistinctUrls[$rawCov])) {
+                        $checkedDistinctUrls[$rawCov] = true;
+                        $albumImagesChecked++;
+                    }
+                    if (!$checkLocalImageExists($rawCov)) {
+                        $missingInTable[] = $rawCov;
+                        $uniqueMissingAlbumUrls[$rawCov] = true;
+                        if (count($missingSamples) < 30) {
+                            $missingSamples[] = [
+                                'type' => 'album',
+                                'name' => $t,
+                                'path' => $rawCov
+                            ];
+                        }
+                    }
+                }
+                if (!empty($missingInTable)) {
+                    $updTrack = $pdo->prepare("UPDATE `" . $t . "` SET cover_url = NULL WHERE cover_url = ?");
+                    foreach ($missingInTable as $mUrl) {
+                        $updTrack->execute([$mUrl]);
+                        $albumRowsCleared += $updTrack->rowCount();
+                    }
+                }
+            }
+
+            $albumImagesMissing = count($uniqueMissingAlbumUrls);
+            $totalCleared = $artistsCleared + $albumRowsCleared;
+
+            if ($totalCleared > 0) {
+                $msg = "Verificação concluída!\nRemovidas do banco: {$artistsCleared} imagem(ns) de artista(s) e {$albumImagesMissing} capa(s) de álbum(ns) ({$albumRowsCleared} faixa(s) atualizada(s)) cujo arquivo não existia no diretório.\n\nAgora você já pode executar a sincronização de capas para baixá-las novamente.";
+            } else {
+                $msg = "Nenhuma imagem inexistente encontrada! Todas as imagens locais registradas ({$artistsChecked} artistas e {$albumImagesChecked} capas únicas) existem no diretório.";
+            }
+
+            echo json_encode([
+                'success' => true,
+                'artists_checked' => $artistsChecked,
+                'artists_cleared' => $artistsCleared,
+                'artist_placeholders_cleared' => $artistPlaceholdersCleared,
+                'album_images_checked' => $albumImagesChecked,
+                'album_images_cleared' => $albumImagesMissing,
+                'album_rows_cleared' => $albumRowsCleared,
+                'total_cleared' => $totalCleared,
+                'samples' => $missingSamples,
+                'message' => $msg
+            ]);
+        } catch (Throwable $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Erro ao verificar e remover imagens inexistentes: ' . $e->getMessage()
+            ]);
         }
         break;
 

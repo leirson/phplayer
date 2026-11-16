@@ -1,5 +1,5 @@
 <?php
-define('PHPLAYER_VERSION', '1.5.3');
+define('PHPLAYER_VERSION', '1.5.4');
 
 
 

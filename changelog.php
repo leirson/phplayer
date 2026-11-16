@@ -1,5 +1,10 @@
 <?php
 $changelog = <<<EOT
+v1.5.4
+- Adicionado botão **"Remover Imagens Inexistentes"** em **Configurações → Sincronização e Mídia** (`index.php` e nova rota `remove_missing_images` em `api.php`):
+  - Verifica no servidor se as imagens de **artistas** (`artist_metadata.artist_photo`) e de **álbuns** (`songs*.cover_url`) registradas com caminho local (`music/`, `images/`, `uploads/`) realmente existem e são válidas no diretório.
+  - Exclui do banco de dados (`NULL`) todas as referências a arquivos inexistentes (ou corrompidos/vazios e marcadores `'no_photo'`/`'no_cover'`), permitindo que a sincronização de capas baixe as imagens novamente.
+
 v1.5.3
 - Armazenamento local das capas com nome **`cover`** diretamente nas pastas de artistas e álbuns (`api.php`):
   - Todas as capas de **artistas** baixadas, sincronizadas ou enviadas (`artist_covers_sync`, `artist_bio`, `upload_artist_banner`, `update_artist_banner_url`) passam a ser salvas como `cover.{ext}` dentro da pasta raiz do artista (`/music/ARTISTA/cover.jpg`, etc., substituindo eventuais arquivos `cover.*` anteriores).

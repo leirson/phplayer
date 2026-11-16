@@ -1038,6 +1038,18 @@ define('DONT_EXIT_ON_DB_ERROR', true);
                             </button>
                         </div>
 
+                        <!-- Remove Missing Images Card -->
+                        <div class="bg-slate-950/50 border border-amber-500/20 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left">
+                            <div class="space-y-1.5">
+                                <span class="bg-amber-500/10 text-amber-400 border border-amber-500/25 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block">Integridade de Imagens</span>
+                                <h3 class="text-sm font-bold text-white">Remover Imagens Inexistentes</h3>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">Verifica se as capas de artistas e álbuns registradas no banco existem no diretório (<code class="text-amber-300">music/</code> e <code class="text-amber-300">images/</code>) e remove do banco as que não existem, permitindo baixá-las novamente.</p>
+                            </div>
+                            <button onclick="runRemoveMissingImages(this)" class="w-full py-2.5 bg-amber-600 hover:bg-amber-500 font-extrabold text-white rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                                <i data-lucide="image" class="w-3.5 h-3.5"></i> Remover Imagens Inexistentes
+                            </button>
+                        </div>
+
                         <!-- Repair DB Card -->
                         <div class="bg-slate-950/50 border border-slate-900 p-5 rounded-2xl flex flex-col justify-between gap-5 text-left">
                             <div class="space-y-1.5">
@@ -5414,6 +5426,62 @@ let currentUser = null;
             } catch (err) {
                 console.error(err);
                 alert('Erro de rede ao apagar imagens dos álbuns.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+                if (window.lucide && typeof window.lucide.createIcons === 'function') lucide.createIcons();
+            }
+        };
+
+        window.runRemoveMissingImages = async function(btn) {
+            if (!confirm('Deseja verificar todas as imagens de artistas e álbuns registradas no banco de dados e remover as referências cujos arquivos não existem no diretório?\n\nApós a remoção, você poderá baixá-las novamente na sincronização.')) {
+                return;
+            }
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Verificando diretório...';
+            if (window.lucide && typeof window.lucide.createIcons === 'function') lucide.createIcons();
+            try {
+                let u = '';
+                if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) u = currentUser.username;
+                if (!u) {
+                    try {
+                        const savedU = JSON.parse(localStorage.getItem('phplayer_user') || 'null');
+                        if (savedU && savedU.username) u = savedU.username;
+                    } catch (e) {}
+                }
+                if (!u) u = 'admin';
+
+                const res = await fetch(`${API}?route=remove_missing_images&username=${encodeURIComponent(u)}&admin_username=${encodeURIComponent(u)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Username': u
+                    },
+                    body: JSON.stringify({ username: u, admin_username: u })
+                });
+                const rawText = await res.text();
+                let data = null;
+                try {
+                    data = JSON.parse(rawText);
+                } catch (e) {}
+
+                if (res.ok && data && data.success) {
+                    if (typeof loadedCoversCache === 'object' && loadedCoversCache !== null) {
+                        Object.keys(loadedCoversCache).forEach(k => delete loadedCoversCache[k]);
+                    }
+                    alert(data.message || 'Verificação de imagens concluída.');
+                    await loadData();
+                    if (typeof renderAlbumGrid === 'function') renderAlbumGrid();
+                } else {
+                    const errMsg = (data && (data.error || data.message))
+                        ? (data.error || data.message)
+                        : (`HTTP ${res.status}` + (rawText ? ': ' + rawText.replace(/<[^>]+>/g, ' ').trim().slice(0, 200) : ''));
+                    alert('Falha ao remover imagens inexistentes:\n' + errMsg);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de rede ao verificar imagens inexistentes.');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origText;
