@@ -1661,6 +1661,51 @@ if (!file_exists('config.php')) {
             console.error("Erro ao definir interceptor fetch:", e);
         }
 
+        window.phplayerTryMediaImageFallback = function(imgEl) {
+            try {
+                if (!imgEl || !imgEl.getAttribute || imgEl.dataset.mediaImgRetried === '1') return false;
+                const rawAttr = String(imgEl.getAttribute('src') || imgEl.src || '').trim();
+                if (!rawAttr || rawAttr.startsWith('data:') || rawAttr.startsWith('blob:') || rawAttr.includes('route=media_image')) {
+                    return false;
+                }
+                let relPath = rawAttr;
+                if (/^https?:\/\//i.test(relPath)) {
+                    try {
+                        const uObj = new URL(relPath, window.location.href);
+                        const srv = (localStorage.getItem('mobile_server_url') || '').replace(/\/+$/, '');
+                        if (uObj.origin !== window.location.origin && (!srv || !relPath.startsWith(srv))) {
+                            return false;
+                        }
+                        relPath = uObj.pathname.replace(/^\/+/, '');
+                    } catch (eUrl) {
+                        return false;
+                    }
+                } else {
+                    relPath = relPath.replace(/^\.\//, '').replace(/^\/+/, '');
+                }
+                const idxM = relPath.toLowerCase().indexOf('music/');
+                const idxI = relPath.toLowerCase().indexOf('images/');
+                const idxU = relPath.toLowerCase().indexOf('uploads/');
+                if (idxM > 0) relPath = relPath.slice(idxM);
+                else if (idxI > 0) relPath = relPath.slice(idxI);
+                else if (idxU > 0) relPath = relPath.slice(idxU);
+
+                if (!/^(music|images|uploads)\//i.test(relPath)) return false;
+                imgEl.dataset.mediaImgRetried = '1';
+                imgEl.src = window.getAbsoluteUrl('api.php?route=media_image&path=' + encodeURIComponent(relPath));
+                return true;
+            } catch (e) {
+                return false;
+            }
+        };
+
+        window.addEventListener('error', function(ev) {
+            const target = ev && ev.target;
+            if (target && target.tagName === 'IMG' && !target.getAttribute('onerror')) {
+                window.phplayerTryMediaImageFallback(target);
+            }
+        }, true);
+
         let allTracks = [];
         window.allTracksOriginal = [];
         let allFavorites = [];
@@ -2246,7 +2291,7 @@ if (!file_exists('config.php')) {
                 const alb = albumsMap[title];
                 html += `
                     <div onclick="openAlbumSheet('${encodeURIComponent(title)}')" class="bg-[#0b1322]/40 border border-slate-900/80 p-2 rounded-2xl flex flex-col gap-2 hover:border-sky-500/20 active:scale-95 transition duration-150 cursor-pointer">
-                        <img src="${alb.coverUrl}" class="w-full aspect-square object-cover rounded-xl border border-slate-800/40" referrerpolicy="no-referrer" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300'">
+                        <img src="${alb.coverUrl}" class="w-full aspect-square object-cover rounded-xl border border-slate-800/40" referrerpolicy="no-referrer" onerror="if(window.phplayerTryMediaImageFallback&&window.phplayerTryMediaImageFallback(this))return;this.onerror=null;this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300'">
                         <div class="truncate px-1 select-none">
                             <h5 class="text-[10px] font-black leading-tight text-white truncate">${alb.title}</h5>
                             <p class="text-[8px] text-slate-500 truncate mt-0.5">${alb.artist}</p>

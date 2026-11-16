@@ -3070,6 +3070,48 @@ define('DONT_EXIT_ON_DB_ERROR', true);
             console.error("Erro ao definir interceptor fetch:", e);
         }
 
+        window.phplayerTryMediaImageFallback = function(imgEl) {
+            try {
+                if (!imgEl || !imgEl.getAttribute || imgEl.dataset.mediaImgRetried === '1') return false;
+                const rawAttr = String(imgEl.getAttribute('src') || imgEl.src || '').trim();
+                if (!rawAttr || rawAttr.startsWith('data:') || rawAttr.startsWith('blob:') || rawAttr.includes('route=media_image')) {
+                    return false;
+                }
+                let relPath = rawAttr;
+                if (/^https?:\/\//i.test(relPath)) {
+                    try {
+                        const uObj = new URL(relPath, window.location.href);
+                        if (uObj.origin !== window.location.origin) return false;
+                        relPath = uObj.pathname.replace(/^\/+/, '');
+                    } catch (eUrl) {
+                        return false;
+                    }
+                } else {
+                    relPath = relPath.replace(/^\.\//, '').replace(/^\/+/, '');
+                }
+                const idxM = relPath.toLowerCase().indexOf('music/');
+                const idxI = relPath.toLowerCase().indexOf('images/');
+                const idxU = relPath.toLowerCase().indexOf('uploads/');
+                if (idxM > 0) relPath = relPath.slice(idxM);
+                else if (idxI > 0) relPath = relPath.slice(idxI);
+                else if (idxU > 0) relPath = relPath.slice(idxU);
+
+                if (!/^(music|images|uploads)\//i.test(relPath)) return false;
+                imgEl.dataset.mediaImgRetried = '1';
+                imgEl.src = 'api.php?route=media_image&path=' + encodeURIComponent(relPath);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        };
+
+        window.addEventListener('error', function(ev) {
+            const target = ev && ev.target;
+            if (target && target.tagName === 'IMG' && !target.getAttribute('onerror')) {
+                window.phplayerTryMediaImageFallback(target);
+            }
+        }, true);
+
         let globalSettings = {};
 let currentUser = null;
         let activeTab = 'dashboard';
@@ -3853,7 +3895,7 @@ let currentUser = null;
                                 <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/40 border border-slate-900/80 hover:border-slate-800 transition">
                                     <div class="flex items-center gap-3 min-w-0">
                                         <span class="w-5 text-center font-black text-xs ${medalColor}">#${idx + 1}</span>
-                                        <img src="${cover}" class="w-9 h-9 rounded-lg object-cover bg-slate-900 border border-slate-800 shrink-0" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100'">
+                                        <img src="${cover}" class="w-9 h-9 rounded-lg object-cover bg-slate-900 border border-slate-800 shrink-0" onerror="if(window.phplayerTryMediaImageFallback&&window.phplayerTryMediaImageFallback(this))return;this.onerror=null;this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100'">
                                         <div class="min-w-0">
                                             <div class="text-xs font-bold text-white truncate">${escapeHtml(s.title || 'Música')}</div>
                                             <div class="text-[10px] text-slate-400 truncate">${escapeHtml(s.artist || 'Artista')}</div>
@@ -6479,7 +6521,7 @@ let currentUser = null;
                 const safeJsName = artist.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
                 const coverHtml = artist.coverUrl
-                    ? `<img src="${artist.coverUrl}" alt="${safeHtmlName}" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'w-full h-full bg-slate-900 flex items-center justify-center text-slate-600\\'><i data-lucide=\\'user\\' class=\\'w-12 h-12 text-indigo-400/60\\'></i></div>';">`
+                    ? `<img src="${artist.coverUrl}" alt="${safeHtmlName}" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="if(window.phplayerTryMediaImageFallback&&window.phplayerTryMediaImageFallback(this))return;this.onerror=null;this.parentElement.innerHTML='<div class=\\'w-full h-full bg-slate-900 flex items-center justify-center text-slate-600\\'><i data-lucide=\\'user\\' class=\\'w-12 h-12 text-indigo-400/60\\'></i></div>';">`
                     : `<div class="w-full h-full bg-slate-900 flex items-center justify-center text-slate-600"><i data-lucide="user" class="w-12 h-12 text-indigo-400/60"></i></div>`;
 
                 card.innerHTML = `
@@ -6695,7 +6737,7 @@ let currentUser = null;
                             : "group flex items-center justify-between px-2.5 py-1.5 text-slate-400 hover:text-white hover:bg-slate-900 rounded-xl text-left text-xs font-medium cursor-pointer border border-transparent transition";
 
                         let coverImg = coverUrl 
-                            ? `<img src="${coverUrl}" alt="${art.replace(/"/g, "&quot;")}" class="w-7 h-7 rounded-lg object-cover shrink-0 border border-slate-800 shadow-sm" referrerpolicy="no-referrer" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'w-7 h-7 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 shrink-0 shadow-sm\\'><i data-lucide=\\'user\\' class=\\'w-3.5 h-3.5 text-sky-400\\'></i></div>';">`
+                            ? `<img src="${coverUrl}" alt="${art.replace(/"/g, "&quot;")}" class="w-7 h-7 rounded-lg object-cover shrink-0 border border-slate-800 shadow-sm" referrerpolicy="no-referrer" onerror="if(window.phplayerTryMediaImageFallback&&window.phplayerTryMediaImageFallback(this))return;this.onerror=null;this.parentElement.innerHTML='<div class=\\'w-7 h-7 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 shrink-0 shadow-sm\\'><i data-lucide=\\'user\\' class=\\'w-3.5 h-3.5 text-sky-400\\'></i></div>';">`
                             : `<div class="w-7 h-7 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 shrink-0 shadow-sm"><i data-lucide="user" class="w-3.5 h-3.5 text-sky-400"></i></div>`;
 
                         itemDiv.innerHTML = `
@@ -9258,7 +9300,7 @@ document.addEventListener('fullscreenchange', (event) => {
                     const escapedArt = art.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                     const coverUrl = window.getRandomCoverForArtist(art);
                     let coverImg = coverUrl 
-                        ? `<img src="${coverUrl}" alt="${escapedArt}" class="w-6 h-6 rounded-md object-cover shrink-0 border border-slate-800 shadow-sm" referrerpolicy="no-referrer" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'w-6 h-6 rounded-md bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 shrink-0\\'><i data-lucide=\\'user\\' class=\\'w-3 h-3 text-sky-400\\'></i></div>';">`
+                        ? `<img src="${coverUrl}" alt="${escapedArt}" class="w-6 h-6 rounded-md object-cover shrink-0 border border-slate-800 shadow-sm" referrerpolicy="no-referrer" onerror="if(window.phplayerTryMediaImageFallback&&window.phplayerTryMediaImageFallback(this))return;this.onerror=null;this.parentElement.innerHTML='<div class=\\'w-6 h-6 rounded-md bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 shrink-0\\'><i data-lucide=\\'user\\' class=\\'w-3 h-3 text-sky-400\\'></i></div>';">`
                         : `<div class="w-6 h-6 rounded-md bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 shrink-0"><i data-lucide="user" class="w-3 h-3 text-sky-400"></i></div>`;
 
                     artistsHtml += `

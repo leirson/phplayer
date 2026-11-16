@@ -949,6 +949,270 @@ try {
         }
     }
 
+    if (!function_exists('phplayer_get_music_base_dirs')) {
+        function phplayer_get_music_base_dirs() {
+            static $cachedDirs = null;
+            if ($cachedDirs !== null) return $cachedDirs;
+            $dirs = [];
+            $addDir = function($d) use (&$dirs) {
+                $d = rtrim(str_replace('\\', '/', (string)$d), '/');
+                if ($d !== '' && @is_dir($d) && !in_array($d, $dirs, true)) {
+                    $dirs[] = $d;
+                }
+            };
+            if (defined('MUSIC_DIR')) {
+                $addDir(MUSIC_DIR);
+                $rpMusic = @realpath(MUSIC_DIR);
+                if ($rpMusic) $addDir($rpMusic);
+            }
+            $addDir(__DIR__ . '/music');
+            $rpLocal = @realpath(__DIR__ . '/music');
+            if ($rpLocal) $addDir($rpLocal);
+            if (!empty($_SERVER['SCRIPT_FILENAME'])) {
+                $scriptDir = rtrim(str_replace('\\', '/', dirname((string)$_SERVER['SCRIPT_FILENAME'])), '/');
+                if ($scriptDir !== '') {
+                    $addDir($scriptDir . '/music');
+                }
+            }
+            if (!empty($_SERVER['DOCUMENT_ROOT'])) {
+                $docRoot = rtrim(str_replace('\\', '/', (string)$_SERVER['DOCUMENT_ROOT']), '/');
+                if ($docRoot !== '') {
+                    $addDir($docRoot . '/music');
+                }
+            }
+            $cachedDirs = $dirs;
+            return $dirs;
+        }
+    }
+
+    if (!function_exists('phplayer_norm_segment')) {
+        function phplayer_norm_segment($str) {
+            $s = (string)$str;
+            if (class_exists('Normalizer')) {
+                $n = @Normalizer::normalize($s, Normalizer::FORM_C);
+                if (is_string($n) && $n !== '') $s = $n;
+            }
+            return phplayer_lower($s);
+        }
+    }
+
+    if (!function_exists('phplayer_find_case_insensitive_path')) {
+        function phplayer_find_case_insensitive_path($baseDir, $relPath, $wantFile = true) {
+            $baseDir = rtrim(str_replace('\\', '/', (string)$baseDir), '/');
+            $relPath = trim(str_replace('\\', '/', (string)$relPath), '/');
+            if ($baseDir === '' || !@is_dir($baseDir)) return '';
+            if ($relPath === '') return $wantFile ? '' : $baseDir;
+
+            $exact = $baseDir . '/' . $relPath;
+            if ($wantFile ? @is_file($exact) : @is_dir($exact)) {
+                return $exact;
+            }
+
+            $parts = array_values(array_filter(explode('/', $relPath), function($p) {
+                return $p !== '' && $p !== '.';
+            }));
+            if (empty($parts)) return '';
+
+            $curr = $baseDir;
+            $lastIdx = count($parts) - 1;
+            foreach ($parts as $idx => $seg) {
+                if ($seg === '..') return '';
+                $nextExact = $curr . '/' . $seg;
+                $isLast = ($idx === $lastIdx);
+                $okExact = ($isLast && $wantFile) ? @is_file($nextExact) : @is_dir($nextExact);
+                if ($okExact) {
+                    $curr = $nextExact;
+                    continue;
+                }
+                $entries = @scandir($curr);
+                if (!is_array($entries)) return '';
+                $targetNorm = phplayer_norm_segment($seg);
+                $matched = '';
+                foreach ($entries as $entry) {
+                    if ($entry === '.' || $entry === '..') continue;
+                    $candPath = $curr . '/' . $entry;
+                    $okType = ($isLast && $wantFile) ? @is_file($candPath) : @is_dir($candPath);
+                    if (!$okType) continue;
+                    if (phplayer_norm_segment($entry) === $targetNorm) {
+                        $matched = $candPath;
+                        break;
+                    }
+                }
+                if ($matched === '') return '';
+                $curr = $matched;
+            }
+            return $curr;
+        }
+    }
+
+    if (!function_exists('phplayer_resolve_local_media_disk_path')) {
+        function phplayer_resolve_local_media_disk_path($rawVal, $useCache = true) {
+            static $diskPathCache = [];
+            $raw = trim((string)$rawVal);
+            if ($raw === '') return '';
+            $lowerRaw = strtolower($raw);
+            if ($lowerRaw === 'no_photo' || $lowerRaw === 'no_cover' || strpos($lowerRaw, 'data:') === 0) {
+                return '';
+            }
+            if ($useCache && isset($diskPathCache[$raw])) {
+                return $diskPathCache[$raw];
+            }
+
+            // Se for link para ?route=media_image&path=..., extrair parâmetro path
+            if (stripos($raw, 'media_image') !== false && strpos($raw, 'path=') !== false) {
+                $qPos = strpos($raw, '?');
+                if ($qPos !== false) {
+                    parse_str(substr($raw, $qPos + 1), $qParams);
+                    if (!empty($qParams['path'])) {
+                        $raw = trim((string)$qParams['path']);
+                    }
+                }
+            }
+            if (preg_match('/^https?:\/\//i', $raw)) {
+                if ($useCache) $diskPathCache[$raw] = '';
+                return '';
+            }
+
+            $norm = ltrim(str_replace('\\', '/', $raw), '/');
+            if (strpos($norm, './') === 0) {
+                $norm = substr($norm, 2);
+            }
+
+            // Gerar candidatos decodificados (1x, 2x para double-encoding, entidades HTML e remoção de query string)
+            $candSet = [];
+            $pushCand = function($s) use (&$candSet) {
+                $s = ltrim(str_replace('\\', '/', trim((string)$s)), '/');
+                if (strpos($s, './') === 0) $s = substr($s, 2);
+                if ($s === '' || strpos($s, '..') !== false) return;
+                if (!in_array($s, $candSet, true)) $candSet[] = $s;
+                if (strpos($s, '?') !== false) {
+                    $wq = strstr($s, '?', true);
+                    if ($wq !== false && $wq !== '' && !in_array($wq, $candSet, true)) {
+                        $candSet[] = $wq;
+                    }
+                }
+            };
+
+            $dec1 = rawurldecode($norm);
+            $pushCand($dec1);
+            $pushCand($norm);
+            if (strpos($dec1, '%') !== false) {
+                $pushCand(rawurldecode($dec1));
+            }
+            if (strpos($dec1, '&') !== false) {
+                $pushCand(html_entity_decode($dec1, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+
+            // Montar raízes possíveis (incluindo __DIR__, SCRIPT_FILENAME, DOCUMENT_ROOT e constantes MUSIC_DIR/IMAGES_DIR/UPLOAD_DIR)
+            $rootDirs = [];
+            $addRoot = function($d) use (&$rootDirs) {
+                $d = rtrim(str_replace('\\', '/', (string)$d), '/');
+                if ($d !== '' && @is_dir($d) && !in_array($d, $rootDirs, true)) {
+                    $rootDirs[] = $d;
+                }
+            };
+            $addRoot(__DIR__);
+            if (!empty($_SERVER['SCRIPT_FILENAME'])) {
+                $addRoot(dirname((string)$_SERVER['SCRIPT_FILENAME']));
+            }
+            if (!empty($_SERVER['DOCUMENT_ROOT'])) {
+                $addRoot($_SERVER['DOCUMENT_ROOT']);
+            }
+            foreach (['MUSIC_DIR', 'IMAGES_DIR', 'UPLOAD_DIR'] as $constName) {
+                if (defined($constName)) {
+                    $cDir = rtrim(str_replace('\\', '/', (string)constant($constName)), '/');
+                    if ($cDir !== '') {
+                        $addRoot(dirname($cDir));
+                    }
+                }
+            }
+
+            $isReadableNonEmpty = function($full) {
+                if ($full === '' || !@is_file($full)) return false;
+                $sz = @filesize($full);
+                return ($sz === false || $sz > 0);
+            };
+
+            $resolved = '';
+
+            // 1. Verificação direta exata O(1) nas raízes conhecidas e nas constantes MUSIC_DIR/IMAGES_DIR/UPLOAD_DIR
+            foreach ($candSet as $cand) {
+                foreach ($rootDirs as $root) {
+                    $full = $root . '/' . $cand;
+                    if ($isReadableNonEmpty($full)) {
+                        $resolved = $full;
+                        break 2;
+                    }
+                }
+                if (stripos($cand, 'music/') === 0) {
+                    $sub = substr($cand, 6);
+                    foreach (phplayer_get_music_base_dirs() as $mDir) {
+                        $fullM = $mDir . '/' . $sub;
+                        if ($isReadableNonEmpty($fullM)) {
+                            $resolved = $fullM;
+                            break 2;
+                        }
+                    }
+                } elseif (stripos($cand, 'images/') === 0 && defined('IMAGES_DIR')) {
+                    $fullI = rtrim(str_replace('\\', '/', IMAGES_DIR), '/') . '/' . substr($cand, 7);
+                    if ($isReadableNonEmpty($fullI)) {
+                        $resolved = $fullI;
+                        break;
+                    }
+                } elseif (stripos($cand, 'uploads/') === 0 && defined('UPLOAD_DIR')) {
+                    $fullU = rtrim(str_replace('\\', '/', UPLOAD_DIR), '/') . '/' . substr($cand, 8);
+                    if ($isReadableNonEmpty($fullU)) {
+                        $resolved = $fullU;
+                        break;
+                    }
+                } else {
+                    // Caminho legado sem prefixo music/ ou images/
+                    foreach (phplayer_get_music_base_dirs() as $mDir) {
+                        $fullM = $mDir . '/' . $cand;
+                        if ($isReadableNonEmpty($fullM)) {
+                            $resolved = $fullM;
+                            break 2;
+                        }
+                    }
+                    if (defined('IMAGES_DIR')) {
+                        $fullI = rtrim(str_replace('\\', '/', IMAGES_DIR), '/') . '/' . $cand;
+                        if ($isReadableNonEmpty($fullI)) {
+                            $resolved = $fullI;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 2. Fallback case-insensitive + Unicode NFC/NFD segmento a segmento (útil em Linux/macOS/NAS)
+            if ($resolved === '') {
+                foreach ($candSet as $cand) {
+                    if (stripos($cand, 'music/') === 0) {
+                        $sub = substr($cand, 6);
+                        foreach (phplayer_get_music_base_dirs() as $mDir) {
+                            $ci = phplayer_find_case_insensitive_path($mDir, $sub, true);
+                            if ($ci !== '' && $isReadableNonEmpty($ci)) {
+                                $resolved = $ci;
+                                break 2;
+                            }
+                        }
+                    } else {
+                        foreach ($rootDirs as $root) {
+                            $ci = phplayer_find_case_insensitive_path($root, $cand, true);
+                            if ($ci !== '' && $isReadableNonEmpty($ci)) {
+                                $resolved = $ci;
+                                break 2;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if ($useCache) $diskPathCache[$raw] = $resolved;
+            return $resolved;
+        }
+    }
+
     if (!function_exists('phplayer_local_media_to_url')) {
         function phplayer_local_media_to_url($path) {
             $path = trim((string)$path);
@@ -996,8 +1260,33 @@ try {
             if ($useCache && isset($dirCoverCache[$dirRel])) {
                 return $dirCoverCache[$dirRel];
             }
+
             $absDir = __DIR__ . '/' . $dirRel;
             if (!@is_dir($absDir)) {
+                $absDir = '';
+                if (stripos($dirRel, 'music/') === 0) {
+                    $subRel = substr($dirRel, 6);
+                    foreach (phplayer_get_music_base_dirs() as $mBase) {
+                        $candDir = $mBase . '/' . $subRel;
+                        if (@is_dir($candDir)) {
+                            $absDir = $candDir;
+                            break;
+                        }
+                        $ciDir = phplayer_find_case_insensitive_path($mBase, $subRel, false);
+                        if ($ciDir !== '' && @is_dir($ciDir)) {
+                            $absDir = $ciDir;
+                            break;
+                        }
+                    }
+                } else {
+                    $ciRoot = phplayer_find_case_insensitive_path(__DIR__, $dirRel, false);
+                    if ($ciRoot !== '' && @is_dir($ciRoot)) {
+                        $absDir = $ciRoot;
+                    }
+                }
+            }
+
+            if ($absDir === '' || !@is_dir($absDir)) {
                 if ($useCache) $dirCoverCache[$dirRel] = '';
                 return '';
             }
@@ -1013,7 +1302,8 @@ try {
                 if ($entry === '.' || $entry === '..') continue;
                 if (preg_match('/^cover\.(jpe?g|png|webp|gif)$/i', $entry, $m)) {
                     $full = $absDir . '/' . $entry;
-                    if (@is_file($full) && (@filesize($full) ?: 0) > 200) {
+                    $sz = @filesize($full);
+                    if (@is_file($full) && ($sz === false || $sz > 0)) {
                         $w = $priority[strtolower($m[1])] ?? 90;
                         if ($w < $bestWeight) {
                             $bestWeight = $w;
@@ -4621,7 +4911,7 @@ try {
                 $rawSavedPhoto = trim((string)($customMeta['artist_photo'] ?? ''));
                 if ($rawSavedPhoto !== '' && $rawSavedPhoto !== 'no_photo' && $rawSavedPhoto !== 'no_cover') {
                     $decodedSaved = rawurldecode($rawSavedPhoto);
-                    if ((strpos($decodedSaved, 'images/') === 0 || strpos($decodedSaved, 'music/') === 0) && !file_exists(__DIR__ . '/' . ltrim($decodedSaved, '/'))) {
+                    if ((stripos($decodedSaved, 'images/') === 0 || stripos($decodedSaved, 'music/') === 0 || stripos($decodedSaved, 'uploads/') === 0) && phplayer_resolve_local_media_disk_path($rawSavedPhoto) === '') {
                         $artistPhoto = '';
                     } else {
                         $artistPhoto = $decodedSaved;
@@ -5515,11 +5805,8 @@ try {
                     $updMissing = $pdo->prepare("UPDATE artist_metadata SET artist_photo = '' WHERE artist = ?");
                     while ($rowChk = $stmtCheckLocal->fetch(PDO::FETCH_ASSOC)) {
                         $p = trim((string)($rowChk['artist_photo'] ?? ''));
-                        if ($p !== '' && strpos($p, 'http://') !== 0 && strpos($p, 'https://') !== 0) {
-                            $diskPath = __DIR__ . '/' . ltrim(rawurldecode($p), '/');
-                            if (!file_exists($diskPath) || filesize($diskPath) <= 200) {
-                                $updMissing->execute([$rowChk['artist']]);
-                            }
+                        if ($p !== '' && !preg_match('/^https?:\/\//i', $p) && phplayer_resolve_local_media_disk_path($p, false) === '') {
+                            $updMissing->execute([$rowChk['artist']]);
                         }
                     }
                 }
@@ -5783,9 +6070,8 @@ try {
         @set_time_limit(0);
 
         try {
-            $baseRoot = rtrim(str_replace('\\', '/', __DIR__), '/');
             $pathExistsCache = [];
-            $checkLocalImageExists = function($rawVal) use ($baseRoot, &$pathExistsCache) {
+            $checkLocalImageExists = function($rawVal) use (&$pathExistsCache) {
                 $raw = trim((string)$rawVal);
                 if ($raw === '') return true;
                 $lowerRaw = strtolower($raw);
@@ -5799,45 +6085,8 @@ try {
                     return $pathExistsCache[$raw];
                 }
 
-                $norm = ltrim(str_replace('\\', '/', $raw), '/');
-                if (strpos($norm, './') === 0) {
-                    $norm = substr($norm, 2);
-                }
-                $decoded = rawurldecode($norm);
-                $candidates = [$decoded];
-                if (strpos($decoded, '?') !== false) {
-                    $withoutQuery = strstr($decoded, '?', true);
-                    if ($withoutQuery !== false && $withoutQuery !== '') {
-                        $candidates[] = $withoutQuery;
-                    }
-                }
-                $hasKnownPrefix = (
-                    stripos($decoded, 'music/') === 0 ||
-                    stripos($decoded, 'images/') === 0 ||
-                    stripos($decoded, 'uploads/') === 0
-                );
-
-                $exists = false;
-                foreach ($candidates as $cand) {
-                    $cand = ltrim(str_replace('\\', '/', (string)$cand), '/');
-                    if ($cand === '' || strpos($cand, '..') !== false) continue;
-
-                    $full = $baseRoot . '/' . $cand;
-                    if (@is_file($full) && (@filesize($full) ?: 0) > 200) {
-                        $exists = true;
-                        break;
-                    }
-                    if (!$hasKnownPrefix) {
-                        foreach (['music/', 'images/'] as $pref) {
-                            $fullPref = $baseRoot . '/' . $pref . $cand;
-                            if (@is_file($fullPref) && (@filesize($fullPref) ?: 0) > 200) {
-                                $exists = true;
-                                break 2;
-                            }
-                        }
-                    }
-                }
-
+                $resolved = phplayer_resolve_local_media_disk_path($raw, true);
+                $exists = ($resolved !== '');
                 $pathExistsCache[$raw] = $exists;
                 return $exists;
             };
@@ -6287,7 +6536,7 @@ try {
             
             if ($coverUrl) {
                 // Filter out default deezer cover images if any
-                if (strpos($coverUrl, 'default_album') === false && strpos($coverUrl, 'images/cover') !== false) {
+                if (strpos($coverUrl, 'default_album') === false && strpos($coverUrl, 'images/cover') === false) {
                     $localCover = phplayer_download_and_save_image($coverUrl, 'cover', $art . '_' . $title, $albumDirRelSync);
                     if ($localCover !== '') {
                         $coverUrl = $localCover;
@@ -6816,6 +7065,82 @@ try {
             $start += $chunk;
         }
         fclose($fp);
+        exit;
+
+    case 'media_image':
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            @session_write_close();
+        }
+        $reqPath = trim((string)($_GET['path'] ?? ''));
+        if ($reqPath === '') {
+            http_response_code(400);
+            exit('Caminho inválido');
+        }
+        $resolvedImg = phplayer_resolve_local_media_disk_path($reqPath, false);
+        if ($resolvedImg === '' || !@is_file($resolvedImg)) {
+            http_response_code(404);
+            exit('Imagem não encontrada');
+        }
+        $realResolved = @realpath($resolvedImg) ?: str_replace('\\', '/', $resolvedImg);
+        $realResolvedNorm = str_replace('\\', '/', $realResolved);
+        $allowedImgDirs = [];
+        foreach (phplayer_get_music_base_dirs() as $mb) {
+            $allowedImgDirs[] = str_replace('\\', '/', @realpath($mb) ?: $mb);
+        }
+        foreach (['IMAGES_DIR', 'UPLOAD_DIR', 'PODCAST_DIR'] as $cName) {
+            if (defined($cName)) {
+                $cd = rtrim(str_replace('\\', '/', (string)constant($cName)), '/');
+                if ($cd !== '') $allowedImgDirs[] = str_replace('\\', '/', @realpath($cd) ?: $cd);
+            }
+        }
+        foreach (['music', 'images', 'uploads', 'podcast'] as $subFolder) {
+            $sd = __DIR__ . '/' . $subFolder;
+            if (@is_dir($sd)) $allowedImgDirs[] = str_replace('\\', '/', @realpath($sd) ?: $sd);
+        }
+        $isAllowedPath = false;
+        foreach ($allowedImgDirs as $allowBase) {
+            $allowBase = rtrim($allowBase, '/');
+            if ($allowBase !== '' && strpos($realResolvedNorm, $allowBase . '/') === 0) {
+                $isAllowedPath = true;
+                break;
+            }
+        }
+        if (!$isAllowedPath) {
+            http_response_code(403);
+            exit('Acesso negado');
+        }
+        $extImg = strtolower(pathinfo($resolvedImg, PATHINFO_EXTENSION));
+        $mimeMap = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'gif' => 'image/gif',
+            'svg' => 'image/svg+xml'
+        ];
+        if (!isset($mimeMap[$extImg])) {
+            http_response_code(403);
+            exit('Formato não suportado');
+        }
+        while (ob_get_level()) {
+            @ob_end_clean();
+        }
+        $mtime = @filemtime($resolvedImg) ?: time();
+        $size = @filesize($resolvedImg) ?: 0;
+        $etag = md5($resolvedImg . '|' . $mtime . '|' . $size);
+        header('Access-Control-Allow-Origin: *');
+        header('Cache-Control: public, max-age=86400');
+        header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $mtime) . ' GMT');
+        header('ETag: "' . $etag . '"');
+        if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim((string)$_SERVER['HTTP_IF_NONE_MATCH'], '"') === $etag) {
+            http_response_code(304);
+            exit;
+        }
+        header('Content-Type: ' . $mimeMap[$extImg]);
+        if ($size > 0) {
+            header('Content-Length: ' . $size);
+        }
+        @readfile($resolvedImg);
         exit;
 
     case 'download_track':

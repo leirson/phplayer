@@ -1,5 +1,11 @@
 <?php
 $changelog = <<<EOT
+v1.5.5
+- Correção da localização de imagens locais em pastas de artistas e álbuns (ex.: `music/Alanis%20Morissette/Alanis/cover.png` em `api.php`, `index.php` e `mobile.php`):
+  - Criado resolvedor unificado `phplayer_resolve_local_media_disk_path` (usado em `remove_missing_images`, `artist_covers_sync`, `artist_bio`, `phplayer_find_local_cover_in_dir` e `media_image`) com suporte a `MUSIC_DIR`/`IMAGES_DIR`/`UPLOAD_DIR` personalizados, symlinks (`SCRIPT_FILENAME`/`DOCUMENT_ROOT`), decodificação de URL simples e dupla, normalização Unicode NFC/NFD, busca case-insensitive segmento a segmento em sistemas Linux e validação sem rejeitar imagens menores de 200 bytes.
+  - Adicionada rota pública `api.php?route=media_image&path=...` com suporte a cache (`ETag`/`304`) e fallback automático nas imagens do `index.php` e `mobile.php` (`phplayerTryMediaImageFallback`) caso o acesso HTTP direto à pasta `/music/` falhe no servidor.
+  - Corrigida condição invertida na sincronização de capas de álbuns via Deezer (`deezer_sync` em `api.php`).
+
 v1.5.4
 - Adicionado botão **"Remover Imagens Inexistentes"** em **Configurações → Sincronização e Mídia** (`index.php` e nova rota `remove_missing_images` em `api.php`):
   - Verifica no servidor se as imagens de **artistas** (`artist_metadata.artist_photo`) e de **álbuns** (`songs*.cover_url`) registradas com caminho local (`music/`, `images/`, `uploads/`) realmente existem e são válidas no diretório.
